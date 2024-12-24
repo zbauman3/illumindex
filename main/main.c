@@ -1,0 +1,45 @@
+#include "esp_spi_flash.h"
+#include "esp_system.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include <stdio.h>
+
+static int __attribute__((noinline)) summ(int a, int b) {
+  int r = a + b;
+  return r;
+}
+
+/* calculation of 3 Fibonacci sequences: f0, f1 and f2
+ * f(n) = f(n-1) + f(n-2) -> f(n) : 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, ...*/
+static void fibonacci_calc_once(void) {
+
+  volatile int f0_nm2, f1_nm2, f2_nm2; // n-2
+  volatile int f0_nm1, f1_nm1, f2_nm1; // n-1
+  volatile int f0_n, f1_n, f2_n;       // n
+  // setting three starting state for each f sequence: n-2 points:
+  f0_nm2 = 0;
+  f1_nm2 = 1;
+  f2_nm2 = summ(1, 2);
+  ;
+  // setting three starting state for each f sequence: n-1 points:
+  f0_nm1 = 1;
+  f1_nm1 = 2;
+  f2_nm1 = 5;
+  //
+  f0_n = f0_nm1 + f0_nm2; // calculating f0_n
+  f0_nm2 = f0_nm1;        // n shift
+  f0_nm1 = f0_n;
+  f1_n = f1_nm1 + f1_nm2; // calculating f1_n
+  f1_nm2 = f1_nm1;        // n shift
+  f1_nm1 = f1_n;
+  f2_n = f2_nm1 + f2_nm2;
+  f2_nm2 = f2_nm1; // n shift// calculating f2_n
+  f2_nm1 = f2_n;
+}
+
+void app_main(void) {
+  printf("Hello, Tester!\n");
+  printf("Simple calculating...");
+  fibonacci_calc_once();
+  printf("Ok. \nLet's calculate an infinite sequence!\n");
+}
