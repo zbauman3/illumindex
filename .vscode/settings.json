@@ -19,6 +19,10 @@
     "nvs_flash.h": "c",
     "esp_netif.h": "c",
     "err.h": "c",
-    "sys.h": "c"
+    "sys.h": "c",
+    "connect.h": "c",
+    "esp_crt_bundle.h": "c",
+    "esp_http_client.h": "c",
+    "esp_system.h": "c"
   }
 }

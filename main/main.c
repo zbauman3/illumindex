@@ -13,6 +13,7 @@
 #include "esp_netif.h"
 #include "esp_tls.h"
 #include "nvs_flash.h"
+#include "sdkconfig.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,7 +25,7 @@
 
 #include "esp_http_client.h"
 
-#include "wifi.c"
+#include "wifi/connect.h"
 
 #define MAX_HTTP_RECV_BUFFER 512
 #define MAX_HTTP_OUTPUT_BUFFER 2048
