@@ -77,7 +77,11 @@ void wifi_init_sta(void) {
               .password = CONFIG_WIFI_PWD,
               .scan_method = WIFI_ALL_CHANNEL_SCAN,
               .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
-              .threshold.authmode = WIFI_AUTH_WPA2_PSK,
+              .threshold =
+                  {
+                      .rssi = -127,
+                      .authmode = WIFI_AUTH_WPA2_PSK,
+                  },
           },
   };
   ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));

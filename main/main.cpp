@@ -37,23 +37,28 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
   static int output_len;      // Stores number of bytes read
 
   switch (evt->event_id) {
-  case HTTP_EVENT_ERROR:
+  case HTTP_EVENT_ERROR: {
     ESP_LOGD(TAG, "HTTP_EVENT_ERROR");
     break;
-  case HTTP_EVENT_ON_CONNECTED:
+  }
+  case HTTP_EVENT_ON_CONNECTED: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_CONNECTED");
     break;
-  case HTTP_EVENT_HEADER_SENT:
+  }
+  case HTTP_EVENT_HEADER_SENT: {
     ESP_LOGD(TAG, "HTTP_EVENT_HEADER_SENT");
     break;
-  case HTTP_EVENT_ON_HEADER:
+  }
+  case HTTP_EVENT_ON_HEADER: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_HEADER, key=%s, value=%s", evt->header_key,
              evt->header_value);
     break;
-  case HTTP_EVENT_REDIRECT:
+  }
+  case HTTP_EVENT_REDIRECT: {
     ESP_LOGD(TAG, "HTTP_EVENT_REDIRECT");
     break;
-  case HTTP_EVENT_ON_DATA:
+  }
+  case HTTP_EVENT_ON_DATA: {
     ESP_LOGI(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
     // Clean the buffer in case of a new request
     // if (output_len == 0 && evt->user_data) {
@@ -117,7 +122,8 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     // }
 
     break;
-  case HTTP_EVENT_ON_FINISH:
+  }
+  case HTTP_EVENT_ON_FINISH: {
     ESP_LOGI(TAG, "HTTP_EVENT_ON_FINISH");
     if (output_buffer != NULL) {
       // Response is accumulated in output_buffer. Uncomment the below line to
@@ -128,7 +134,8 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     }
     output_len = 0;
     break;
-  case HTTP_EVENT_DISCONNECTED:
+  }
+  case HTTP_EVENT_DISCONNECTED: {
     ESP_LOGI(TAG, "HTTP_EVENT_DISCONNECTED");
     int mbedtls_err = 0;
     esp_err_t err = esp_tls_get_and_clear_last_error(
@@ -144,15 +151,16 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     output_len = 0;
     break;
   }
+  }
   return ESP_OK;
 }
 
 static void https_with_url(void) {
   esp_http_client_config_t config = {
       .url = "https://api-tests-ten.vercel.app/esp/red",
+      .timeout_ms = 5000,
       .event_handler = _http_event_handler,
       .crt_bundle_attach = esp_crt_bundle_attach,
-      .timeout_ms = 5000,
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
   esp_err_t err = esp_http_client_perform(client);
@@ -173,7 +181,7 @@ static void http_test_task(void *pvParameters) {
   vTaskDelete(NULL);
 }
 
-void app_main(void) {
+extern "C" void app_main(void) {
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
       ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
