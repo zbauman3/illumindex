@@ -121,7 +121,7 @@ esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
     if (output_buffer != NULL) {
       // Response is accumulated in output_buffer. Uncomment the below line to
       // print the accumulated response
-      ESP_LOG_BUFFER_CHAR(TAG, output_buffer, output_len);
+      ESP_LOGI(TAG, "%s", output_buffer);
       free(output_buffer);
       output_buffer = NULL;
     }
