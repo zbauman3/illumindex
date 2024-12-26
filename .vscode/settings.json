@@ -17,6 +17,8 @@
     "ctype.h": "c",
     "esp_event.h": "c",
     "nvs_flash.h": "c",
-    "esp_netif.h": "c"
+    "esp_netif.h": "c",
+    "err.h": "c",
+    "sys.h": "c"
   }
 }
