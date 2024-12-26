@@ -7,5 +7,16 @@
   ],
   "idf.port": "/dev/tty.usbserial-575E0764921",
   "idf.toolsPath": "/Users/zanebauman/.espressif",
-  "idf.flashType": "UART"
+  "idf.flashType": "UART",
+  "files.associations": {
+    "*.ino": "cpp",
+    "esp_wifi.h": "c",
+    "sdkconfig.h": "c",
+    "esp_tls.h": "c",
+    "stdlib.h": "c",
+    "ctype.h": "c",
+    "esp_event.h": "c",
+    "nvs_flash.h": "c",
+    "esp_netif.h": "c"
+  }
 }
