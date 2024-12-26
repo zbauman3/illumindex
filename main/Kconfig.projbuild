@@ -1,0 +1,6 @@
+menu "Wifi Config"
+    config WIFI_SSID
+        string "The name of the WiFi network."
+    config WIFI_PWD
+        string "The password of the WiFi network."
+endmenu

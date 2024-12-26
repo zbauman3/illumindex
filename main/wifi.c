@@ -213,8 +213,8 @@ esp_err_t example_wifi_connect(void) {
   wifi_config_t wifi_config = {
       .sta =
           {
-              .ssid = "",
-              .password = "",
+              .ssid = CONFIG_WIFI_SSID,
+              .password = CONFIG_WIFI_PWD,
               .scan_method = WIFI_ALL_CHANNEL_SCAN,
               .sort_method = WIFI_CONNECT_AP_BY_SIGNAL,
               .threshold.rssi = -127,
