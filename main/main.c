@@ -190,10 +190,13 @@ void app_main(void) {
   }
   ESP_ERROR_CHECK(ret);
 
-  ESP_ERROR_CHECK(esp_netif_init());
   ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-  wifi_init_sta();
+  ret = wifi_init_sta();
+  if (ret != ESP_OK) {
+    return;
+  }
+
   ESP_LOGI(TAG, "Connected to AP, begin http example");
 
   xTaskCreate(&http_test_task, "http_test_task", 8192, NULL, 5, NULL);

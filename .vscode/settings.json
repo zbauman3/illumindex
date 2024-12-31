@@ -23,6 +23,9 @@
     "connect.h": "c",
     "esp_crt_bundle.h": "c",
     "esp_http_client.h": "c",
-    "esp_system.h": "c"
-  }
+    "esp_system.h": "c",
+    "esp_mac.h": "c",
+    "esp_log.h": "c"
+  },
+  "editor.multiCursorPaste": "full"
 }
