@@ -33,7 +33,16 @@
     "esp_err.h": "c",
     "task.h": "c",
     "queue.h": "c",
-    "semphr.h": "c"
+    "semphr.h": "c",
+    "events.h": "c",
+    "event_groups.h": "c",
+    "wifi.h": "c",
+    "request.h": "c",
+    "portable.h": "c",
+    "portmacro.h": "c",
+    "thread": "c",
+    "param.h": "c",
+    "random": "c"
   },
   "editor.multiCursorPaste": "full"
 }
