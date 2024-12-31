@@ -9,7 +9,7 @@
 
 #define MAX_HTTP_RECV_BUFFER 512
 #define MAX_HTTP_OUTPUT_BUFFER 2048
-static const char *TAG = "HTTP_CLIENT";
+static const char *TAG = "NETWORK_REQUEST";
 
 static esp_err_t _http_event_handler(esp_http_client_event_t *evt) {
   static char *output_buffer; // Buffer to store response of http request from

@@ -8,7 +8,7 @@
 
 #define WIFI_MAXIMUM_RETRY 3
 
-static const char *TAG = "WIFI_STATION";
+static const char *TAG = "NETWORK_WIFI";
 static uint8_t connect_retry_num = 0;
 
 static void event_handler(void *arg, esp_event_base_t event_base,
@@ -158,7 +158,7 @@ esp_err_t wifi_init(void) {
       pdFALSE, portMAX_DELAY);
 
   if (bits & WIFI_EVENT_CONNECTED_BIT) {
-    ESP_LOGI(TAG, "Connected to \"%s\"", CONFIG_WIFI_SSID);
+    ESP_LOGD(TAG, "Connected to \"%s\"", CONFIG_WIFI_SSID);
     return ESP_OK;
   }
 
