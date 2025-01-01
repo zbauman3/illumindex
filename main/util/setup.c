@@ -7,7 +7,8 @@
 
 esp_err_t app_init(void) {
   esp_err_t init_ret = nvs_flash_init();
-  if (init_ret != ESP_OK) {
+  if (init_ret == ESP_ERR_NVS_NO_FREE_PAGES ||
+      init_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_BUBBLE(nvs_flash_erase());
     ESP_ERROR_BUBBLE(nvs_flash_init());
   }
