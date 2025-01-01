@@ -3,24 +3,16 @@
 #include "nvs_flash.h"
 
 #include "network/wifi.h"
+#include "util/error_helpers.h"
 
 esp_err_t app_init(void) {
-  esp_err_t init_ret;
-
-  init_ret = nvs_flash_init();
+  esp_err_t init_ret = nvs_flash_init();
   if (init_ret != ESP_OK) {
-    ESP_ERROR_CHECK(nvs_flash_erase());
-
-    init_ret = nvs_flash_init();
-    if (init_ret != ESP_OK) {
-      return init_ret;
-    }
+    ESP_ERROR_BUBBLE(nvs_flash_erase());
+    ESP_ERROR_BUBBLE(nvs_flash_init());
   }
 
-  init_ret = esp_event_loop_create_default();
-  if (init_ret != ESP_OK) {
-    return init_ret;
-  }
+  ESP_ERROR_BUBBLE(esp_event_loop_create_default());
 
   return wifi_init();
 }

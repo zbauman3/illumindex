@@ -50,7 +50,7 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
     int mbedtlsErr = 0;
     esp_err_t err = esp_tls_get_and_clear_last_error(
         (esp_tls_error_handle_t)evt->data, &mbedtlsErr, NULL);
-    if (err != 0) {
+    if (err != ESP_OK) {
       ESP_LOGW(TAG, "HTTP_EVENT_DISCONNECTED - err: 0x%x - mbedtls: 0x%x", err,
                mbedtlsErr);
     }

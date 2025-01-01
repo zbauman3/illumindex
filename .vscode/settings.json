@@ -52,7 +52,8 @@
     "internet": "c",
     "socket": "c",
     "string_view": "c",
-    "span": "c"
+    "span": "c",
+    "error_helpers.h": "c"
   },
   "editor.multiCursorPaste": "full"
 }

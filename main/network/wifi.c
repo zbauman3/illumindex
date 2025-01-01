@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "network/events.h"
+#include "util/error_helpers.h"
 
 #define WIFI_MAXIMUM_RETRY 3
 
@@ -71,7 +72,7 @@ static void event_handler(void *arg, esp_event_base_t event_base,
       break;
     }
     default: {
-      ESP_LOGD(TAG, "EVENT - %d", event_id);
+      ESP_LOGD(TAG, "EVENT - %ld", event_id);
       break;
     }
     }
@@ -87,24 +88,24 @@ esp_err_t wifi_init(void) {
 
   wifi_event_group = xEventGroupCreate();
 
-  ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-                                             &event_handler, NULL));
-  ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID,
-                                             &event_handler, NULL));
+  ESP_ERROR_BUBBLE(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                              &event_handler, NULL));
+  ESP_ERROR_BUBBLE(esp_event_handler_register(IP_EVENT, ESP_EVENT_ANY_ID,
+                                              &event_handler, NULL));
 
-  ESP_ERROR_CHECK(esp_netif_init());
+  ESP_ERROR_BUBBLE(esp_netif_init());
 
   esp_netif_create_default_wifi_sta();
 
   wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-  ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+  ESP_ERROR_BUBBLE(esp_wifi_init(&cfg));
 
   // get the current mode from NVS. If not correct, set it
   wifi_mode_t wifi_nvs_mode;
   esp_err_t get_mode_ret = esp_wifi_get_mode(&wifi_nvs_mode);
   if (get_mode_ret != ESP_OK || wifi_nvs_mode != WIFI_MODE_STA) {
     ESP_LOGW(TAG, "WiFi NVS \"mode\" not correct - setting");
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+    ESP_ERROR_BUBBLE(esp_wifi_set_mode(WIFI_MODE_STA));
   }
 
   // get the current config from NVS. If not correct, set it
@@ -129,10 +130,10 @@ esp_err_t wifi_init(void) {
             },
     };
 
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_new));
+    ESP_ERROR_BUBBLE(esp_wifi_set_config(WIFI_IF_STA, &wifi_config_new));
   }
 
-  ESP_ERROR_CHECK(esp_wifi_start());
+  ESP_ERROR_BUBBLE(esp_wifi_start());
 
   // Waiting until either the connection is established (WIFI_CONNECTED_BIT) or
   // connection failed for the maximum number of re-tries (WIFI_FAIL_BIT).
