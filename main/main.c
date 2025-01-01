@@ -20,5 +20,12 @@ void app_main(void) {
     return;
   }
 
-  fetch();
+  request_ctx_t ctx =
+      requestCtxCreate("https://api-tests-ten.vercel.app/esp/green");
+
+  getRequest(&ctx);
+
+  ESP_LOGI(TAG, "GOT DATA: \"%s\"", ctx.data);
+
+  requestCtxCleanup(ctx);
 }

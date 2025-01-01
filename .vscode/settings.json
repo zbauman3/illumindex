@@ -42,7 +42,17 @@
     "portmacro.h": "c",
     "thread": "c",
     "param.h": "c",
-    "random": "c"
+    "random": "c",
+    "freertosconfig.h": "c",
+    "projdefs.h": "c",
+    "freertosconfig_arch.h": "c",
+    "array": "c",
+    "string": "c",
+    "buffer": "c",
+    "internet": "c",
+    "socket": "c",
+    "string_view": "c",
+    "span": "c"
   },
   "editor.multiCursorPaste": "full"
 }
