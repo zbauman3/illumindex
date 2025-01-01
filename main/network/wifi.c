@@ -46,21 +46,9 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
   if (event_base == WIFI_EVENT) {
     switch (event_id) {
-    case WIFI_EVENT_WIFI_READY: {
-      ESP_LOGD(TAG, "EVENT - WIFI_EVENT_WIFI_READY");
-      break;
-    }
-    case WIFI_EVENT_SCAN_DONE: {
-      ESP_LOGD(TAG, "EVENT - WIFI_EVENT_SCAN_DONE");
-      break;
-    }
     case WIFI_EVENT_STA_START: {
       ESP_LOGD(TAG, "EVENT - WIFI_EVENT_STA_START");
       esp_wifi_connect();
-      break;
-    }
-    case WIFI_EVENT_STA_STOP: {
-      ESP_LOGD(TAG, "EVENT - WIFI_EVENT_STA_STOP");
       break;
     }
     case WIFI_EVENT_STA_CONNECTED: {
@@ -82,13 +70,8 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 
       break;
     }
-    case WIFI_EVENT_STA_BEACON_TIMEOUT: {
-      ESP_LOGD(TAG, "EVENT - WIFI_EVENT_STA_BEACON_TIMEOUT");
-      break;
-    }
-    case WIFI_EVENT_CONNECTIONLESS_MODULE_WAKE_INTERVAL_START: {
-      ESP_LOGD(TAG,
-               "EVENT - WIFI_EVENT_CONNECTIONLESS_MODULE_WAKE_INTERVAL_START");
+    default: {
+      ESP_LOGD(TAG, "EVENT - %d", event_id);
       break;
     }
     }

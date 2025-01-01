@@ -13,7 +13,6 @@
 
 typedef struct {
   char *url;
-  esp_http_client_method_t method;
   size_t length;
   char *data;
 } request_ctx_t;
