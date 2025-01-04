@@ -3,9 +3,9 @@
   "idf.espIdfPath": "/Users/zanebauman/esp/v5.3.1/esp-idf",
   "idf.openOcdConfigs": [
     "interface/ftdi/esp32_devkitj_v1.cfg",
-    "target/esp32.cfg"
+    "target/esp32s2.cfg"
   ],
-  "idf.port": "/dev/tty.usbserial-575E0764921",
+  "idf.port": "/dev/tty.usbmodem101",
   "idf.toolsPath": "/Users/zanebauman/.espressif",
   "idf.flashType": "UART",
   "files.associations": {
@@ -53,7 +53,9 @@
     "socket": "c",
     "string_view": "c",
     "span": "c",
-    "error_helpers.h": "c"
+    "error_helpers.h": "c",
+    "chrono": "c",
+    "typeinfo": "c"
   },
   "editor.multiCursorPaste": "full"
 }

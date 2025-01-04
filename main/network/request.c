@@ -43,6 +43,11 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   }
   case HTTP_EVENT_ON_FINISH: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+
+    // Now that we're done, update the length to represent the data's size
+    request_ctx_t *ctx = evt->user_data;
+    ctx->length = outputLen;
+
     outputLen = 0;
     break;
   }

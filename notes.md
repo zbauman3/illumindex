@@ -1,0 +1,5 @@
+- ESP32 S2 doesn't have a serial to USB converter...? I used this to get the USB console working over CDC
+  - https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32s2/api-guides/usb-console.html
+  - `CONFIG_ESP_CONSOLE_*`
+  - `CONFIG_USB_ENABLED`
+  - `CONFIG_USB_CDC_ENABLED`
