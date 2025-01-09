@@ -55,7 +55,26 @@
     "span": "c",
     "error_helpers.h": "c",
     "chrono": "c",
-    "typeinfo": "c"
+    "typeinfo": "c",
+    "setup.h": "c",
+    "gpio.h": "c",
+    "driver.h": "c",
+    "cstdlib": "c",
+    "spi_master.h": "c",
+    "*.tcc": "c",
+    "charconv": "c",
+    "optional": "c",
+    "format": "c",
+    "ratio": "c",
+    "system_error": "c",
+    "functional": "c",
+    "regex": "c",
+    "tuple": "c",
+    "type_traits": "c",
+    "utility": "c",
+    "565_color.h": "c",
+    "matrix.h": "c",
+    "helpers.h": "c"
   },
   "editor.multiCursorPaste": "full"
 }

@@ -13,7 +13,8 @@ esp_err_t app_init(void) {
     ESP_ERROR_BUBBLE(nvs_flash_init());
   }
 
-  ESP_ERROR_BUBBLE(esp_event_loop_create_default());
+  // ESP_ERROR_BUBBLE(esp_event_loop_create_default());
 
-  return wifi_init();
+  // return wifi_init();
+  return esp_event_loop_create_default();
 }
