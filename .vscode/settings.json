@@ -74,7 +74,20 @@
     "utility": "c",
     "565_color.h": "c",
     "matrix.h": "c",
-    "helpers.h": "c"
+    "helpers.h": "c",
+    "esp_rom_gpio.h": "c",
+    "gpio_pins.h": "c",
+    "gpio_periph.h": "c",
+    "io_mux_reg.h": "c",
+    "soc_caps.h": "c",
+    "gpio_sig_map.h": "c",
+    "gpio_reg.h": "c",
+    "soc.h": "c",
+    "cpu_hal.h": "c",
+    "esp_timer.h": "c",
+    "cstdint": "cpp",
+    "time.h": "c",
+    "stdint.h": "c"
   },
   "editor.multiCursorPaste": "full"
 }

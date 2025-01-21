@@ -58,11 +58,19 @@
 #define SHIFT_565_BLUE_HIGH_BIT_3 >> 0
 #define SHIFT_565_BLUE_HIGH_BIT_4 >> 1
 
+// bits within a matrix byte
+#define BV_MATRIX_RED_1 0b00100000
+#define BV_MATRIX_GREEN_1 0b00010000
+#define BV_MATRIX_BLUE_1 0b00001000
+#define BV_MATRIX_RED_2 0b00000100
+#define BV_MATRIX_GREEN_2 0b00000010
+#define BV_MATRIX_BLUE_2 0b00000001
+
 // This takes 2 `uint16_t` values representing two 565 colors (top row and
 // bottom row) and a `uint8_t` representing which bit to grab from each color.
 // It then generates a `uint8_t` for use on an 8-bit SPI bus. The value is
 // packed into the byte in the following order: `0,0,R1,G1,B1,R2,G2,B2`.
-#define GET_565_SPI_BYTE(one, two, bit)                                        \
+#define GET_565_MATRIX_BYTE(one, two, bit)                                     \
   (((uint8_t)((one & BV_565_RED_##bit) SHIFT_565_RED_HIGH_BIT_##bit)) |        \
    ((uint8_t)((one & BV_565_GREEN_##bit) SHIFT_565_GREEN_HIGH_BIT_##bit)) |    \
    ((uint8_t)((one & BV_565_BLUE_##bit) SHIFT_565_BLUE_HIGH_BIT_##bit)) |      \
@@ -75,27 +83,27 @@
 // each color. It then generates a `uint8_t` for use on an 8-bit SPI bus. The
 // value is packed into a byte and assigned to the variable in the following
 // order : `0,0,R1,G1,B1,R2,G2,B2`.
-#define SET_565_SPI_BYTE(varName, topColor, bottomColor, bit)                  \
+#define SET_565_MATRIX_BYTE(varName, topColor, bottomColor, bit)               \
   switch (bit) {                                                               \
   case 4: {                                                                    \
-    varName = GET_565_SPI_BYTE(topColor, bottomColor, 4);                      \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 4);                   \
     break;                                                                     \
   }                                                                            \
   case 3: {                                                                    \
-    varName = GET_565_SPI_BYTE(topColor, bottomColor, 3);                      \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 3);                   \
     break;                                                                     \
   }                                                                            \
   case 2: {                                                                    \
-    varName = GET_565_SPI_BYTE(topColor, bottomColor, 2);                      \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 2);                   \
     break;                                                                     \
   }                                                                            \
   case 1: {                                                                    \
-    varName = GET_565_SPI_BYTE(topColor, bottomColor, 1);                      \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 1);                   \
     break;                                                                     \
   }                                                                            \
   case 0:                                                                      \
   default: {                                                                   \
-    varName = GET_565_SPI_BYTE(topColor, bottomColor, 0);                      \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 0);                   \
     break;                                                                     \
   }                                                                            \
   }

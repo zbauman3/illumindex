@@ -1,84 +1,151 @@
 #include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "freertos/task.h"
 
+#include "driver/dedic_gpio.h"
 #include "driver/gpio.h"
-#include "driver/spi_master.h"
 #include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "esp_timer.h"
 #include <string.h>
 
 #include "drivers/matrix.h"
 #include "util/565_color.h"
 #include "util/helpers.h"
-
-// bus master, and 8-bit mode
-#define SPI_BUS_FLAGS (SPICOMMON_BUSFLAG_MASTER | SPICOMMON_BUSFLAG_OCTAL)
-// half-duplex is required for 8-bit mode
-#define SPI_DEVICE_FLAGS (SPI_DEVICE_HALFDUPLEX)
-// 8-bit mode, and 8-bit command/address. CMD/ADDR isn't required, but it makes
-// those happen in the same fashion as a data transfer
-#define SPI_TRANS_FLAGS                                                        \
-  (SPI_TRANS_MODE_OCT | SPI_TRANS_MULTILINE_CMD | SPI_TRANS_MULTILINE_ADDR)
+#include "util/time.h"
 
 static const char *TAG = "MATRIX_DRIVER";
-static spi_device_handle_t spi;
+static dedic_gpio_bundle_handle_t gpioColorBundle = NULL;
+static TaskHandle_t matrixTransmitTaskHandle = NULL;
+static TaskHandle_t matrixProcessTaskHandle = NULL;
+// The queue will just hold the number of each row in `prsdFrameBuffer` that is
+// ready to be processed. So the consumer of the queue will use `queueVal * 64`
+// to get the offset that is ready to be sent
+static QueueHandle_t prsdFrameQueueHandle = NULL;
+static uint8_t prsdFrameBuffer[64 * 16];
+
+static SemaphoreHandle_t frameMutexHandle = NULL;
+static uint16_t frameBuffer[64 * 32];
+
+void matrixTransmit() {
+  uint8_t row;
+  uint16_t prsdFrameBufferOffset;
+  BaseType_t queueResult;
+
+  while (true) {
+    queueResult =
+        xQueueReceive(prsdFrameQueueHandle, (void *)&row, portMAX_DELAY);
+
+    if (queueResult != pdTRUE) {
+      ESP_LOGE(TAG,
+               "Unable to receive queue value from \"prsdFrameQueueHandle\"");
+    }
+
+    prsdFrameBufferOffset = row * 64;
+
+    for (uint8_t column = 0; column < 64; column++) {
+      dedic_gpio_bundle_write(gpioColorBundle, 0b01111111,
+                              prsdFrameBuffer[prsdFrameBufferOffset + column] |
+                                  0b00000000);
+      dedic_gpio_bundle_write(gpioColorBundle, 0b01111111,
+                              prsdFrameBuffer[prsdFrameBufferOffset + column] |
+                                  0b01000000);
+    }
+
+    gpio_set_level(MATRIX_OE, 1);
+
+    gpio_set_level(MATRIX_ADDR_A, row & 0b0001);
+    gpio_set_level(MATRIX_ADDR_B, row & 0b0010);
+    gpio_set_level(MATRIX_ADDR_C, row & 0b0100);
+    gpio_set_level(MATRIX_ADDR_D, row & 0b1000);
+
+    // latch
+    dedic_gpio_bundle_write(gpioColorBundle, 0b10000000, 0b00000000);
+    dedic_gpio_bundle_write(gpioColorBundle, 0b10000000, 0b10000000);
+
+    gpio_set_level(MATRIX_OE, 0);
+
+    delayMicrosecondsYield(5000);
+  }
+};
+
+void matrixProcess() {
+  while (true) {
+    xSemaphoreTake(frameMutexHandle, portMAX_DELAY);
+
+    for (uint8_t row = 0; row < 16; row++) {
+      for (uint8_t column = 0; column < 64; column++) {
+        SET_565_MATRIX_BYTE(prsdFrameBuffer[row + column],
+                            frameBuffer[row + column],
+                            frameBuffer[1024 + row + column], 0);
+      }
+
+      xQueueSendToBack(prsdFrameQueueHandle, (void *)&row, portMAX_DELAY);
+      taskYIELD();
+    }
+
+    xSemaphoreGive(frameMutexHandle);
+    taskYIELD();
+  }
+};
 
 esp_err_t matrix_init() {
-  esp_err_t ret;
-
   gpio_config_t io_conf = {
-      .pin_bit_mask = _BV_1ULL(MATRIX_LATCH) | _BV_1ULL(MATRIX_OE) |
-                      _BV_1ULL(MATRIX_ADDR_A) | _BV_1ULL(MATRIX_ADDR_B) |
-                      _BV_1ULL(MATRIX_ADDR_C) | _BV_1ULL(MATRIX_ADDR_D),
+      .pin_bit_mask = _BV_1ULL(MATRIX_OE) | _BV_1ULL(MATRIX_ADDR_A) |
+                      _BV_1ULL(MATRIX_ADDR_B) | _BV_1ULL(MATRIX_ADDR_C) |
+                      _BV_1ULL(MATRIX_ADDR_D),
       .intr_type = GPIO_INTR_DISABLE,
       .mode = GPIO_MODE_OUTPUT,
       .pull_down_en = 0,
       .pull_up_en = 0,
   };
 
-  ret = gpio_config(&io_conf);
-  ESP_RETURN_ON_FALSE(ret == ESP_OK, ret, TAG,
-                      "Error initializing the SPI GPIO");
-
-  // the bits for blue/green are swapped due to the hardware
-  spi_bus_config_t buscfg = {
-      .flags = SPI_BUS_FLAGS,
-      .max_transfer_sz = 64,
-      .sclk_io_num = MATRIX_CLOCK,
-      .data0_io_num = MATRIX_GREEN_2,
-      .data1_io_num = MATRIX_BLUE_2,
-      .data2_io_num = MATRIX_RED_2,
-      .data3_io_num = MATRIX_GREEN_1,
-      .data4_io_num = MATRIX_BLUE_1,
-      .data5_io_num = MATRIX_RED_1,
-      .data6_io_num = MATRIX_UNUSED_1,
-      .data7_io_num = MATRIX_UNUSED_2,
-      .intr_flags = ESP_INTR_FLAG_IRAM,
+  const int bundle_color_pins[8] = {
+      MATRIX_BLUE_1,  MATRIX_GREEN_1, MATRIX_RED_1, MATRIX_BLUE_2,
+      MATRIX_GREEN_2, MATRIX_RED_2,   MATRIX_CLOCK, MATRIX_LATCH,
   };
 
-  spi_device_interface_config_t devcfg = {
-      .flags = SPI_DEVICE_FLAGS,
-      .clock_speed_hz = 30 * 1000 * 1000, // 30 MHz is max for `ICN2037`
-      .mode = 1,                          //
-      .spics_io_num = -1,                 // not using CS
-      .queue_size = 1,
+  dedic_gpio_bundle_config_t gpio_bundle_color_config = {
+      .gpio_array = bundle_color_pins,
+      .array_size = sizeof(bundle_color_pins) / sizeof(bundle_color_pins[0]),
+      .flags = {.out_en = 1},
   };
 
-  ret = spi_bus_initialize(SPI2_HOST, &buscfg, SPI_DMA_CH_AUTO);
-  ESP_RETURN_ON_FALSE(ret == ESP_OK, ret, TAG,
-                      "Error initializing the SPI bus");
+  BaseType_t createRes;
 
-  ret = spi_bus_add_device(SPI2_HOST, &devcfg, &spi);
-  ESP_RETURN_ON_FALSE(ret == ESP_OK, ret, TAG,
-                      "Error initializing the SPI device");
+  ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "Unable to init matrix GPIO");
+
+  ESP_RETURN_ON_ERROR(
+      dedic_gpio_new_bundle(&gpio_bundle_color_config, &gpioColorBundle), TAG,
+      "Unable to init matrix dedicated GPIO bundle");
+
+  prsdFrameQueueHandle = xQueueCreate(16, 1);
+
+  ESP_RETURN_ON_FALSE(prsdFrameQueueHandle != NULL, ESP_ERR_NO_MEM, TAG,
+                      "Unable to create the \"prsdFrameQueueHandle\" queue.");
+
+  frameMutexHandle = xSemaphoreCreateMutex();
+
+  ESP_RETURN_ON_FALSE(frameMutexHandle != NULL, ESP_ERR_NO_MEM, TAG,
+                      "Unable to create the \"frameMutexHandle\" mutex.");
+
+  createRes = xTaskCreate(matrixTransmit, "matrixTransmit", (1024 * 4), NULL,
+                          MATRIX_TASK_PRIORITY, &matrixTransmitTaskHandle);
+
+  ESP_RETURN_ON_FALSE(createRes == pdPASS, ESP_ERR_NO_MEM, TAG,
+                      "Unable to create the \"matrixTransmit\" task.");
+
+  createRes = xTaskCreate(matrixProcess, "matrixProcess", (1024 * 4), NULL,
+                          MATRIX_TASK_PRIORITY, &matrixProcessTaskHandle);
+
+  ESP_RETURN_ON_FALSE(createRes == pdPASS, ESP_ERR_NO_MEM, TAG,
+                      "Unable to create the \"matrixProcess\" task.");
 
   return ESP_OK;
 };
 
 void displayTest() {
-  ESP_LOGI(TAG, "Sending data");
-
   uint16_t topRow[64] = {
       BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
       BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
@@ -125,42 +192,52 @@ void displayTest() {
 
   uint8_t *buff = heap_caps_malloc(sizeof(uint8_t) * 64, MALLOC_CAP_DMA);
   for (uint8_t i = 0; i < 64; i++) {
-    SET_565_SPI_BYTE(buff[i], topRow[i], bottomRow[i], 0);
+    SET_565_MATRIX_BYTE(buff[i], topRow[i], bottomRow[i], 0);
   }
 
-  spi_transaction_t *inTrans;
-  spi_transaction_t outTrans;
-  memset(&outTrans, 0, sizeof(outTrans));
-  outTrans.flags = SPI_TRANS_FLAGS;
-  outTrans.length = 64 * 8;
-  outTrans.rx_buffer = NULL;
-  outTrans.tx_buffer = buff;
+  uint64_t loops = 0;
+  int64_t us_start = esp_timer_get_time();
+  int64_t us_end;
+  float hrz;
 
   while (true) {
-
-    for (uint8_t i = 0; i < 16; i++) {
-      // esp_err_t ret = ;
-      // ESP_RETURN_VOID_ON_FALSE(ret == ESP_OK, TAG, "Error transmitting");
-
-      ESP_ERROR_CHECK(spi_device_queue_trans(spi, &outTrans, portMAX_DELAY));
-      ESP_ERROR_CHECK(
-          spi_device_get_trans_result(spi, &inTrans, portMAX_DELAY));
+    for (uint8_t row = 0; row < 16; row++) {
+      for (uint8_t col = 0; col < 64; col++) {
+        dedic_gpio_bundle_write(gpioColorBundle, 0b01111111,
+                                buff[col] | 0b00000000);
+        dedic_gpio_bundle_write(gpioColorBundle, 0b01111111,
+                                buff[col] | 0b01000000);
+      }
 
       gpio_set_level(MATRIX_OE, 1);
 
-      gpio_set_level(MATRIX_ADDR_A, i & 0b0001 ? 1 : 0);
-      gpio_set_level(MATRIX_ADDR_B, i & 0b0010 ? 1 : 0);
-      gpio_set_level(MATRIX_ADDR_C, i & 0b0100 ? 1 : 0);
-      gpio_set_level(MATRIX_ADDR_D, i & 0b1000 ? 1 : 0);
+      gpio_set_level(MATRIX_ADDR_A, row & 0b0001);
+      gpio_set_level(MATRIX_ADDR_B, row & 0b0010);
+      gpio_set_level(MATRIX_ADDR_C, row & 0b0100);
+      gpio_set_level(MATRIX_ADDR_D, row & 0b1000);
 
-      gpio_set_level(MATRIX_LATCH, 1);
-      gpio_set_level(MATRIX_LATCH, 0);
+      dedic_gpio_bundle_write(gpioColorBundle, 0b10000000, 0b00000000);
+      dedic_gpio_bundle_write(gpioColorBundle, 0b10000000, 0b10000000);
 
       gpio_set_level(MATRIX_OE, 0);
+      taskYIELD();
+    }
 
-      // vTaskDelay(0);
+    if (loops == 10999) {
+      us_end = esp_timer_get_time();
+      hrz =
+          (float)11000 / (float)(((float)(us_end - us_start) / (float)1000000));
+
+      ESP_LOGI(TAG, "100 loops in. Time: %lld. HRz: %f", (us_end - us_start),
+               hrz);
+
+      us_start = us_end;
+      loops = 0;
+    } else {
+      loops++;
     }
   }
+
   heap_caps_free(buff);
 
   ESP_LOGI(TAG, "Done sending");

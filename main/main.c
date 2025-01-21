@@ -28,7 +28,6 @@ void app_main(void) {
               "displayTest", /* Text name for the task. */
               (1024 * 4),    /* Stack size in words, not bytes. */
               NULL,          /* Parameter passed into the task. */
-              // tskIDLE_PRIORITY, /* Priority at which the task is created. */
-              1, /* Priority at which the task is created. */
+              1,             /* Priority at which the task is created. */
               &xHandle);
 }

@@ -3,3 +3,11 @@
   - `CONFIG_ESP_CONSOLE_*`
   - `CONFIG_USB_ENABLED`
   - `CONFIG_USB_CDC_ENABLED`
+- Xtensa info
+  - https://www.cadence.com/content/dam/cadence-www/global/en_US/documents/tools/silicon-solutions/compute-ip/isa-summary.pdf
+- ASM 
+  - https://github.com/espressif/esp-idf/blob/v5.4/examples/peripherals/dedicated_gpio/soft_uart/components/soft_uart/xtensa/soft_uart.S
+  - https://sourceware.org/binutils/docs/as/Pseudo-Ops.html
+  - https://www.ibiblio.org/gferg/ldp/GCC-Inline-Assembly-HOWTO.html
+- Dedicated GPIO
+  - https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/peripherals/dedic_gpio.html#manipulate-gpios-by-writing-assembly-code
