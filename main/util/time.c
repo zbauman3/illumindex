@@ -3,25 +3,25 @@
 
 #include "freertos/task.h"
 
-void IRAM_ATTR delayMicroseconds(uint32_t us) {
+void delayMicroseconds(uint32_t us) {
   uint32_t currentUs = micros();
   if (us) {
     uint32_t end = (currentUs + us);
 
     // if overflow
     if (currentUs > end) {
-      while (MICROS() > end) {
+      while (micros() > end) {
         asm volatile("nop");
       }
     }
 
-    while (MICROS() < end) {
+    while (micros() < end) {
       asm volatile("nop");
     }
   }
 }
 
-void IRAM_ATTR delayMicrosecondsYield(uint32_t us) {
+void delayMicrosecondsYield(uint32_t us) {
   uint32_t currentUs = micros();
   taskYIELD();
   if (us) {
@@ -29,12 +29,12 @@ void IRAM_ATTR delayMicrosecondsYield(uint32_t us) {
 
     // if overflow
     if (currentUs > end) {
-      while (MICROS() > end) {
+      while (micros() > end) {
         taskYIELD();
       }
     }
 
-    while (MICROS() < end) {
+    while (micros() < end) {
       taskYIELD();
     }
   }

@@ -1,22 +1,41 @@
 #pragma once
 
-// green and blue are switched here due to the `ICN2037`
-#define MATRIX_ADDR_A GPIO_NUM_18  // A0
-#define MATRIX_ADDR_B GPIO_NUM_17  // A1
-#define MATRIX_ADDR_C GPIO_NUM_16  // A2
-#define MATRIX_ADDR_D GPIO_NUM_15  // A3
-#define MATRIX_LATCH GPIO_NUM_8    // A5
-#define MATRIX_CLOCK GPIO_NUM_5    // 5
-#define MATRIX_OE GPIO_NUM_14      // A4
-#define MATRIX_RED_1 GPIO_NUM_12   // 12
-#define MATRIX_BLUE_1 GPIO_NUM_36  // SCK
-#define MATRIX_GREEN_1 GPIO_NUM_11 // 11
-#define MATRIX_RED_2 GPIO_NUM_9    // 9
-#define MATRIX_BLUE_2 GPIO_NUM_10  // 10
-#define MATRIX_GREEN_2 GPIO_NUM_6  // 6
+#include "esp_err.h"
 
-#define MATRIX_TASK_PRIORITY 5
+typedef struct {
+  uint8_t r1;
+  uint8_t r2;
+  uint8_t g1;
+  uint8_t g2;
+  uint8_t b1;
+  uint8_t b2;
 
-esp_err_t matrix_init();
+  uint8_t a0;
+  uint8_t a1;
+  uint8_t a2;
+  uint8_t a3;
 
-void displayTest();
+  uint8_t latch;
+  uint8_t clock;
+  uint8_t oe;
+} MatrixPins;
+
+esp_err_t matrixInit(MatrixPins pins);
+
+/**
+ * @param uint16_t* `bufferPtr` is a pointer to `uint16_t buffer[2048]`. The
+ * buffer should be structured with 565 color codes, with each row being 64
+ * pixes long. Example:
+ *
+ * ```
+ * uint16_t buffer[2048] = {
+ *   0xF800, 0x07E0, 0x001F, // Row 1 pixels 0, 1, 2: Red, Green, Blue
+ *   // ...
+ *   0xF800, 0x07E0, 0x001F  // Row 32 pixes 61, 62, 63: Red, Green, Blue
+ * };
+ * ```
+ *
+ * When this function returns, it is safe to manipulate `bufferPtr` and the
+ * data it points to.
+ */
+void showFrame(uint16_t *bufferPtr);

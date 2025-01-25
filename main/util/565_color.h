@@ -68,7 +68,7 @@
 
 // This takes 2 `uint16_t` values representing two 565 colors (top row and
 // bottom row) and a `uint8_t` representing which bit to grab from each color.
-// It then generates a `uint8_t` for use on an 8-bit SPI bus. The value is
+// It then generates a `uint8_t` for use on an 8-bit serial bus. The value is
 // packed into the byte in the following order: `0,0,R1,G1,B1,R2,G2,B2`.
 #define GET_565_MATRIX_BYTE(one, two, bit)                                     \
   (((uint8_t)((one & BV_565_RED_##bit) SHIFT_565_RED_HIGH_BIT_##bit)) |        \
@@ -80,7 +80,7 @@
 
 // This takes a variable name, two `uint16_t` values representing two 565 colors
 // (top row and bottom row), and a `uint8_t` representing which bit to grab from
-// each color. It then generates a `uint8_t` for use on an 8-bit SPI bus. The
+// each color. It then generates a `uint8_t` for use on an 8-bit serial bus. The
 // value is packed into a byte and assigned to the variable in the following
 // order : `0,0,R1,G1,B1,R2,G2,B2`.
 #define SET_565_MATRIX_BYTE(varName, topColor, bottomColor, bit)               \

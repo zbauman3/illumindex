@@ -6,6 +6,8 @@
 #include "esp_system.h"
 
 #include "drivers/matrix.h"
+#include "util/565_color.h"
+#include "util/config.h"
 #include "util/setup.h"
 
 static const char *TAG = "APP_MAIN";
@@ -20,14 +22,76 @@ void app_main(void) {
     return;
   }
 
-  matrix_init();
+  MatrixPins pins = {
+      .a0 = MATRIX_ADDR_A,
+      .a1 = MATRIX_ADDR_B,
+      .a2 = MATRIX_ADDR_C,
+      .a3 = MATRIX_ADDR_D,
+      .latch = MATRIX_LATCH,
+      .clock = MATRIX_CLOCK,
+      .oe = MATRIX_OE,
+      .r1 = MATRIX_RED_1,
+      .b1 = MATRIX_BLUE_1,
+      .g1 = MATRIX_GREEN_1,
+      .r2 = MATRIX_RED_2,
+      .b2 = MATRIX_BLUE_2,
+      .g2 = MATRIX_GREEN_2,
+  };
 
-  static TaskHandle_t xHandle = NULL;
+  matrixInit(pins);
 
-  xTaskCreate(displayTest,   /* Function that implements the task. */
-              "displayTest", /* Text name for the task. */
-              (1024 * 4),    /* Stack size in words, not bytes. */
-              NULL,          /* Parameter passed into the task. */
-              1,             /* Priority at which the task is created. */
-              &xHandle);
+  uint16_t topRow[64] = {
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0, // 21 red
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0,
+      BV_565_GREEN_0, // 22 green
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0 // 21 blue
+  };
+
+  uint16_t bottomRow[64] = {
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
+      BV_565_BLUE_0, // 21 blue
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0, BV_565_GREEN_0,
+      BV_565_GREEN_0,
+      BV_565_GREEN_0, // 22 green
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
+      BV_565_RED_0 // 21 red
+  };
+
+  // generate an image
+  uint16_t buffer[64 * 32];
+  for (uint8_t row = 0; row < 16; row++) {
+    for (uint8_t col = 0; col < 64; col++) {
+      buffer[(row * 64) + col] = topRow[col];
+      buffer[1024 + (row * 64) + col] = bottomRow[col];
+    }
+  }
+
+  showFrame(buffer);
 }
