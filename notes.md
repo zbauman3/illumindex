@@ -1,8 +1,8 @@
-- ESP32 S2 doesn't have a serial to USB converter...? I used this to get the USB console working over CDC
-  - https://docs.espressif.com/projects/esp-idf/en/v4.3/esp32s2/api-guides/usb-console.html
-  - `CONFIG_ESP_CONSOLE_*`
-  - `CONFIG_USB_ENABLED`
-  - `CONFIG_USB_CDC_ENABLED`
+- ESP32 S2 doesn't have a serial to USB converter...? USB console/flash works over CDC
+  - https://docs.espressif.com/projects/esp-idf/en/v5.3.2/esp32s2/api-guides/usb-otg-console.html
+    - https://docs.espressif.com/projects/esp-idf/en/v5.3.2/esp32s2/api-reference/kconfig.html#config-esp-console-uart
+    - `CONFIG_ESP_CONSOLE_*`
+  - If the device is loop crashing during startup, you can see its port but cannot connect. Use the `screen` command to establish a connection and see if that's what's happening.
 - Xtensa info
   - https://www.cadence.com/content/dam/cadence-www/global/en_US/documents/tools/silicon-solutions/compute-ip/isa-summary.pdf
 - ASM 
