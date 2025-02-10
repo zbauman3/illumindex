@@ -87,7 +87,20 @@
     "esp_timer.h": "c",
     "cstdint": "cpp",
     "time.h": "c",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "config.h": "c",
+    "arch.h": "c",
+    "gpio_hal.h": "c",
+    "core.h": "c",
+    "stddef.h": "c",
+    "gptimer.h": "c",
+    "gpio_types.h": "c",
+    "gpio_ll.h": "c",
+    "*.inc": "cpp",
+    "dedic_gpio_reg.h": "c",
+    "dedic_gpio_struct.h": "c",
+    "dedic_gpio_cpu_ll.h": "c",
+    "dedic_gpio_ll.h": "c"
   },
   "editor.multiCursorPaste": "full"
 }

@@ -1,6 +1,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
@@ -38,9 +39,10 @@ void app_main(void) {
       .g2 = MATRIX_GREEN_2,
   };
 
-  matrixInit(pins);
+  init_ret = matrixInit(pins);
+  ESP_RETURN_VOID_ON_ERROR(init_ret, TAG, "Unable to init the matrix");
 
-  uint16_t topRow[64] = {
+  static uint16_t topRow[64] = {
       BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
       BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
       BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,   BV_565_RED_0,
@@ -62,7 +64,7 @@ void app_main(void) {
       BV_565_BLUE_0 // 21 blue
   };
 
-  uint16_t bottomRow[64] = {
+  static uint16_t bottomRow[64] = {
       BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
       BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
       BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,  BV_565_BLUE_0,
@@ -85,13 +87,15 @@ void app_main(void) {
   };
 
   // generate an image
-  uint16_t buffer[64 * 32];
+  static uint16_t buffer[64 * 32];
   for (uint8_t row = 0; row < 16; row++) {
     for (uint8_t col = 0; col < 64; col++) {
       buffer[(row * 64) + col] = topRow[col];
       buffer[1024 + (row * 64) + col] = bottomRow[col];
     }
   }
+
+  ESP_LOGI(TAG, "Starting");
 
   showFrame(buffer);
 }
