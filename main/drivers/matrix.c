@@ -9,7 +9,7 @@
 #include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "hal/dedic_gpio_ll.h"
+#include "hal/dedic_gpio_cpu_ll.h"
 #include "hal/gpio_ll.h"
 #include <string.h>
 
@@ -53,13 +53,10 @@ static bool IRAM_ATTR alarm_cb(gptimer_handle_t timer,
         0);
 
     // shift in each column. Clock is on the rising edge
-    dedic_gpio_ll_write_mask(&DEDIC_GPIO, 0b01111111,
-                             sendFrameBuffer[sendFrameBufferOffset + col] |
-                                 0b00000000);
-
-    dedic_gpio_ll_write_mask(&DEDIC_GPIO, 0b01111111,
-                             sendFrameBuffer[sendFrameBufferOffset + col] |
-                                 0b01000000);
+    dedic_gpio_cpu_ll_write_mask(
+        0b01111111, sendFrameBuffer[sendFrameBufferOffset + col] | 0b00000000);
+    dedic_gpio_cpu_ll_write_mask(
+        0b01111111, sendFrameBuffer[sendFrameBufferOffset + col] | 0b01000000);
   }
 
   gpio_ll_set_level(&GPIO, usePins.oe, 1);
@@ -70,9 +67,9 @@ static bool IRAM_ATTR alarm_cb(gptimer_handle_t timer,
   gpio_ll_set_level(&GPIO, usePins.a3, row & 0b1000 ? 1 : 0);
 
   // latch, then reset all bundle outputs
-  dedic_gpio_ll_write_mask(&DEDIC_GPIO, 0b10000000, 0b00000000);
-  dedic_gpio_ll_write_mask(&DEDIC_GPIO, 0b10000000, 0b10000000);
-  dedic_gpio_ll_write_mask(&DEDIC_GPIO, 0b11111111, 0b00000000);
+  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
+  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
+  dedic_gpio_cpu_ll_write_mask(0b11111111, 0b00000000);
 
   gpio_ll_set_level(&GPIO, usePins.oe, 0);
   // }

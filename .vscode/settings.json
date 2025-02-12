@@ -100,7 +100,8 @@
     "dedic_gpio_reg.h": "c",
     "dedic_gpio_struct.h": "c",
     "dedic_gpio_cpu_ll.h": "c",
-    "dedic_gpio_ll.h": "c"
+    "dedic_gpio_ll.h": "c",
+    "esp_attr.h": "c"
   },
   "editor.multiCursorPaste": "full"
 }
