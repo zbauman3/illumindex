@@ -1,6 +1,10 @@
 #pragma once
 
+#include "driver/dedic_gpio.h"
+#include "driver/gptimer.h"
 #include "esp_err.h"
+
+#define MATRIX_RAW_BUFFER_SIZE (sizeof(uint16_t) * 64 * 32)
 
 typedef struct MatrixPins {
   uint8_t r1;
@@ -20,6 +24,20 @@ typedef struct MatrixPins {
   uint8_t oe;
 } MatrixPins;
 
-esp_err_t matrixInit(MatrixPins pins);
+typedef struct MatrixInitConfig {
+  MatrixPins pins;
+} MatrixInitConfig;
 
-void showFrame(uint16_t *bufferPtr);
+typedef struct MatrixState {
+  MatrixPins *pins;
+  dedic_gpio_bundle_handle_t gpioBundle;
+  uint16_t *frameBuffer;
+  uint8_t nextRow;
+  gptimer_handle_t timer;
+} MatrixState;
+
+typedef MatrixState *MatrixHandle;
+
+esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config);
+
+void showFrame(MatrixHandle matrix, uint16_t *buffer);

@@ -23,23 +23,27 @@ void app_main(void) {
     return;
   }
 
-  MatrixPins pins = {
-      .a0 = MATRIX_ADDR_A,
-      .a1 = MATRIX_ADDR_B,
-      .a2 = MATRIX_ADDR_C,
-      .a3 = MATRIX_ADDR_D,
-      .latch = MATRIX_LATCH,
-      .clock = MATRIX_CLOCK,
-      .oe = MATRIX_OE,
-      .r1 = MATRIX_RED_1,
-      .b1 = MATRIX_BLUE_1,
-      .g1 = MATRIX_GREEN_1,
-      .r2 = MATRIX_RED_2,
-      .b2 = MATRIX_BLUE_2,
-      .g2 = MATRIX_GREEN_2,
+  MatrixInitConfig matrixConfig = {
+      .pins =
+          {
+              .a0 = MATRIX_ADDR_A,
+              .a1 = MATRIX_ADDR_B,
+              .a2 = MATRIX_ADDR_C,
+              .a3 = MATRIX_ADDR_D,
+              .latch = MATRIX_LATCH,
+              .clock = MATRIX_CLOCK,
+              .oe = MATRIX_OE,
+              .r1 = MATRIX_RED_1,
+              .b1 = MATRIX_BLUE_1,
+              .g1 = MATRIX_GREEN_1,
+              .r2 = MATRIX_RED_2,
+              .b2 = MATRIX_BLUE_2,
+              .g2 = MATRIX_GREEN_2,
+          },
   };
+  MatrixHandle matrix;
 
-  init_ret = matrixInit(pins);
+  init_ret = matrixInit(&matrix, &matrixConfig);
   ESP_RETURN_VOID_ON_ERROR(init_ret, TAG, "Unable to init the matrix");
 
   static uint16_t topRow[64] = {
@@ -97,5 +101,5 @@ void app_main(void) {
 
   ESP_LOGI(TAG, "Starting");
 
-  showFrame(buffer);
+  showFrame(matrix, buffer);
 }
