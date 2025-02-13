@@ -7,6 +7,13 @@
 #define MATRIX_RAW_BUFFER_SIZE (sizeof(uint16_t) * 64 * 32)
 #define MATRIX_PROC_BUFFER_SIZE (sizeof(uint8_t) * 64 * 16)
 
+#define MATRIX_REFRESH_RATE 240
+// 1MHz = 1µs resolution
+#define MATRIX_TIMER_RESOLUTION 1000000
+// interrupt every N 1µs
+#define MATRIX_TIMER_ALARM_COUNT                                               \
+  ((uint64_t)(MATRIX_TIMER_RESOLUTION / 16 / MATRIX_REFRESH_RATE))
+
 typedef struct {
   uint8_t r1;
   uint8_t r2;

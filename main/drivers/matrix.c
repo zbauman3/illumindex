@@ -131,7 +131,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   gptimer_config_t timer_config = {
       .clk_src = GPTIMER_CLK_SRC_DEFAULT,
       .direction = GPTIMER_COUNT_UP,
-      .resolution_hz = 1000000, // 1MHz, 1 tick=1us
+      .resolution_hz = MATRIX_TIMER_RESOLUTION,
   };
   ESP_RETURN_ON_ERROR(gptimer_new_timer(&timer_config, &matrix->timer), TAG,
                       "Unable to create new timer");
@@ -147,9 +147,10 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
                       "Unable to enable timer");
   // timer alrm
   gptimer_alarm_config_t alarm_config1 = {
-      .alarm_count = 100,
+      .alarm_count = MATRIX_TIMER_ALARM_COUNT,
       .reload_count = 0,
-      .flags = {.auto_reload_on_alarm = true}};
+      .flags = {.auto_reload_on_alarm = true},
+  };
   ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config1),
                       TAG, "Unable to create timer alarm");
   // start!
