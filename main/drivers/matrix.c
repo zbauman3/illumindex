@@ -114,8 +114,8 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 
   // setup the dedicated GPIO
   const int bundle_color_pins[8] = {
-      matrix->pins->b1,    matrix->pins->g1,    matrix->pins->r1,
       matrix->pins->b2,    matrix->pins->g2,    matrix->pins->r2,
+      matrix->pins->b1,    matrix->pins->g1,    matrix->pins->r1,
       matrix->pins->clock, matrix->pins->latch,
   };
   dedic_gpio_bundle_config_t gpio_bundle_color_config = {
