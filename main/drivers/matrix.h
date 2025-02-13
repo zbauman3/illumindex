@@ -5,8 +5,9 @@
 #include "esp_err.h"
 
 #define MATRIX_RAW_BUFFER_SIZE (sizeof(uint16_t) * 64 * 32)
+#define MATRIX_PROC_BUFFER_SIZE (sizeof(uint8_t) * 64 * 16)
 
-typedef struct MatrixPins {
+typedef struct {
   uint8_t r1;
   uint8_t r2;
   uint8_t g1;
@@ -24,16 +25,18 @@ typedef struct MatrixPins {
   uint8_t oe;
 } MatrixPins;
 
-typedef struct MatrixInitConfig {
+typedef struct {
   MatrixPins pins;
 } MatrixInitConfig;
 
-typedef struct MatrixState {
+typedef struct {
   MatrixPins *pins;
   dedic_gpio_bundle_handle_t gpioBundle;
-  uint16_t *frameBuffer;
-  uint8_t nextRow;
   gptimer_handle_t timer;
+  uint16_t *rawFrameBuffer;
+  uint8_t *frameBuffer;
+  uint8_t rowNum;
+  bool completedBuffer;
 } MatrixState;
 
 typedef MatrixState *MatrixHandle;

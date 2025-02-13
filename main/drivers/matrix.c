@@ -17,68 +17,84 @@
 #include "util/helpers.h"
 
 static const char *TAG = "MATRIX_DRIVER";
+static portMUX_TYPE matrixSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
                     const gptimer_alarm_event_data_t *edata, void *userData) {
+
   static uint8_t col;
   static uint16_t sendFrameBufferOffset;
-  static uint8_t columnValue;
+
   MatrixHandle matrix = (MatrixHandle)userData;
+  sendFrameBufferOffset = matrix->rowNum * 64;
 
-  if (matrix->frameBuffer == NULL) {
-    return false;
+  // no need to continue to process this frame if we've already processed
+  // every value. We can skip it after an initial pass
+  if (!matrix->completedBuffer) {
+    for (col = 0; col < 64; col++) {
+      SET_565_MATRIX_BYTE(
+          // put the value into the variable
+          matrix->frameBuffer[sendFrameBufferOffset + col],
+          // pull the "top" row from the frame buffer
+          matrix->rawFrameBuffer[sendFrameBufferOffset + col],
+          // pull the "bottom" row ...
+          matrix->rawFrameBuffer[1024 + sendFrameBufferOffset + col],
+          // for now, just the first bit
+          0);
+    }
   }
-
-  sendFrameBufferOffset = matrix->nextRow * 64;
 
   for (col = 0; col < 64; col++) {
-    SET_565_MATRIX_BYTE(
-        // put the value into the variable
-        columnValue,
-        // pull the "top" row from the frame buffer
-        matrix->frameBuffer[sendFrameBufferOffset + col],
-        // pull the "bottom" row ...
-        matrix->frameBuffer[1024 + sendFrameBufferOffset + col],
-        // for now, just the first bit
-        0);
-
     // shift in each column. Clock is on the rising edge
-    dedic_gpio_cpu_ll_write_mask(0b01111111, columnValue | 0b00000000);
-    dedic_gpio_cpu_ll_write_mask(0b01111111, columnValue | 0b01000000);
+    dedic_gpio_cpu_ll_write_mask(
+        0b01111111,
+        matrix->frameBuffer[sendFrameBufferOffset + col] | 0b00000000);
+    dedic_gpio_cpu_ll_write_mask(
+        0b01111111,
+        matrix->frameBuffer[sendFrameBufferOffset + col] | 0b01000000);
   }
 
+  // blank screen
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
 
-  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->nextRow & 0b0001 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->nextRow & 0b0010 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->nextRow & 0b0100 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->nextRow & 0b1000 ? 1 : 0);
+  // set new address
+  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b0001 ? 1 : 0);
+  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b0010 ? 1 : 0);
+  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b0100 ? 1 : 0);
+  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b1000 ? 1 : 0);
 
   // latch, then reset all bundle outputs
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
   dedic_gpio_cpu_ll_write_mask(0b11111111, 0b00000000);
 
+  // show new row
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
 
-  matrix->nextRow++;
-  if (matrix->nextRow >= 16) {
-    matrix->nextRow = 0;
+  matrix->rowNum++;
+  if (matrix->rowNum >= 16) {
+    matrix->rowNum = 0;
+    // we are now at the end, we can signal that we've completed processing
+    matrix->completedBuffer = true;
   }
 
   return false;
 }
 
 esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
+  // allocate the the state
   MatrixHandle matrix = (MatrixHandle)malloc(sizeof(MatrixState));
 
   // misc setup
-  matrix->nextRow = 0;
+  matrix->rowNum = 0;
+  matrix->completedBuffer = false;
 
-  // allocate and clear the frame buffer
-  matrix->frameBuffer = (uint16_t *)malloc(MATRIX_RAW_BUFFER_SIZE);
-  memset(matrix->frameBuffer, 0, MATRIX_RAW_BUFFER_SIZE);
+  // allocate and clear the frame buffers
+  matrix->rawFrameBuffer = (uint16_t *)malloc(MATRIX_RAW_BUFFER_SIZE);
+  memset(matrix->rawFrameBuffer, 0, MATRIX_RAW_BUFFER_SIZE);
+  matrix->frameBuffer = (uint8_t *)malloc(MATRIX_PROC_BUFFER_SIZE);
+  memset(matrix->frameBuffer, 0, MATRIX_PROC_BUFFER_SIZE);
 
   // allocate and copy pins
   matrix->pins = (MatrixPins *)malloc(sizeof(MatrixPins));
@@ -117,23 +133,28 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
       .direction = GPTIMER_COUNT_UP,
       .resolution_hz = 1000000, // 1MHz, 1 tick=1us
   };
-  ESP_ERROR_CHECK(gptimer_new_timer(&timer_config, &matrix->timer));
+  ESP_RETURN_ON_ERROR(gptimer_new_timer(&timer_config, &matrix->timer), TAG,
+                      "Unable to create new timer");
   // timer alarm callback
   gptimer_event_callbacks_t cbs = {
       .on_alarm = matrixTimerCallback,
   };
-  ESP_ERROR_CHECK(
-      gptimer_register_event_callbacks(matrix->timer, &cbs, matrix));
+  ESP_RETURN_ON_ERROR(
+      gptimer_register_event_callbacks(matrix->timer, &cbs, matrix), TAG,
+      "Unable to register timer alarm callback");
   // enable the timer
-  ESP_ERROR_CHECK(gptimer_enable(matrix->timer));
+  ESP_RETURN_ON_ERROR(gptimer_enable(matrix->timer), TAG,
+                      "Unable to enable timer");
   // timer alrm
   gptimer_alarm_config_t alarm_config1 = {
       .alarm_count = 100,
       .reload_count = 0,
       .flags = {.auto_reload_on_alarm = true}};
-  ESP_ERROR_CHECK(gptimer_set_alarm_action(matrix->timer, &alarm_config1));
+  ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config1),
+                      TAG, "Unable to create timer alarm");
   // start!
-  ESP_ERROR_CHECK(gptimer_start(matrix->timer));
+  ESP_RETURN_ON_ERROR(gptimer_start(matrix->timer), TAG,
+                      "Unable to start timer");
 
   // pass back the config
   *matrixHandle = matrix;
@@ -142,10 +163,9 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 };
 
 void showFrame(MatrixHandle matrix, uint16_t *buffer) {
-  memcpy(matrix->frameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
-
-  while (true) {
-    ESP_LOGI(TAG, "LOOP!");
-    vTaskDelay(500 / portTICK_PERIOD_MS);
-  }
+  taskENTER_CRITICAL(&matrixSpinlock);
+  memcpy(matrix->rawFrameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
+  matrix->rowNum = 0;
+  matrix->completedBuffer = false;
+  taskEXIT_CRITICAL(&matrixSpinlock);
 }

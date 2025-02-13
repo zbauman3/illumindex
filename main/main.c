@@ -102,4 +102,9 @@ void app_main(void) {
   ESP_LOGI(TAG, "Starting");
 
   showFrame(matrix, buffer);
+
+  while (true) {
+    ESP_LOGI(TAG, "LOOP!");
+    vTaskDelay(500 / portTICK_PERIOD_MS);
+  }
 }
