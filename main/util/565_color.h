@@ -5,58 +5,66 @@
 // Ideally, these helpers should be mostly compile-time utilities, with minimal
 // run-time logic.
 
-// The bitmasks for 565 colors
-#define BV_565_RED_0 0b0000100000000000U
-#define BV_565_RED_1 0b0001000000000000U
-#define BV_565_RED_2 0b0010000000000000U
-#define BV_565_RED_3 0b0100000000000000U
-#define BV_565_RED_4 0b1000000000000000U
+// The bitmasks for 565 colors.
+// To allow for 5 bits of each, we left-align the blue and red bits. Then fill
+// the 0th bit with the value of the 4th bit
+#define BV_565_RED_0 0b1000000000000000U
+#define BV_565_RED_1 0b0000100000000000U
+#define BV_565_RED_2 0b0001000000000000U
+#define BV_565_RED_3 0b0010000000000000U
+#define BV_565_RED_4 0b0100000000000000U
+#define BV_565_RED_5 0b1000000000000000U
 #define BV_565_GREEN_0 0b0000000000100000U
 #define BV_565_GREEN_1 0b0000000001000000U
 #define BV_565_GREEN_2 0b0000000010000000U
 #define BV_565_GREEN_3 0b0000000100000000U
 #define BV_565_GREEN_4 0b0000001000000000U
 #define BV_565_GREEN_5 0b0000010000000000U
-#define BV_565_BLUE_0 0b0000000000000001U
-#define BV_565_BLUE_1 0b0000000000000010U
-#define BV_565_BLUE_2 0b0000000000000100U
-#define BV_565_BLUE_3 0b0000000000001000U
-#define BV_565_BLUE_4 0b0000000000010000U
+#define BV_565_BLUE_0 0b0000000000010000U
+#define BV_565_BLUE_1 0b0000000000000001U
+#define BV_565_BLUE_2 0b0000000000000010U
+#define BV_565_BLUE_3 0b0000000000000100U
+#define BV_565_BLUE_4 0b0000000000001000U
+#define BV_565_BLUE_5 0b0000000000010000U
 
 // Given two 565 `uint16_t` values, this determines how far we should shift one
 // of the bits to get it into a single byte as `0,0,R1,G1,B1,R2,G2,B2`
-#define SHIFT_565_RED_LOW_BIT_0 >> 9
-#define SHIFT_565_RED_LOW_BIT_1 >> 10
-#define SHIFT_565_RED_LOW_BIT_2 >> 11
-#define SHIFT_565_RED_LOW_BIT_3 >> 12
-#define SHIFT_565_RED_LOW_BIT_4 >> 13
+#define SHIFT_565_RED_LOW_BIT_0 >> 13
+#define SHIFT_565_RED_LOW_BIT_1 >> 9
+#define SHIFT_565_RED_LOW_BIT_2 >> 10
+#define SHIFT_565_RED_LOW_BIT_3 >> 11
+#define SHIFT_565_RED_LOW_BIT_4 >> 12
+#define SHIFT_565_RED_LOW_BIT_5 >> 13
 #define SHIFT_565_GREEN_LOW_BIT_0 >> 4
 #define SHIFT_565_GREEN_LOW_BIT_1 >> 5
 #define SHIFT_565_GREEN_LOW_BIT_2 >> 6
 #define SHIFT_565_GREEN_LOW_BIT_3 >> 7
 #define SHIFT_565_GREEN_LOW_BIT_4 >> 8
 #define SHIFT_565_GREEN_LOW_BIT_5 >> 9
-#define SHIFT_565_BLUE_LOW_BIT_0 >> 0
-#define SHIFT_565_BLUE_LOW_BIT_1 >> 1
-#define SHIFT_565_BLUE_LOW_BIT_2 >> 2
-#define SHIFT_565_BLUE_LOW_BIT_3 >> 3
-#define SHIFT_565_BLUE_LOW_BIT_4 >> 4
-#define SHIFT_565_RED_HIGH_BIT_0 >> 6
-#define SHIFT_565_RED_HIGH_BIT_1 >> 7
-#define SHIFT_565_RED_HIGH_BIT_2 >> 8
-#define SHIFT_565_RED_HIGH_BIT_3 >> 9
-#define SHIFT_565_RED_HIGH_BIT_4 >> 10
+#define SHIFT_565_BLUE_LOW_BIT_0 >> 4
+#define SHIFT_565_BLUE_LOW_BIT_1 >> 0
+#define SHIFT_565_BLUE_LOW_BIT_2 >> 1
+#define SHIFT_565_BLUE_LOW_BIT_3 >> 2
+#define SHIFT_565_BLUE_LOW_BIT_4 >> 3
+#define SHIFT_565_BLUE_LOW_BIT_5 >> 4
+#define SHIFT_565_RED_HIGH_BIT_0 >> 10
+#define SHIFT_565_RED_HIGH_BIT_1 >> 6
+#define SHIFT_565_RED_HIGH_BIT_2 >> 7
+#define SHIFT_565_RED_HIGH_BIT_3 >> 8
+#define SHIFT_565_RED_HIGH_BIT_4 >> 9
+#define SHIFT_565_RED_HIGH_BIT_5 >> 10
 #define SHIFT_565_GREEN_HIGH_BIT_0 >> 1
 #define SHIFT_565_GREEN_HIGH_BIT_1 >> 2
 #define SHIFT_565_GREEN_HIGH_BIT_2 >> 3
 #define SHIFT_565_GREEN_HIGH_BIT_3 >> 4
 #define SHIFT_565_GREEN_HIGH_BIT_4 >> 5
 #define SHIFT_565_GREEN_HIGH_BIT_5 >> 6
-#define SHIFT_565_BLUE_HIGH_BIT_0 << 3
-#define SHIFT_565_BLUE_HIGH_BIT_1 << 2
-#define SHIFT_565_BLUE_HIGH_BIT_2 << 1
-#define SHIFT_565_BLUE_HIGH_BIT_3 >> 0
-#define SHIFT_565_BLUE_HIGH_BIT_4 >> 1
+#define SHIFT_565_BLUE_HIGH_BIT_0 >> 1
+#define SHIFT_565_BLUE_HIGH_BIT_1 << 3
+#define SHIFT_565_BLUE_HIGH_BIT_2 << 2
+#define SHIFT_565_BLUE_HIGH_BIT_3 << 1
+#define SHIFT_565_BLUE_HIGH_BIT_4 >> 0
+#define SHIFT_565_BLUE_HIGH_BIT_5 >> 1
 
 // bits within a matrix byte
 #define BV_MATRIX_RED_1 0b00100000
@@ -85,6 +93,10 @@
 // order : `0,0,R1,G1,B1,R2,G2,B2`.
 #define SET_565_MATRIX_BYTE(varName, topColor, bottomColor, bit)               \
   switch (bit) {                                                               \
+  case 5: {                                                                    \
+    varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 5);                   \
+    break;                                                                     \
+  }                                                                            \
   case 4: {                                                                    \
     varName = GET_565_MATRIX_BYTE(topColor, bottomColor, 4);                   \
     break;                                                                     \

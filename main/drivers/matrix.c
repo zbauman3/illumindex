@@ -41,7 +41,7 @@ matrixTimerCallback(gptimer_handle_t timer,
           // pull the "bottom" row ...
           matrix->rawFrameBuffer[1024 + sendFrameBufferOffset + col],
           // for now, just the first bit
-          0);
+          5);
     }
   }
 
