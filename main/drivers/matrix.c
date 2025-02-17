@@ -1,5 +1,4 @@
 #include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 
 #include "driver/dedic_gpio.h"
 #include "driver/gpio.h"
@@ -100,7 +99,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
       .pull_down_en = 0,
       .pull_up_en = 0,
   };
-  ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "Unable to init matrix GPIO");
+  ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "Failed to init matrix GPIO");
 
   // setup the dedicated GPIO
   const int bundle_color_pins[8] = {
@@ -115,7 +114,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   };
   ESP_RETURN_ON_ERROR(
       dedic_gpio_new_bundle(&gpio_bundle_color_config, &matrix->gpioBundle),
-      TAG, "Unable to init matrix dedicated GPIO bundle");
+      TAG, "Failed to init matrix dedicated GPIO bundle");
 
   // setup the timer
   gptimer_config_t timer_config = {
@@ -124,17 +123,17 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
       .resolution_hz = MATRIX_TIMER_RESOLUTION,
   };
   ESP_RETURN_ON_ERROR(gptimer_new_timer(&timer_config, &matrix->timer), TAG,
-                      "Unable to create new timer");
+                      "Failed to create new timer");
   // timer alarm callback
   gptimer_event_callbacks_t cbs = {
       .on_alarm = matrixTimerCallback,
   };
   ESP_RETURN_ON_ERROR(
       gptimer_register_event_callbacks(matrix->timer, &cbs, matrix), TAG,
-      "Unable to register timer alarm callback");
+      "Failed to register timer alarm callback");
   // enable the timer
   ESP_RETURN_ON_ERROR(gptimer_enable(matrix->timer), TAG,
-                      "Unable to enable timer");
+                      "Failed to enable timer");
 
   // timer alarms
   gptimer_alarm_config_t alarm_config;
@@ -167,12 +166,8 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
     }
 
     ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config),
-                        TAG, "Unable to create timer alarm");
+                        TAG, "Failed to create timer alarm");
   }
-
-  // start!
-  ESP_RETURN_ON_ERROR(gptimer_start(matrix->timer), TAG,
-                      "Unable to start timer");
 
   // pass back the config
   *matrixHandle = matrix;
@@ -180,13 +175,43 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   return ESP_OK;
 };
 
-void showFrame(MatrixHandle matrix, uint16_t *buffer) {
+esp_err_t matrixStart(MatrixHandle matrix) {
+  ESP_RETURN_ON_ERROR(gptimer_start(matrix->timer), TAG,
+                      "START: Failed to start timer");
+  return ESP_OK;
+}
+
+esp_err_t matrixStop(MatrixHandle matrix) {
+  ESP_RETURN_ON_ERROR(gptimer_stop(matrix->timer), TAG,
+                      "STOP: Failed to stop timer");
+  return ESP_OK;
+}
+
+esp_err_t matrixEnd(MatrixHandle matrix) {
+  ESP_RETURN_ON_ERROR(matrixStop(matrix), TAG, "END: Failed to stop.");
+  gptimer_del_timer(matrix->timer);
+  dedic_gpio_del_bundle(matrix->gpioBundle);
+  free(matrix->pins);
+  free(matrix->rawFrameBuffer);
+  free(matrix);
+  return ESP_OK;
+}
+
+esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
+  esp_err_t ret = ESP_OK;
   taskENTER_CRITICAL(&matrixSpinlock);
-  memcpy(matrix->rawFrameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
-  gptimer_stop(matrix->timer);
+
+  ESP_GOTO_ON_ERROR(gptimer_stop(matrix->timer), matrixShow_cleanup, TAG,
+                    "RESET: Failed to stop timer");
+  ESP_GOTO_ON_ERROR(gptimer_set_raw_count(matrix->timer, 0), matrixShow_cleanup,
+                    TAG, "RESET: Failed to reset timer count");
   matrix->rowNum = 0;
   matrix->bitNum = 0;
-  gptimer_set_raw_count(matrix->timer, 0);
-  gptimer_start(matrix->timer);
+  memcpy(matrix->rawFrameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
+  ESP_GOTO_ON_ERROR(gptimer_start(matrix->timer), matrixShow_cleanup, TAG,
+                    "RESET: Failed to start timer");
+
+matrixShow_cleanup:
   taskEXIT_CRITICAL(&matrixSpinlock);
+  return ret;
 }

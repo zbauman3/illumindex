@@ -49,6 +49,20 @@ typedef struct {
 
 typedef MatrixState *MatrixHandle;
 
+/** Allocates the resources for a matrix and masses back a handle */
 esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config);
-
-void showFrame(MatrixHandle matrix, uint16_t *buffer);
+/** Starts the hardware resources associated with the matrix */
+esp_err_t matrixStart(MatrixHandle matrix);
+/** Stops the hardware resources associated with the matrix */
+esp_err_t matrixStop(MatrixHandle matrix);
+/** Stops the hardware resources associated with the matrix and frees all
+ * internal memory */
+esp_err_t matrixEnd(MatrixHandle matrix);
+/**
+ * Shows a `buffer` in the `matrix`.
+ *
+ * @param matrix a matrix handle to a matrix that has already been initiated
+ * @param buffer a pointer to an array of 565 colors that are
+ * `MATRIX_RAW_BUFFER_SIZE` size
+ */
+esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer);
