@@ -5,7 +5,7 @@
     "interface/ftdi/esp32_devkitj_v1.cfg",
     "target/esp32s2.cfg"
   ],
-  "idf.port": "/dev/tty.usbmodem101",
+  "idf.port": "/dev/tty.usbmodem1101",
   "idf.toolsPath": "/Users/zanebauman/.espressif",
   "idf.flashType": "UART",
   "files.associations": {

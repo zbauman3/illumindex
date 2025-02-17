@@ -94,7 +94,9 @@ void app_main(void) {
 
   ESP_LOGI(TAG, "Starting");
 
-  showFrame(matrix, buffer);
+  matrixStart(matrix);
+
+  matrixShow(matrix, buffer);
 
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
