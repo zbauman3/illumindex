@@ -22,37 +22,27 @@ static portMUX_TYPE matrixSpinlock = portMUX_INITIALIZER_UNLOCKED;
 static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
                     const gptimer_alarm_event_data_t *edata, void *userData) {
-
   static uint8_t col;
-  static uint16_t sendFrameBufferOffset;
+  static uint16_t rowOffset;
+  static uint8_t pixelByte;
 
   MatrixHandle matrix = (MatrixHandle)userData;
-  sendFrameBufferOffset = matrix->rowNum * 64;
-
-  // no need to continue to process this frame if we've already processed
-  // every value. We can skip it after an initial pass
-  if (!matrix->completedBuffer) {
-    for (col = 0; col < 64; col++) {
-      SET_565_MATRIX_BYTE(
-          // put the value into the variable
-          matrix->frameBuffer[sendFrameBufferOffset + col],
-          // pull the "top" row from the frame buffer
-          matrix->rawFrameBuffer[sendFrameBufferOffset + col],
-          // pull the "bottom" row ...
-          matrix->rawFrameBuffer[1024 + sendFrameBufferOffset + col],
-          // for now, just the first bit
-          5);
-    }
-  }
+  rowOffset = matrix->rowNum * 64;
 
   for (col = 0; col < 64; col++) {
+    SET_565_MATRIX_BYTE(
+        // put the value into the variable
+        pixelByte,
+        // pull the "top" row from the frame buffer
+        matrix->rawFrameBuffer[rowOffset + col],
+        // pull the "bottom" row ...
+        matrix->rawFrameBuffer[1024 + rowOffset + col],
+        // just this loop's bit
+        matrix->bitNum);
+
     // shift in each column. Clock is on the rising edge
-    dedic_gpio_cpu_ll_write_mask(
-        0b01111111,
-        matrix->frameBuffer[sendFrameBufferOffset + col] | 0b00000000);
-    dedic_gpio_cpu_ll_write_mask(
-        0b01111111,
-        matrix->frameBuffer[sendFrameBufferOffset + col] | 0b01000000);
+    dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b00000000);
+    dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b01000000);
   }
 
   // blank screen
@@ -72,11 +62,13 @@ matrixTimerCallback(gptimer_handle_t timer,
   // show new row
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
 
-  matrix->rowNum++;
-  if (matrix->rowNum >= 16) {
-    matrix->rowNum = 0;
-    // we are now at the end, we can signal that we've completed processing
-    matrix->completedBuffer = true;
+  matrix->bitNum++;
+  if (matrix->bitNum >= 6) {
+    matrix->bitNum = 0;
+    matrix->rowNum++;
+    if (matrix->rowNum >= 16) {
+      matrix->rowNum = 0;
+    }
   }
 
   return false;
@@ -88,13 +80,11 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 
   // misc setup
   matrix->rowNum = 0;
-  matrix->completedBuffer = false;
+  matrix->bitNum = 0;
 
   // allocate and clear the frame buffers
   matrix->rawFrameBuffer = (uint16_t *)malloc(MATRIX_RAW_BUFFER_SIZE);
   memset(matrix->rawFrameBuffer, 0, MATRIX_RAW_BUFFER_SIZE);
-  matrix->frameBuffer = (uint8_t *)malloc(MATRIX_PROC_BUFFER_SIZE);
-  memset(matrix->frameBuffer, 0, MATRIX_PROC_BUFFER_SIZE);
 
   // allocate and copy pins
   matrix->pins = (MatrixPins *)malloc(sizeof(MatrixPins));
@@ -145,14 +135,41 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   // enable the timer
   ESP_RETURN_ON_ERROR(gptimer_enable(matrix->timer), TAG,
                       "Unable to enable timer");
-  // timer alrm
-  gptimer_alarm_config_t alarm_config1 = {
-      .alarm_count = MATRIX_TIMER_ALARM_COUNT,
-      .reload_count = 0,
-      .flags = {.auto_reload_on_alarm = true},
-  };
-  ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config1),
-                      TAG, "Unable to create timer alarm");
+
+  // timer alarms
+  gptimer_alarm_config_t alarm_config;
+  for (uint8_t i = 0; i < 6; i++) {
+    alarm_config.reload_count = 0;
+    switch (i) {
+    case 0:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_0;
+      break;
+    case 1:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_1;
+      break;
+    case 2:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_2;
+      break;
+    case 3:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_3;
+      break;
+    case 4:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_4;
+      break;
+    case 5:
+      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_5;
+      break;
+    }
+    if (i == 5) {
+      alarm_config.flags.auto_reload_on_alarm = true;
+    } else {
+      alarm_config.flags.auto_reload_on_alarm = false;
+    }
+
+    ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config),
+                        TAG, "Unable to create timer alarm");
+  }
+
   // start!
   ESP_RETURN_ON_ERROR(gptimer_start(matrix->timer), TAG,
                       "Unable to start timer");
@@ -166,7 +183,10 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 void showFrame(MatrixHandle matrix, uint16_t *buffer) {
   taskENTER_CRITICAL(&matrixSpinlock);
   memcpy(matrix->rawFrameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
+  gptimer_stop(matrix->timer);
   matrix->rowNum = 0;
-  matrix->completedBuffer = false;
+  matrix->bitNum = 0;
+  gptimer_set_raw_count(matrix->timer, 0);
+  gptimer_start(matrix->timer);
   taskEXIT_CRITICAL(&matrixSpinlock);
 }

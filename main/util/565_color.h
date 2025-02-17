@@ -5,6 +5,10 @@
 // Ideally, these helpers should be mostly compile-time utilities, with minimal
 // run-time logic.
 
+#define COLOR_565_RED 0b1111100000000000
+#define COLOR_565_GREEN 0b0000011111100000
+#define COLOR_565_BLUE 0b0000000000011111
+
 // The bitmasks for 565 colors.
 // To allow for 5 bits of each, we left-align the blue and red bits. Then fill
 // the 0th bit with the value of the 4th bit
@@ -47,6 +51,7 @@
 #define SHIFT_565_BLUE_LOW_BIT_3 >> 2
 #define SHIFT_565_BLUE_LOW_BIT_4 >> 3
 #define SHIFT_565_BLUE_LOW_BIT_5 >> 4
+
 #define SHIFT_565_RED_HIGH_BIT_0 >> 10
 #define SHIFT_565_RED_HIGH_BIT_1 >> 6
 #define SHIFT_565_RED_HIGH_BIT_2 >> 7

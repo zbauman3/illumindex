@@ -5,14 +5,16 @@
 #include "esp_err.h"
 
 #define MATRIX_RAW_BUFFER_SIZE (sizeof(uint16_t) * 64 * 32)
-#define MATRIX_PROC_BUFFER_SIZE (sizeof(uint8_t) * 64 * 16)
 
-#define MATRIX_REFRESH_RATE 240
-// 1MHz = 1µs resolution
-#define MATRIX_TIMER_RESOLUTION 1000000
-// interrupt every N 1µs
-#define MATRIX_TIMER_ALARM_COUNT                                               \
-  ((uint64_t)(MATRIX_TIMER_RESOLUTION / 16 / MATRIX_REFRESH_RATE))
+// 10MHz = .1µs resolution
+#define MATRIX_TIMER_RESOLUTION 10000000
+#define MATRIX_TIMER_ALARM_COUNT_5                                             \
+  ((uint64_t)(MATRIX_TIMER_RESOLUTION / 16 / 1200))
+#define MATRIX_TIMER_ALARM_COUNT_4 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_5 / 2))
+#define MATRIX_TIMER_ALARM_COUNT_3 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_4 / 2))
+#define MATRIX_TIMER_ALARM_COUNT_2 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_3 / 2))
+#define MATRIX_TIMER_ALARM_COUNT_1 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_2 / 2))
+#define MATRIX_TIMER_ALARM_COUNT_0 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_1 / 2))
 
 typedef struct {
   uint8_t r1;
@@ -41,9 +43,8 @@ typedef struct {
   dedic_gpio_bundle_handle_t gpioBundle;
   gptimer_handle_t timer;
   uint16_t *rawFrameBuffer;
-  uint8_t *frameBuffer;
   uint8_t rowNum;
-  bool completedBuffer;
+  uint8_t bitNum;
 } MatrixState;
 
 typedef MatrixState *MatrixHandle;
