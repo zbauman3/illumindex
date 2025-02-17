@@ -5,13 +5,13 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
+#include "nvs_flash.h"
 
 #include "drivers/matrix.h"
 #include "gfx/displayBuffer.h"
 #include "lib/cjson/cJSON.h"
 #include "network/request.h"
 #include "network/wifi.h"
-#include "nvs_flash.h"
 #include "util/565_color.h"
 #include "util/config.h"
 #include "util/error_helpers.h"
@@ -55,6 +55,64 @@ esp_err_t appInit() {
   return ESP_OK;
 }
 
+esp_err_t fetchAndDisplayData() {
+  esp_err_t ret = ESP_OK;
+  cJSON *json = NULL;
+  RequestContextHandle ctx;
+
+  ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup, TAG,
+                    "Error initiating the request context");
+
+  ctx->url = API_ENDPOINT_URL;
+  ctx->method = API_ENDPOINT_METHOD;
+
+  ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup, TAG,
+                    "Error fetching data from endpoint");
+
+  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 400, ESP_ERR_INVALID_RESPONSE,
+                    fetchAndDisplayData_cleanup, TAG,
+                    "Invalid response status code \"%d\"",
+                    ctx->response->statusCode);
+
+  ESP_LOGI(TAG, "Response length: \"%d\"", ctx->response->length);
+
+  json = cJSON_ParseWithLength(ctx->response->data, ctx->response->length);
+
+  ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
+                    fetchAndDisplayData_cleanup, TAG,
+                    "Invalid JSON response or content length");
+
+  ESP_GOTO_ON_FALSE(cJSON_IsArray(json), ESP_ERR_INVALID_RESPONSE,
+                    fetchAndDisplayData_cleanup, TAG,
+                    "JSON response is not an array");
+
+  ESP_LOGI(TAG, "JSON array length: \"%d\"", cJSON_GetArraySize(json));
+
+  cJSON *pixelValue = NULL;
+  uint16_t bufIndex = 0;
+  cJSON_ArrayForEach(pixelValue, json) {
+    if (cJSON_IsNumber(pixelValue)) {
+      if (pixelValue->valueint > 65535) {
+        ESP_LOGW(TAG, "Response value at \"%d\" is not a 565 color", bufIndex);
+      }
+      displayBuffer->buffer[bufIndex] = (uint16_t)pixelValue->valueint;
+    } else {
+      ESP_LOGW(TAG, "Response value at \"%d\" is not a number", bufIndex);
+      displayBuffer->buffer[bufIndex] = 0;
+    }
+    bufIndex++;
+  }
+
+  ESP_GOTO_ON_ERROR(matrixShow(matrix, displayBuffer->buffer),
+                    fetchAndDisplayData_cleanup, TAG,
+                    "Error setting the new buffer");
+
+fetchAndDisplayData_cleanup:
+  cJSON_Delete(json);
+  requestEnd(ctx);
+  return ret;
+}
+
 void app_main(void) {
   esp_err_t initRet = appInit();
   if (initRet != ESP_OK) {
@@ -71,51 +129,14 @@ void app_main(void) {
   matrixShow(matrix, displayBuffer->buffer);
   ESP_LOGI(TAG, "Ended matrix test");
 
-  uint8_t loops = 5;
+  uint8_t loops = 60;
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops >= 5) {
+    if (loops >= 60) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
-      RequestContextHandle ctx;
-      requestInit(&ctx);
-      ctx->url = "https://illumindex.vercel.app/api/matrix-test";
-      ctx->method = HTTP_METHOD_GET;
-      esp_err_t reqRet = requestPerform(ctx);
-      if (reqRet != ESP_OK || ctx->response->statusCode >= 400) {
-        ESP_LOGI(TAG, "ERROR in wifi test");
-      } else {
-        ESP_LOGI(TAG, "Response length: \"%d\"", ctx->response->length);
-        cJSON *json =
-            cJSON_ParseWithLength(ctx->response->data, ctx->response->length);
-        if (json == NULL) {
-          ESP_LOGE(TAG, "JSON is NULL");
-        } else {
-          const cJSON *data = cJSON_GetObjectItemCaseSensitive(json, "data");
-          if (cJSON_IsArray(data)) {
-            int arraySize = cJSON_GetArraySize(data);
-            ESP_LOGI(TAG, "Parsed JSON - ArraySize: \"%d\"", arraySize);
-            const cJSON *pixelValue = NULL;
-            uint16_t i = 0;
-            cJSON_ArrayForEach(pixelValue, data) {
-              if (cJSON_IsNumber(pixelValue)) {
-                displayBuffer->buffer[i] = (uint16_t)pixelValue->valueint;
-              } else {
-                ESP_LOGI(TAG, "Parsed JSON - data \"%d\" is not a number", i);
-                displayBuffer->buffer[i] = 0;
-              }
-              i++;
-            }
-            ESP_LOGI(TAG, "Parsed JSON - showing output");
-            matrixShow(matrix, displayBuffer->buffer);
-          } else {
-            ESP_LOGI(TAG, "Parsed JSON - Invalid type");
-          }
-        }
-        cJSON_Delete(json);
-      }
-      requestEnd(ctx);
+      fetchAndDisplayData();
       ESP_LOGI(TAG, "Ended wifi test");
     }
 

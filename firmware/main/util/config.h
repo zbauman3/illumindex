@@ -1,6 +1,7 @@
 #pragma once
 
 #include "driver/gpio.h"
+#include "esp_http_client.h"
 
 // green and blue are switched here due to the `ICN2037`
 #define MATRIX_BLUE_1 GPIO_NUM_18  // A0
@@ -16,3 +17,6 @@
 #define MATRIX_ADDR_B GPIO_NUM_10  // 10
 #define MATRIX_ADDR_C GPIO_NUM_11  // 11
 #define MATRIX_ADDR_D GPIO_NUM_12  // 12
+
+#define API_ENDPOINT_URL "https://illumindex.vercel.app/api/matrix-test"
+#define API_ENDPOINT_METHOD HTTP_METHOD_GET
