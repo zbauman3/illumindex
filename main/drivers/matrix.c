@@ -41,6 +41,11 @@ matrixTimerCallback(gptimer_handle_t timer,
 
     // shift in each column. Clock is on the rising edge
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b00000000);
+    // delay a little so that the clock is <= 30MHz for ICN2037 max speed
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b01000000);
   }
 
