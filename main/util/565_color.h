@@ -5,9 +5,15 @@
 // Ideally, these helpers should be mostly compile-time utilities, with minimal
 // run-time logic.
 
-#define COLOR_565_RED 0b1111100000000000
-#define COLOR_565_GREEN 0b0000011111100000
-#define COLOR_565_BLUE 0b0000000000011111
+#define RGB_TO_565(red, green, blue)                                           \
+  ((uint16_t)((((uint16_t)(0b11111000 & ((uint8_t)(red)))) << 8) |             \
+              (((uint16_t)(0b11111100 & ((uint8_t)(green)))) << 3) |           \
+              (((uint16_t)(0b11111000 & ((uint8_t)(blue)))) >> 3)))
+
+#define HEX_TO_565(hex)                                                        \
+  RGB_TO_565((((uint32_t)(hex)) >> 16) & 0x000000FF,                           \
+             (((uint32_t)(hex)) >> 8) & 0x000000FF,                            \
+             (((uint32_t)(hex)) >> 0) & 0x000000FF)
 
 // The bitmasks for 565 colors.
 // To allow for 5 bits of each, we left-align the blue and red bits. Then fill
