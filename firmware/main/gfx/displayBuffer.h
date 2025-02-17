@@ -1,7 +1,9 @@
 #pragma once
 
-#include "drivers/matrix.h"
+#include "esp_err.h"
 #include <inttypes.h>
+
+#include "drivers/matrix.h"
 
 #define DISPLAY_BUFFER_SIZE MATRIX_RAW_BUFFER_SIZE
 
@@ -12,7 +14,7 @@ typedef struct {
 
 typedef DisplayBuffer *DisplayBufferHandle;
 
-void displayBufferInit(DisplayBufferHandle *displayBufferHandle);
+esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle);
 void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
 
 void displayBufferTest(DisplayBufferHandle displayBuffer);

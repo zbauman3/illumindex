@@ -1,13 +1,16 @@
-#include "gfx/displayBuffer.h"
-#include "util/565_color.h"
 #include <memory.h>
 
-void displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
+#include "gfx/displayBuffer.h"
+#include "util/565_color.h"
+
+esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
   DisplayBuffer *displayBuffer = (DisplayBuffer *)malloc(sizeof(DisplayBuffer));
 
   displayBuffer->buffer = (uint16_t *)malloc(DISPLAY_BUFFER_SIZE);
 
   *displayBufferHandle = displayBuffer;
+
+  return ESP_OK;
 }
 
 void displayBufferEnd(DisplayBufferHandle displayBuffer) {

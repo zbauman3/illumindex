@@ -50,6 +50,7 @@ esp_err_t appInit() {
   };
   ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
   ESP_ERROR_BUBBLE(matrixStart(matrix));
+  ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
   ESP_ERROR_BUBBLE(wifi_init());
 
   return ESP_OK;
@@ -116,20 +117,18 @@ fetchAndDisplayData_cleanup:
 void app_main(void) {
   esp_err_t initRet = appInit();
   if (initRet != ESP_OK) {
-    // if there's an error initiating the app, delay then restart
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
-    ESP_LOGW(TAG, "Failed to initiate the application - restarting");
+    ESP_LOGE(TAG, "Failed to initiate the application - restarting");
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
     esp_restart();
     return;
   }
 
   ESP_LOGI(TAG, "Starting matrix test");
-  displayBufferInit(&displayBuffer);
   displayBufferTest(displayBuffer);
   matrixShow(matrix, displayBuffer->buffer);
   ESP_LOGI(TAG, "Ended matrix test");
 
-  uint8_t loops = 60;
+  uint8_t loops = 255;
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
