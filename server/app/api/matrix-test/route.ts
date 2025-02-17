@@ -36,10 +36,7 @@ export async function GET() {
   ];
 
   const date = new Date();
-  const hours = date.getHours();
-  const minutes = date.getMinutes();
-  const second = date.getSeconds();
-  [hours, minutes, second].forEach((val, piece) => {
+  [date.getHours(), date.getMinutes(), date.getSeconds()].forEach((val, piece) => {
     const color = piece == 0 ? 0b1111100000000000 : piece == 1 ? 0b0000011111100000 : 0b0000000000011111;
     const rowOffset = (piece * 64);
     for (let i = 0; i < val; i++) {
@@ -47,7 +44,5 @@ export async function GET() {
     }
   });
 
-  return Response.json({
-    data: responseData,
-  })
+  return Response.json(responseData);
 }
