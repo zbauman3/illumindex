@@ -71,29 +71,46 @@ void app_main(void) {
   matrixShow(matrix, displayBuffer->buffer);
   ESP_LOGI(TAG, "Ended matrix test");
 
-  uint8_t loops = 0;
+  uint8_t loops = 5;
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops == 10) {
+    if (loops >= 5) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
       RequestContextHandle ctx;
       requestInit(&ctx);
-      ctx->url = "https://illumindex.vercel.app/api/green";
+      ctx->url = "https://illumindex.vercel.app/api/matrix-test";
       ctx->method = HTTP_METHOD_GET;
       esp_err_t reqRet = requestPerform(ctx);
       if (reqRet != ESP_OK || ctx->response->statusCode >= 400) {
         ESP_LOGI(TAG, "ERROR in wifi test");
       } else {
+        ESP_LOGI(TAG, "Response length: \"%d\"", ctx->response->length);
         cJSON *json =
             cJSON_ParseWithLength(ctx->response->data, ctx->response->length);
         if (json == NULL) {
           ESP_LOGE(TAG, "JSON is NULL");
         } else {
           const cJSON *data = cJSON_GetObjectItemCaseSensitive(json, "data");
-          if (cJSON_IsString(data) && (data->valuestring != NULL)) {
-            ESP_LOGI(TAG, "Parsed JSON - data: \"%s\"", data->valuestring);
+          if (cJSON_IsArray(data)) {
+            int arraySize = cJSON_GetArraySize(data);
+            ESP_LOGI(TAG, "Parsed JSON - ArraySize: \"%d\"", arraySize);
+            const cJSON *pixelValue = NULL;
+            uint16_t i = 0;
+            cJSON_ArrayForEach(pixelValue, data) {
+              if (cJSON_IsNumber(pixelValue)) {
+                displayBuffer->buffer[i] = (uint16_t)pixelValue->valueint;
+              } else {
+                ESP_LOGI(TAG, "Parsed JSON - data \"%d\" is not a number", i);
+                displayBuffer->buffer[i] = 0;
+              }
+              i++;
+            }
+            ESP_LOGI(TAG, "Parsed JSON - showing output");
+            matrixShow(matrix, displayBuffer->buffer);
+          } else {
+            ESP_LOGI(TAG, "Parsed JSON - Invalid type");
           }
         }
         cJSON_Delete(json);

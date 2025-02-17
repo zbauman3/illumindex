@@ -2,7 +2,7 @@
 
 #include "esp_http_client.h"
 
-#define REQUEST_MAX_OUTPUT_BUFFER 2048
+#define REQUEST_MAX_OUTPUT_BUFFER (1024 * 10)
 
 typedef struct {
   size_t length;

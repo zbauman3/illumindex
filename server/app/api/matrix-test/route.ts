@@ -40,7 +40,7 @@ export async function GET() {
   const minutes = date.getMinutes();
   const second = date.getSeconds();
   [hours, minutes, second].forEach((val, piece) => {
-    const color = piece == 0 ? 0b0000000000011111 : 0b0000011111100000;
+    const color = piece == 0 ? 0b1111100000000000 : piece == 1 ? 0b0000011111100000 : 0b0000000000011111;
     const rowOffset = (piece * 64);
     for (let i = 0; i < val; i++) {
       responseData[rowOffset + i] = color;
