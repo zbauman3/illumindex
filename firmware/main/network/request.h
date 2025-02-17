@@ -1,20 +1,23 @@
 #pragma once
 
+#include "esp_http_client.h"
+
 #define REQUEST_MAX_OUTPUT_BUFFER 2048
 
-#define requestCtxCreate(_url)                                                 \
-  {                                                                            \
-      .url = _url,                                                             \
-      .data = (char *)malloc(REQUEST_MAX_OUTPUT_BUFFER),                       \
-      .length = REQUEST_MAX_OUTPUT_BUFFER,                                     \
-  }
-
-#define requestCtxCleanup(ctx) free(ctx.data)
+typedef struct {
+  size_t length;
+  char *data;
+  int statusCode;
+} ResponseData;
 
 typedef struct {
   char *url;
-  size_t length;
-  char *data;
-} request_ctx_t;
+  esp_http_client_method_t method;
+  ResponseData *response;
+} RequestContext;
 
-esp_err_t getRequest(request_ctx_t *ctx);
+typedef RequestContext *RequestContextHandle;
+
+esp_err_t requestInit(RequestContextHandle *ctxHandle);
+esp_err_t requestEnd(RequestContextHandle ctx);
+esp_err_t requestPerform(RequestContextHandle ctx);

@@ -41,10 +41,7 @@ matrixTimerCallback(gptimer_handle_t timer,
 
     // shift in each column. Clock is on the rising edge
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b00000000);
-    // delay a little so that the clock is <= 30MHz for ICN2037 max speed
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
+    // delay so the ICN2037 can keep up
     asm volatile("nop");
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b01000000);
   }
@@ -60,8 +57,9 @@ matrixTimerCallback(gptimer_handle_t timer,
 
   // latch, then reset all bundle outputs
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
+  // delay so the ICN2037 can keep up
+  asm volatile("nop");
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
-  dedic_gpio_cpu_ll_write_mask(0b11111111, 0b00000000);
 
   // show new row
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
@@ -74,6 +72,9 @@ matrixTimerCallback(gptimer_handle_t timer,
       matrix->rowNum = 0;
     }
   }
+
+  // reset bundle outputs
+  dedic_gpio_cpu_ll_write_mask(0b11111111, 0b00000000);
 
   return false;
 }
@@ -126,6 +127,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
       .clk_src = GPTIMER_CLK_SRC_DEFAULT,
       .direction = GPTIMER_COUNT_UP,
       .resolution_hz = MATRIX_TIMER_RESOLUTION,
+      .intr_priority = 3,
   };
   ESP_RETURN_ON_ERROR(gptimer_new_timer(&timer_config, &matrix->timer), TAG,
                       "Failed to create new timer");
@@ -142,8 +144,8 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 
   // timer alarms
   gptimer_alarm_config_t alarm_config;
+  alarm_config.reload_count = 0;
   for (uint8_t i = 0; i < 6; i++) {
-    alarm_config.reload_count = 0;
     switch (i) {
     case 0:
       alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_0;
