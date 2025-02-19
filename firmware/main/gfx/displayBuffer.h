@@ -16,5 +16,7 @@ typedef DisplayBuffer *DisplayBufferHandle;
 
 esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle);
 void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
+void displayBufferClear(DisplayBufferHandle displayBufferHandle);
 
-void displayBufferTest(DisplayBufferHandle displayBuffer);
+void drawString(DisplayBufferHandle displayBuffer, char *stringBuff,
+                uint16_t startOffset, uint16_t color);

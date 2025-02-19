@@ -12,7 +12,6 @@
 #include "lib/cjson/cJSON.h"
 #include "network/request.h"
 #include "network/wifi.h"
-#include "util/565_color.h"
 #include "util/config.h"
 #include "util/error_helpers.h"
 
@@ -51,6 +50,9 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
+
+  drawString(displayBuffer, "Loading!", 0, 0xFFFF);
+  matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
 
   return ESP_OK;
@@ -123,16 +125,11 @@ void app_main(void) {
     return;
   }
 
-  ESP_LOGI(TAG, "Starting matrix test");
-  displayBufferTest(displayBuffer);
-  matrixShow(matrix, displayBuffer->buffer);
-  ESP_LOGI(TAG, "Ended matrix test");
-
-  uint8_t loops = 255;
+  uint8_t loops = 0;
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops >= 60) {
+    if (loops >= 5) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
       fetchAndDisplayData();
