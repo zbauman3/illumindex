@@ -9,6 +9,7 @@
 
 #include "drivers/matrix.h"
 #include "gfx/displayBuffer.h"
+#include "gfx/fonts.h"
 #include "lib/cjson/cJSON.h"
 #include "network/request.h"
 #include "network/wifi.h"
@@ -51,7 +52,18 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
-  drawString(displayBuffer, "Loading!", 0, 0xFFFF);
+  uint16_t fontOffset = 0;
+  fontSet(displayBuffer->font, FONT_SIZE_SM);
+  drawString(displayBuffer, "Loading!", fontOffset, 0b1111100000000000);
+
+  fontOffset += displayBuffer->width * displayBuffer->font->height;
+  fontSet(displayBuffer->font, FONT_SIZE_MD);
+  drawString(displayBuffer, "Loading!", fontOffset, 0b0000011111100000);
+
+  fontOffset += displayBuffer->width * displayBuffer->font->height;
+  fontSet(displayBuffer->font, FONT_SIZE_LG);
+  drawString(displayBuffer, "Loading!", fontOffset, 0b0000000000011111);
+
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
 
@@ -129,7 +141,7 @@ void app_main(void) {
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops >= 5) {
+    if (loops >= 10) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
       fetchAndDisplayData();

@@ -43,6 +43,8 @@ matrixTimerCallback(gptimer_handle_t timer,
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b00000000);
     // delay so the ICN2037 can keep up
     asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
     dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b01000000);
   }
 
@@ -58,6 +60,8 @@ matrixTimerCallback(gptimer_handle_t timer,
   // latch, then reset all bundle outputs
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
   // delay so the ICN2037 can keep up
+  asm volatile("nop");
+  asm volatile("nop");
   asm volatile("nop");
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
 
