@@ -7,8 +7,37 @@
 
 #include "gfx/fonts.h"
 #include "util/helpers.h"
+#include "util/math.h"
 
 const static char *TAG = "DISPLAY_BUFFER";
+
+// avoids setting values that are out of range
+void _safeSetBufferValue(DisplayBufferHandle displayBuffer, uint16_t index,
+                         uint16_t value) {
+  if (index < displayBuffer->width * displayBuffer->height) {
+    displayBuffer->buffer[index] = value;
+  }
+}
+
+// does not check if the returned index is within range
+uint16_t _getBufferIndexFromCursor(DisplayBufferHandle displayBuffer) {
+  return (displayBuffer->cursor.y * displayBuffer->width) +
+         displayBuffer->cursor.x;
+}
+
+// wraps, but does not check that the new row (y) is within range
+void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
+  // no overflowing, just update
+  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) <
+      displayBuffer->width) {
+    displayBuffer->cursor.x += displayBuffer->font->width;
+    return;
+  }
+
+  // otherwise, wrap
+  displayBuffer->cursor.y += displayBuffer->font->height;
+  displayBuffer->cursor.x = 0;
+}
 
 esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
   DisplayBufferHandle displayBuffer =
@@ -19,6 +48,8 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
 
   fontInit(&displayBuffer->font, FONT_SIZE_MD);
 
+  displayBuffer->cursor.x = 0;
+  displayBuffer->cursor.y = 0;
   displayBuffer->width = 64;
   displayBuffer->height = 32;
 
@@ -38,46 +69,51 @@ void displayBufferEnd(DisplayBufferHandle displayBuffer) {
 }
 
 void drawString(DisplayBufferHandle displayBuffer, char *string,
-                uint16_t startOffset, uint16_t color) {
-  uint16_t bitmapCharacterIndex;
-  uint16_t bufferOffset;
-  bool bitmapValue;
+                uint16_t color) {
+  const size_t stringLength = strlen(string);
+  bool shouldSetIndex;
+  uint16_t bufferIndexRowStart;
+  uint8_t bitmapBit;
+  uint8_t currentCharChunk;
+  uint16_t stringIndex;
+  char character;
 
-  for (uint16_t stringIndex = 0; stringIndex < strlen(string); stringIndex++) {
-    // we only have bitmaps for these characters. Anything else isn't allowed
-    if (string[stringIndex] < DISPLAY_BUFFER_ASCII_MIN ||
-        string[stringIndex] > DISPLAY_BUFFER_ASCII_MAX) {
+  for (stringIndex = 0; stringIndex < stringLength; stringIndex++) {
+    character = string[stringIndex];
+    // we only have bitmaps for these characters. Anything else isn't
+    // allowed
+    if (!fontIsValidAscii(character)) {
       ESP_LOGW(TAG, "Unsupported ASCII character \"%d\"", string[stringIndex]);
-      return;
+      character = 63; // assign to `?`
     }
 
-    // get the starting index for the character in the bitmap array
-    bitmapCharacterIndex =
-        (string[stringIndex] - 32) * displayBuffer->font->chunksPerChar;
-    // Get the starting xy position for this character
-    bufferOffset = startOffset + (displayBuffer->font->width * stringIndex);
+    bufferIndexRowStart = _getBufferIndexFromCursor(displayBuffer);
 
-    for (uint8_t bitmapBit = 0;
-         bitmapBit <
-         displayBuffer->font->bitsPerChunk * displayBuffer->font->chunksPerChar;
+    // get the starting index for the character in the bitmap array
+    currentCharChunk = 0;
+
+    for (bitmapBit = 0; bitmapBit < displayBuffer->font->bitPerChar;
          bitmapBit++) {
       if (bitmapBit != 0) {
         if (bitmapBit % displayBuffer->font->bitsPerChunk == 0) {
-          bitmapCharacterIndex++;
+          currentCharChunk++;
         }
         if (bitmapBit % displayBuffer->font->width == 0) {
-          bufferOffset = bufferOffset + displayBuffer->width;
+          bufferIndexRowStart += displayBuffer->width;
         }
       }
 
-      bitmapValue =
-          (bool)(fontGetChunk(displayBuffer->font, bitmapCharacterIndex) &
-                 _BV_1ULL(displayBuffer->font->bitsPerChunk - 1 -
-                          (bitmapBit % displayBuffer->font->bitsPerChunk)));
+      shouldSetIndex =
+          (fontGetChunk(displayBuffer->font, character, currentCharChunk) &
+           _BV_1ULL(displayBuffer->font->bitsPerChunk - 1 -
+                    (bitmapBit % displayBuffer->font->bitsPerChunk)));
 
-      displayBuffer
-          ->buffer[bufferOffset + (bitmapBit % displayBuffer->font->width)] =
-          bitmapValue ? color : 0;
+      _safeSetBufferValue(
+          displayBuffer,
+          (bufferIndexRowStart + (bitmapBit % displayBuffer->font->width)),
+          (shouldSetIndex ? color : 0));
     }
+
+    _moveCursorOneCharWrap(displayBuffer);
   }
 }

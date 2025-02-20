@@ -305,21 +305,9 @@ void fontInit(FontHandle *fontHandle, FontSize size) {
 
 void fontEnd(FontHandle fontHandle) { free(fontHandle); }
 
-uint32_t fontGetChunk(FontHandle font, uint16_t index) {
-  switch (font->size) {
-  case FONT_SIZE_SM:
-    return (uint32_t)ascii4By6[index];
-  case FONT_SIZE_MD:
-    return (uint32_t)ascii6By8[index];
-  case FONT_SIZE_LG:
-    return (uint32_t)ascii8By12[index];
-  default:
-    return (uint32_t)0;
-  }
-}
-
 void fontSet(FontHandle font, FontSize size) {
   font->size = size;
+
   switch (font->size) {
   case FONT_SIZE_SM:
     font->width = 4;
@@ -340,5 +328,26 @@ void fontSet(FontHandle font, FontSize size) {
     font->bitsPerChunk = 16;
     font->chunksPerChar = 3;
     break;
+  }
+
+  font->bitPerChar = font->bitsPerChunk * font->chunksPerChar;
+}
+
+uint32_t fontGetChunk(FontHandle font, char asciiChar, uint8_t chunk) {
+  if (!fontIsValidChunk(font, chunk) || !fontIsValidAscii(asciiChar)) {
+    return (uint32_t)0;
+  }
+
+  switch (font->size) {
+  case FONT_SIZE_SM:
+    return (uint32_t)
+        ascii4By6[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
+  case FONT_SIZE_LG:
+    return (uint32_t)
+        ascii8By12[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
+  case FONT_SIZE_MD:
+  default:
+    return (uint32_t)
+        ascii6By8[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
   }
 }

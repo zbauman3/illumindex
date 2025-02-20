@@ -52,17 +52,8 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
-  uint16_t fontOffset = 0;
-  fontSet(displayBuffer->font, FONT_SIZE_SM);
-  drawString(displayBuffer, "Loading!", fontOffset, 0b1111100000000000);
-
-  fontOffset += displayBuffer->width * displayBuffer->font->height;
-  fontSet(displayBuffer->font, FONT_SIZE_MD);
-  drawString(displayBuffer, "Loading!", fontOffset, 0b0000011111100000);
-
-  fontOffset += displayBuffer->width * displayBuffer->font->height;
   fontSet(displayBuffer->font, FONT_SIZE_LG);
-  drawString(displayBuffer, "Loading!", fontOffset, 0b0000000000011111);
+  drawString(displayBuffer, "1234567890", 0b0000000000011111);
 
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());

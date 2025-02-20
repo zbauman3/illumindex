@@ -7,14 +7,16 @@
 #include "gfx/fonts.h"
 
 #define DISPLAY_BUFFER_SIZE MATRIX_RAW_BUFFER_SIZE
-#define DISPLAY_BUFFER_ASCII_MIN 32
-#define DISPLAY_BUFFER_ASCII_MAX 126
 
 typedef struct {
   uint16_t *buffer;
   uint8_t width;
   uint8_t height;
   FontHandle font;
+  struct {
+    uint8_t x;
+    uint8_t y;
+  } cursor;
 } DisplayBuffer;
 
 typedef DisplayBuffer *DisplayBufferHandle;
@@ -24,4 +26,4 @@ void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
 void displayBufferClear(DisplayBufferHandle displayBufferHandle);
 
 void drawString(DisplayBufferHandle displayBuffer, char *stringBuff,
-                uint16_t startOffset, uint16_t color);
+                uint16_t color);
