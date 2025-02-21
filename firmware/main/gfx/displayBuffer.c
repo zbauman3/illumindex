@@ -28,7 +28,7 @@ uint16_t _getBufferIndexFromCursor(DisplayBufferHandle displayBuffer) {
 // wraps, but does not check that the new row (y) is within range
 void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
   // no overflowing, just update
-  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) <
+  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) <=
       displayBuffer->width) {
     displayBuffer->cursor.x += displayBuffer->font->width;
     return;
@@ -68,52 +68,58 @@ void displayBufferEnd(DisplayBufferHandle displayBuffer) {
   free(displayBuffer);
 }
 
-void drawString(DisplayBufferHandle displayBuffer, char *string,
-                uint16_t color) {
+void drawString(DisplayBufferHandle db, char *string, uint16_t color) {
   const size_t stringLength = strlen(string);
-  bool shouldSetIndex;
-  uint16_t bufferIndexRowStart;
-  uint8_t bitmapBit;
-  uint8_t currentCharChunk;
+  // the index within the string we are working on
   uint16_t stringIndex;
-  char character;
+  // the actual ascii character we are working on
+  char asciiChar;
+  // the starting point to draw bits at in the buffer
+  uint16_t bufferStartIdx;
+  // which bit of the font->width we are on working on
+  uint8_t bitmapRowIdx;
+  // the index of the character's bitmap chunk we are working on
+  uint8_t chunkIdx;
+  // the actual chunk value, pulled once to be used multiple
+  uint32_t chunkVal;
+  // the number of the bit we are working on, within the chunk. This is the
+  // _number_, not the zero-based index
+  uint8_t chunkBitN;
 
+  // loop all the characters in the string
   for (stringIndex = 0; stringIndex < stringLength; stringIndex++) {
-    character = string[stringIndex];
-    // we only have bitmaps for these characters. Anything else isn't
-    // allowed
-    if (!fontIsValidAscii(character)) {
-      ESP_LOGW(TAG, "Unsupported ASCII character \"%d\"", string[stringIndex]);
-      character = 63; // assign to `?`
+    asciiChar = string[stringIndex];
+    bitmapRowIdx = 0;
+    // convert the buffers cursor to an index, where we start this char
+    bufferStartIdx = _getBufferIndexFromCursor(db);
+
+    // if not a character that we support, change to `?`
+    if (!fontIsValidAscii(asciiChar)) {
+      ESP_LOGW(TAG, "Unsupported ASCII character \"%d\"", asciiChar);
+      asciiChar = 63;
     }
 
-    bufferIndexRowStart = _getBufferIndexFromCursor(displayBuffer);
+    for (chunkIdx = 0; chunkIdx < db->font->chunksPerChar; chunkIdx++) {
+      chunkVal = fontGetChunk(db->font, asciiChar, chunkIdx);
 
-    // get the starting index for the character in the bitmap array
-    currentCharChunk = 0;
+      for (chunkBitN = 1; chunkBitN <= db->font->bitsPerChunk; chunkBitN++) {
+        // mask the chunk bit, then AND it to the chunk value. Use the result as
+        // a boolean to check if we should set the value to the color or blank
+        _safeSetBufferValue(
+            db, bufferStartIdx + bitmapRowIdx,
+            (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN)) ? color
+                                                                      : 0);
 
-    for (bitmapBit = 0; bitmapBit < displayBuffer->font->bitPerChar;
-         bitmapBit++) {
-      if (bitmapBit != 0) {
-        if (bitmapBit % displayBuffer->font->bitsPerChunk == 0) {
-          currentCharChunk++;
-        }
-        if (bitmapBit % displayBuffer->font->width == 0) {
-          bufferIndexRowStart += displayBuffer->width;
+        // increase the rows index. Move down a line if at the end
+        bitmapRowIdx++;
+        if (bitmapRowIdx == db->font->width) {
+          bitmapRowIdx = 0;
+          bufferStartIdx += db->width;
         }
       }
-
-      shouldSetIndex =
-          (fontGetChunk(displayBuffer->font, character, currentCharChunk) &
-           _BV_1ULL(displayBuffer->font->bitsPerChunk - 1 -
-                    (bitmapBit % displayBuffer->font->bitsPerChunk)));
-
-      _safeSetBufferValue(
-          displayBuffer,
-          (bufferIndexRowStart + (bitmapBit % displayBuffer->font->width)),
-          (shouldSetIndex ? color : 0));
     }
 
-    _moveCursorOneCharWrap(displayBuffer);
+    // we're done with this character, move to the next position.
+    _moveCursorOneCharWrap(db);
   }
 }
