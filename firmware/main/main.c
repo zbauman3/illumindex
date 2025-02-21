@@ -52,8 +52,9 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
-  fontSet(displayBuffer->font, FONT_SIZE_LG);
-  drawString(displayBuffer, "1234567890", 0b0000000000011111);
+  fontSetSize(displayBuffer->font, FONT_SIZE_SM);
+  fontSetColor(displayBuffer->font, 0b0000000000011111U);
+  drawString(displayBuffer, "_______________");
 
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());

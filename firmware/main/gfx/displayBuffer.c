@@ -28,9 +28,11 @@ uint16_t _getBufferIndexFromCursor(DisplayBufferHandle displayBuffer) {
 // wraps, but does not check that the new row (y) is within range
 void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
   // no overflowing, just update
-  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) <=
+  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) +
+          displayBuffer->font->spacing <=
       displayBuffer->width) {
-    displayBuffer->cursor.x += displayBuffer->font->width;
+    displayBuffer->cursor.x +=
+        displayBuffer->font->width + displayBuffer->font->spacing;
     return;
   }
 
@@ -46,7 +48,7 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
   displayBuffer->buffer = (uint16_t *)malloc(DISPLAY_BUFFER_SIZE);
   displayBufferClear(displayBuffer);
 
-  fontInit(&displayBuffer->font, FONT_SIZE_MD);
+  fontInit(&displayBuffer->font);
 
   displayBuffer->cursor.x = 0;
   displayBuffer->cursor.y = 0;
@@ -68,7 +70,9 @@ void displayBufferEnd(DisplayBufferHandle displayBuffer) {
   free(displayBuffer);
 }
 
-void drawString(DisplayBufferHandle db, char *string, uint16_t color) {
+// This will apply the provided string to the buffer, using the buffer's current
+// cursor and font. The string will be wrapped until it is out of the matrix.
+void drawString(DisplayBufferHandle db, char *string) {
   const size_t stringLength = strlen(string);
   // the index within the string we are working on
   uint16_t stringIndex;
@@ -90,8 +94,12 @@ void drawString(DisplayBufferHandle db, char *string, uint16_t color) {
   for (stringIndex = 0; stringIndex < stringLength; stringIndex++) {
     asciiChar = string[stringIndex];
     bitmapRowIdx = 0;
-    // convert the buffers cursor to an index, where we start this char
+    // convert the buffers cursor to an index, where we start this char. If we
+    // have moved past the buffer's space, we can go ahead and end early
     bufferStartIdx = _getBufferIndexFromCursor(db);
+    if (bufferStartIdx >= db->width * db->height) {
+      return;
+    }
 
     // if not a character that we support, change to `?`
     if (!fontIsValidAscii(asciiChar)) {
@@ -107,8 +115,9 @@ void drawString(DisplayBufferHandle db, char *string, uint16_t color) {
         // a boolean to check if we should set the value to the color or blank
         _safeSetBufferValue(
             db, bufferStartIdx + bitmapRowIdx,
-            (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN)) ? color
-                                                                      : 0);
+            (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN))
+                ? db->font->color
+                : 0);
 
         // increase the rows index. Move down a line if at the end
         bitmapRowIdx++;

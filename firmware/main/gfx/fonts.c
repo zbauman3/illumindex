@@ -296,16 +296,20 @@ const static uint8_t ascii4By6[] = {
     0x5A, 0x00, 0x00, // ~
 };
 
-void fontInit(FontHandle *fontHandle, FontSize size) {
+void fontInit(FontHandle *fontHandle) {
   FontHandle font = (FontHandle)malloc(sizeof(Font));
-  fontSet(font, size);
+  fontSetSize(font, FONT_SIZE_MD);
+  fontSetColor(font, 0x1111100000000000);
+  font->spacing = 1;
 
   *fontHandle = font;
 }
 
 void fontEnd(FontHandle fontHandle) { free(fontHandle); }
 
-void fontSet(FontHandle font, FontSize size) {
+void fontSetColor(FontHandle font, uint16_t color) { font->color = color; }
+
+void fontSetSize(FontHandle font, FontSize size) {
   font->size = size;
 
   switch (font->size) {

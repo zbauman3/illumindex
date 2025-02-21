@@ -25,5 +25,4 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle);
 void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
 void displayBufferClear(DisplayBufferHandle displayBufferHandle);
 
-void drawString(DisplayBufferHandle displayBuffer, char *stringBuff,
-                uint16_t color);
+void drawString(DisplayBufferHandle displayBuffer, char *stringBuff);
