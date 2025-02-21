@@ -52,9 +52,8 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
-  fontSetSize(displayBuffer->font, FONT_SIZE_SM);
-  fontSetColor(displayBuffer->font, 0b0000000000011111U);
-  drawString(displayBuffer, "_______________");
+  fontSetSize(displayBuffer->font, FONT_SIZE_LG);
+  drawString(displayBuffer, "0123456789");
 
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
@@ -133,7 +132,7 @@ void app_main(void) {
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops >= 10) {
+    if (loops >= 255) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
       fetchAndDisplayData();
