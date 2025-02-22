@@ -8,6 +8,14 @@
 
 #define DISPLAY_BUFFER_SIZE MATRIX_RAW_BUFFER_SIZE
 
+#define displayBufferCursorToIndex(displayBuffer)                              \
+  ((uint16_t)((displayBuffer->cursor.y * displayBuffer->width) +               \
+              displayBuffer->cursor.x))
+
+#define displayBufferCursorIsVisible(displayBuffer)                            \
+  ((bool)(displayBuffer->cursor.x < displayBuffer->width &&                    \
+          displayBuffer->cursor.y < displayBuffer->height))
+
 typedef struct {
   uint16_t *buffer;
   uint8_t width;
@@ -24,5 +32,4 @@ typedef DisplayBuffer *DisplayBufferHandle;
 esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle);
 void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
 void displayBufferClear(DisplayBufferHandle displayBufferHandle);
-
 void drawString(DisplayBufferHandle displayBuffer, char *stringBuff);

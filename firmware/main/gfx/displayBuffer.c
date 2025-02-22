@@ -19,12 +19,6 @@ void _safeSetBufferValue(DisplayBufferHandle displayBuffer, uint16_t index,
   }
 }
 
-// does not check if the returned index is within range
-uint16_t _getBufferIndexFromCursor(DisplayBufferHandle displayBuffer) {
-  return (displayBuffer->cursor.y * displayBuffer->width) +
-         displayBuffer->cursor.x;
-}
-
 // wraps, but does not check that the new row (y) is within range
 void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
   // no overflowing, just update
@@ -94,10 +88,11 @@ void drawString(DisplayBufferHandle db, char *string) {
   for (stringIndex = 0; stringIndex < stringLength; stringIndex++) {
     asciiChar = string[stringIndex];
     bitmapRowIdx = 0;
-    // convert the buffers cursor to an index, where we start this char. If we
-    // have moved past the buffer's space, we can go ahead and end early
-    bufferStartIdx = _getBufferIndexFromCursor(db);
-    if (bufferStartIdx >= db->width * db->height) {
+    // convert the buffers cursor to an index, where we start this char
+    bufferStartIdx = displayBufferCursorToIndex(db);
+
+    // If we have moved past the buffer's space, we can go ahead and end
+    if (!displayBufferCursorIsVisible(db)) {
       return;
     }
 
