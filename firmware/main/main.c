@@ -53,7 +53,47 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
   fontSetSize(displayBuffer->font, FONT_SIZE_LG);
-  drawString(displayBuffer, "0123456789");
+  displayBufferDrawString(displayBuffer, "0123456789");
+
+  displayBufferSetColor(displayBuffer, 0b0000011111100000);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32, 16 + 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32, 16 - 8);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 16, 16);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 16, 16);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 8, 16 + 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 16, 16 + 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 16, 16 + 4);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 16, 16 - 4);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 16, 16 - 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 + 8, 16 - 8);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 8, 16 - 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 16, 16 - 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 16, 16 - 4);
+
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 8, 16 + 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 16, 16 + 8);
+  displayBufferSetCursor(displayBuffer, 32, 16);
+  displayBufferDrawLine(displayBuffer, 32 - 16, 16 + 4);
 
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());

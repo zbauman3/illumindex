@@ -299,14 +299,11 @@ const static uint8_t ascii4By6[] = {
 void fontInit(FontHandle *fontHandle) {
   FontHandle font = (FontHandle)malloc(sizeof(Font));
   fontSetSize(font, FONT_SIZE_MD);
-  fontSetColor(font, 0b1111100000000000);
 
   *fontHandle = font;
 }
 
 void fontEnd(FontHandle fontHandle) { free(fontHandle); }
-
-void fontSetColor(FontHandle font, uint16_t color) { font->color = color; }
 
 void fontSetSize(FontHandle font, FontSize size) {
   font->size = size;

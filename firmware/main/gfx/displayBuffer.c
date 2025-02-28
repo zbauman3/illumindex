@@ -1,3 +1,4 @@
+#include <math.h>
 #include <memory.h>
 
 #include "esp_log.h"
@@ -44,8 +45,8 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
 
   fontInit(&displayBuffer->font);
 
-  displayBuffer->cursor.x = 0;
-  displayBuffer->cursor.y = 0;
+  displayBufferSetColor(displayBuffer, 0b1111100000000000);
+  displayBufferSetCursor(displayBuffer, 0, 0);
   displayBuffer->width = 64;
   displayBuffer->height = 32;
 
@@ -66,7 +67,7 @@ void displayBufferEnd(DisplayBufferHandle displayBuffer) {
 
 // This will apply the provided string to the buffer, using the buffer's current
 // cursor and font. The string will be wrapped until it is out of the matrix.
-void drawString(DisplayBufferHandle db, char *string) {
+void displayBufferDrawString(DisplayBufferHandle db, char *string) {
   const size_t stringLength = strlen(string);
   // the index within the string we are working on
   uint16_t stringIndex;
@@ -111,7 +112,7 @@ void drawString(DisplayBufferHandle db, char *string) {
         _safeSetBufferValue(
             db, bufferStartIdx + bitmapRowIdx,
             (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN))
-                ? db->font->color
+                ? db->color
                 : 0);
 
         // increase the rows index. Move down a line if at the end
@@ -126,4 +127,118 @@ void drawString(DisplayBufferHandle db, char *string) {
     // we're done with this character, move to the next position.
     _moveCursorOneCharWrap(db);
   }
+}
+
+void displayBufferDrawFastVertLine(DisplayBufferHandle displayBuffer,
+                                   uint8_t to) {
+  // faster to write it twice
+  if (displayBuffer->cursor.y > to) {
+    while (displayBuffer->cursor.y >= to) {
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      displayBuffer->cursor.y)) {
+        _safeSetBufferValue(displayBuffer,
+                            displayBufferPointToIndex(displayBuffer,
+                                                      displayBuffer->cursor.x,
+                                                      displayBuffer->cursor.y),
+                            displayBuffer->color);
+      }
+
+      displayBuffer->cursor.y--;
+    }
+  } else {
+    while (displayBuffer->cursor.y <= to) {
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      displayBuffer->cursor.y)) {
+        _safeSetBufferValue(displayBuffer,
+                            displayBufferPointToIndex(displayBuffer,
+                                                      displayBuffer->cursor.x,
+                                                      displayBuffer->cursor.y),
+                            displayBuffer->color);
+      }
+
+      displayBuffer->cursor.y++;
+    }
+  }
+
+  displayBufferSetCursor(displayBuffer, displayBuffer->cursor.x, to);
+}
+
+void displayBufferDrawFastHorizonLine(DisplayBufferHandle displayBuffer,
+                                      uint8_t to) {
+  // faster to write it twice
+  if (displayBuffer->cursor.x > to) {
+    while (displayBuffer->cursor.x >= to) {
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      displayBuffer->cursor.y)) {
+        _safeSetBufferValue(displayBuffer,
+                            displayBufferPointToIndex(displayBuffer,
+                                                      displayBuffer->cursor.x,
+                                                      displayBuffer->cursor.y),
+                            displayBuffer->color);
+      }
+
+      displayBuffer->cursor.x--;
+    }
+  } else {
+    while (displayBuffer->cursor.x <= to) {
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      displayBuffer->cursor.y)) {
+        _safeSetBufferValue(displayBuffer,
+                            displayBufferPointToIndex(displayBuffer,
+                                                      displayBuffer->cursor.x,
+                                                      displayBuffer->cursor.y),
+                            displayBuffer->color);
+      }
+
+      displayBuffer->cursor.x++;
+    }
+  }
+
+  displayBufferSetCursor(displayBuffer, to, displayBuffer->cursor.y);
+}
+
+void displayBufferDrawFastDiagLine(DisplayBufferHandle displayBuffer,
+                                   uint8_t toX, uint8_t toY) {
+  float change = ((float)displayBuffer->cursor.y - (float)toY) /
+                 ((float)displayBuffer->cursor.x - (float)toX);
+  float unroundedY = (float)displayBuffer->cursor.y;
+
+  if (displayBuffer->cursor.x <= toX) {
+    while (displayBuffer->cursor.x <= toX) {
+      _safeSetBufferValue(displayBuffer,
+                          displayBufferPointToIndex(displayBuffer,
+                                                    displayBuffer->cursor.x,
+                                                    (uint8_t)round(unroundedY)),
+                          displayBuffer->color);
+
+      displayBuffer->cursor.x++;
+      unroundedY += change;
+    }
+  } else {
+    while (displayBuffer->cursor.x >= toX) {
+      _safeSetBufferValue(displayBuffer,
+                          displayBufferPointToIndex(displayBuffer,
+                                                    displayBuffer->cursor.x,
+                                                    (uint8_t)round(unroundedY)),
+                          displayBuffer->color);
+
+      displayBuffer->cursor.x--;
+      unroundedY -= change;
+    }
+  }
+}
+
+void displayBufferDrawLine(DisplayBufferHandle displayBuffer, uint8_t toX,
+                           uint8_t toY) {
+  if (displayBuffer->cursor.x == toX) {
+    ESP_LOGI(TAG, "DRAWING VERT");
+    return displayBufferDrawFastVertLine(displayBuffer, toY);
+  }
+  if (displayBuffer->cursor.y == toY) {
+    ESP_LOGI(TAG, "DRAWING HORIZ");
+    return displayBufferDrawFastHorizonLine(displayBuffer, toX);
+  }
+
+  displayBufferDrawFastDiagLine(displayBuffer, toX, toY);
+  displayBufferSetCursor(displayBuffer, toX, toY);
 }

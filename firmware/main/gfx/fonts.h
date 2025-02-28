@@ -27,7 +27,6 @@ typedef struct {
   uint8_t chunksPerChar;
   uint8_t bitsPerChunk;
   uint8_t bitPerChar;
-  uint16_t color;
   uint8_t spacing;
 } Font;
 
@@ -35,7 +34,6 @@ typedef Font *FontHandle;
 
 void fontInit(FontHandle *fontHandle);
 void fontSetSize(FontHandle font, FontSize size);
-void fontSetColor(FontHandle font, uint16_t color);
 void fontEnd(FontHandle font);
 
 uint32_t fontGetChunk(FontHandle font, char ascii, uint8_t chunk);
