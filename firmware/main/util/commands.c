@@ -102,13 +102,13 @@ void parseAndShowBitmap(DisplayBufferHandle db, const cJSON *command) {
   // into a buffer that we can use with the display buffer
   const cJSON *pixelValue = NULL;
   uint16_t bufIndex = 0;
-  uint16_t *bmBuffer = malloc(cJSON_GetArraySize(data));
+  uint16_t *bmBuffer = malloc(cJSON_GetArraySize(data) * sizeof(uint16_t));
   cJSON_ArrayForEach(pixelValue, data) {
     if (cJSON_IsNumber(pixelValue)) {
-      bmBuffer[bufIndex] = pixelValue->valueint;
+      bmBuffer[bufIndex] = (uint16_t)pixelValue->valueint;
     } else {
       invalidPropWarn("bitmap", "pixel value");
-      bmBuffer[bufIndex] = 0;
+      bmBuffer[bufIndex] = (uint16_t)0;
     }
     bufIndex++;
   }
@@ -121,12 +121,11 @@ void parseAndShowBitmap(DisplayBufferHandle db, const cJSON *command) {
 esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
                                size_t length) {
   esp_err_t ret = ESP_OK;
-  cJSON *json = NULL;
   const cJSON *command = NULL;
   const cJSON *type = NULL;
   uint16_t commandIndex = 0;
 
-  json = cJSON_ParseWithLength(data, length);
+  cJSON *json = cJSON_ParseWithLength(data, length);
 
   ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
                     parseAndShowCommands_cleanup, TAG,
