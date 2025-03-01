@@ -18,5 +18,5 @@
 #define MATRIX_ADDR_C GPIO_NUM_11  // 11
 #define MATRIX_ADDR_D GPIO_NUM_12  // 12
 
-#define API_ENDPOINT_URL "https://illumindex.vercel.app/api/matrix-test"
+#define API_ENDPOINT_URL "https://illumindex.vercel.app/api/command-test"
 #define API_ENDPOINT_METHOD HTTP_METHOD_GET

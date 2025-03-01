@@ -17,7 +17,7 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
 
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR: {
-    ESP_LOGW(TAG, "HTTP_EVENT_ERROR \"%s\"", (char *)evt->data);
+    ESP_LOGW(TAG, "HTTP_EVENT_ERROR");
     break;
   }
   case HTTP_EVENT_ON_DATA: {

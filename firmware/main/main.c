@@ -10,9 +10,10 @@
 #include "drivers/matrix.h"
 #include "gfx/displayBuffer.h"
 #include "gfx/fonts.h"
-#include "lib/cjson/cJSON.h"
 #include "network/request.h"
 #include "network/wifi.h"
+#include "util/565_color.h"
+#include "util/commands.h"
 #include "util/config.h"
 #include "util/error_helpers.h"
 
@@ -52,55 +53,10 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
 
+  displayBufferSetColor(displayBuffer, RGB_TO_565(0, 255, 149));
+  displayBufferSetCursor(displayBuffer, 0, 10);
   fontSetSize(displayBuffer->font, FONT_SIZE_LG);
-  displayBufferDrawString(displayBuffer, "0123456789");
-
-  displayBufferSetColor(displayBuffer, 0b0000011111100000);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32, 16 + 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32, 16 - 8);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 16, 16);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 16, 16);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 8, 16 + 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 16, 16 + 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 16, 16 + 4);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 16, 16 - 4);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 16, 16 - 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 + 8, 16 - 8);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 8, 16 - 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 16, 16 - 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 16, 16 - 4);
-
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 8, 16 + 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 16, 16 + 8);
-  displayBufferSetCursor(displayBuffer, 32, 16);
-  displayBufferDrawLine(displayBuffer, 32 - 16, 16 + 4);
-
-  displayBufferSetCursor(displayBuffer, 60, 29);
-  uint16_t bitmapData[6] = {
-      0b1111100000000000, 0b0000011111100000, 0b0000000000011111,
-      0b0000000000011111, 0b0000011111100000, 0b1111100000000000,
-  };
-  displayBufferDrawBitmap(displayBuffer, 3, 2, bitmapData);
+  displayBufferDrawString(displayBuffer, "Starting");
 
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
@@ -110,7 +66,6 @@ esp_err_t appInit() {
 
 esp_err_t fetchAndDisplayData() {
   esp_err_t ret = ESP_OK;
-  cJSON *json = NULL;
   RequestContextHandle ctx;
 
   ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup, TAG,
@@ -127,41 +82,18 @@ esp_err_t fetchAndDisplayData() {
                     "Invalid response status code \"%d\"",
                     ctx->response->statusCode);
 
-  ESP_LOGI(TAG, "Response length: \"%d\"", ctx->response->length);
+  displayBufferClear(displayBuffer);
 
-  json = cJSON_ParseWithLength(ctx->response->data, ctx->response->length);
-
-  ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
+  ESP_GOTO_ON_ERROR(parseAndShowCommands(displayBuffer, ctx->response->data,
+                                         ctx->response->length),
                     fetchAndDisplayData_cleanup, TAG,
                     "Invalid JSON response or content length");
-
-  ESP_GOTO_ON_FALSE(cJSON_IsArray(json), ESP_ERR_INVALID_RESPONSE,
-                    fetchAndDisplayData_cleanup, TAG,
-                    "JSON response is not an array");
-
-  ESP_LOGI(TAG, "JSON array length: \"%d\"", cJSON_GetArraySize(json));
-
-  cJSON *pixelValue = NULL;
-  uint16_t bufIndex = 0;
-  cJSON_ArrayForEach(pixelValue, json) {
-    if (cJSON_IsNumber(pixelValue)) {
-      if (pixelValue->valueint > 65535) {
-        ESP_LOGW(TAG, "Response value at \"%d\" is not a 565 color", bufIndex);
-      }
-      displayBuffer->buffer[bufIndex] = (uint16_t)pixelValue->valueint;
-    } else {
-      ESP_LOGW(TAG, "Response value at \"%d\" is not a number", bufIndex);
-      displayBuffer->buffer[bufIndex] = 0;
-    }
-    bufIndex++;
-  }
 
   ESP_GOTO_ON_ERROR(matrixShow(matrix, displayBuffer->buffer),
                     fetchAndDisplayData_cleanup, TAG,
                     "Error setting the new buffer");
 
 fetchAndDisplayData_cleanup:
-  cJSON_Delete(json);
   requestEnd(ctx);
   return ret;
 }
@@ -175,15 +107,16 @@ void app_main(void) {
     return;
   }
 
-  uint8_t loops = 0;
+  uint8_t loops = 255;
+  const uint8_t loopReset = 136;
   while (true) {
-    ESP_LOGI(TAG, "LOOP!");
-
-    if (loops >= 10) {
-      loops = 0;
-      ESP_LOGI(TAG, "Starting wifi test");
-      fetchAndDisplayData();
-      ESP_LOGI(TAG, "Ended wifi test");
+    if (loops >= loopReset) {
+      if (fetchAndDisplayData() == ESP_OK) {
+        loops = 0;
+      } else {
+        // try again in 10 seconds
+        loops = loopReset - 10;
+      }
     }
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
