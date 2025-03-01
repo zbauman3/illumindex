@@ -32,8 +32,7 @@ void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
   }
 
   // otherwise, wrap
-  displayBuffer->cursor.y += displayBuffer->font->height;
-  displayBuffer->cursor.x = 0;
+  displayBufferLineFeed(displayBuffer);
 }
 
 esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {

@@ -28,6 +28,12 @@
 
 #define displayBufferSetColor(db, scolor) ({ db->color = (scolor); })
 
+#define displayBufferLineFeed(db)                                              \
+  ({                                                                           \
+    db->cursor.x = 0;                                                          \
+    db->cursor.y += db->font->height;                                          \
+  })
+
 typedef struct {
   uint16_t *buffer;
   uint8_t width;

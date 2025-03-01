@@ -8,88 +8,95 @@
 
 static const char *TAG = "COMMANDS";
 
+#define invalidShapeWarn(type)                                                 \
+  ESP_LOGW(TAG, "Command of type '%s' does not have a valid shape", type)
+
+#define invalidPropWarn(type, prop)                                            \
+  ESP_LOGW(TAG, "Command of type '%s' has an invalid '%s'", type, prop)
+
+// This is responsible for pulling off shared state data and setting it. Not all
+// of these make sense in the context of the command they're set in, but it's
+// just easier to allow any to be set from any command.
+void parseAndSetState(DisplayBufferHandle db, const cJSON *command,
+                      char *type) {
+  const cJSON *fontSize = cJSON_GetObjectItemCaseSensitive(command, "fontSize");
+  if (cJSON_IsString(fontSize)) {
+    if (strcmp(fontSize->valuestring, "sm") == 0) {
+      fontSetSize(db->font, FONT_SIZE_SM);
+    } else if (strcmp(fontSize->valuestring, "lg") == 0) {
+      fontSetSize(db->font, FONT_SIZE_LG);
+    } else if (strcmp(fontSize->valuestring, "md") == 0) {
+      fontSetSize(db->font, FONT_SIZE_MD);
+    } else {
+      invalidPropWarn(type, "fontSize");
+    }
+  }
+
+  const cJSON *color = cJSON_GetObjectItemCaseSensitive(command, "color");
+  if (cJSON_IsNumber(color)) {
+    displayBufferSetColor(db, color->valueint);
+  }
+
+  const cJSON *pos = cJSON_GetObjectItemCaseSensitive(command, "position");
+  if (cJSON_IsObject(pos)) {
+    const cJSON *x = cJSON_GetObjectItemCaseSensitive(pos, "x");
+    const cJSON *y = cJSON_GetObjectItemCaseSensitive(pos, "y");
+
+    if (!cJSON_IsNumber(x) || !cJSON_IsNumber(y)) {
+      invalidPropWarn(type, "position");
+    } else {
+      displayBufferSetCursor(db, x->valueint, y->valueint);
+    }
+  }
+}
+
 void parseAndShowString(DisplayBufferHandle db, const cJSON *command) {
   const cJSON *value = cJSON_GetObjectItemCaseSensitive(command, "value");
-  const cJSON *size = cJSON_GetObjectItemCaseSensitive(command, "size");
-  const cJSON *color = cJSON_GetObjectItemCaseSensitive(command, "color");
-  const cJSON *pos = cJSON_GetObjectItemCaseSensitive(command, "position");
-
-  if (!cJSON_IsString(value) || !cJSON_IsString(size) ||
-      !cJSON_IsNumber(color) || !cJSON_IsObject(pos)) {
-    ESP_LOGW(TAG, "Command of type 'string' does not have a valid shape.");
+  if (!cJSON_IsString(value)) {
+    invalidShapeWarn("string");
     return;
   }
 
-  const cJSON *x = cJSON_GetObjectItemCaseSensitive(pos, "x");
-  const cJSON *y = cJSON_GetObjectItemCaseSensitive(pos, "y");
-
-  if (!cJSON_IsNumber(x) || !cJSON_IsNumber(y)) {
-    ESP_LOGW(TAG, "Command of type 'string' does not have a valid shape.");
-    return;
-  }
-
-  displayBufferSetCursor(db, x->valueint, y->valueint);
-  displayBufferSetColor(db, color->valueint);
-
-  if (strcmp(size->valuestring, "sm") == 0) {
-    fontSetSize(db->font, FONT_SIZE_SM);
-  } else if (strcmp(size->valuestring, "lg") == 0) {
-    fontSetSize(db->font, FONT_SIZE_LG);
-  } else {
-    fontSetSize(db->font, FONT_SIZE_MD);
-  }
+  parseAndSetState(db, command, "string");
 
   displayBufferDrawString(db, value->valuestring);
 }
 
 void parseAndShowLine(DisplayBufferHandle db, const cJSON *command) {
-  const cJSON *color = cJSON_GetObjectItemCaseSensitive(command, "color");
-  const cJSON *from = cJSON_GetObjectItemCaseSensitive(command, "from");
   const cJSON *to = cJSON_GetObjectItemCaseSensitive(command, "to");
-
-  if (!cJSON_IsNumber(color) || !cJSON_IsObject(from) || !cJSON_IsObject(to)) {
-    ESP_LOGW(TAG, "Command of type 'line' does not have a valid shape.");
+  if (!cJSON_IsObject(to)) {
+    invalidShapeWarn("line");
     return;
   }
 
-  const cJSON *fromX = cJSON_GetObjectItemCaseSensitive(from, "x");
-  const cJSON *fromY = cJSON_GetObjectItemCaseSensitive(from, "y");
   const cJSON *toX = cJSON_GetObjectItemCaseSensitive(to, "x");
   const cJSON *toY = cJSON_GetObjectItemCaseSensitive(to, "y");
-
-  if (!cJSON_IsNumber(fromX) || !cJSON_IsNumber(fromY) ||
-      !cJSON_IsNumber(toX) || !cJSON_IsNumber(toY)) {
-    ESP_LOGW(TAG, "Command of type 'line' does not have a valid shape.");
+  if (!cJSON_IsNumber(toX) || !cJSON_IsNumber(toY)) {
+    invalidPropWarn("line", "to");
     return;
   }
 
-  displayBufferSetColor(db, color->valueint);
-  displayBufferSetCursor(db, fromX->valueint, fromY->valueint);
+  parseAndSetState(db, command, "line");
+
   displayBufferDrawLine(db, toX->valueint, toY->valueint);
 }
 
 void parseAndShowBitmap(DisplayBufferHandle db, const cJSON *command) {
   const cJSON *data = cJSON_GetObjectItemCaseSensitive(command, "data");
-  const cJSON *pos = cJSON_GetObjectItemCaseSensitive(command, "position");
   const cJSON *size = cJSON_GetObjectItemCaseSensitive(command, "size");
-
-  if (!cJSON_IsArray(data) || !cJSON_IsObject(pos) || !cJSON_IsObject(size)) {
-    ESP_LOGW(TAG, "Command of type 'bitmap' does not have a valid shape.");
+  if (!cJSON_IsArray(data) || !cJSON_IsObject(size)) {
+    invalidShapeWarn("bitmap");
     return;
   }
 
-  const cJSON *posX = cJSON_GetObjectItemCaseSensitive(pos, "x");
-  const cJSON *posY = cJSON_GetObjectItemCaseSensitive(pos, "y");
   const cJSON *sizeW = cJSON_GetObjectItemCaseSensitive(size, "width");
   const cJSON *sizeH = cJSON_GetObjectItemCaseSensitive(size, "height");
-
-  if (!cJSON_IsNumber(posX) || !cJSON_IsNumber(posY) ||
-      !cJSON_IsNumber(sizeW) || !cJSON_IsNumber(sizeH)) {
-    ESP_LOGW(TAG, "Command of type 'bitmap' does not have a valid shape.");
+  if (!cJSON_IsNumber(sizeW) || !cJSON_IsNumber(sizeH)) {
+    invalidPropWarn("bitmap", "size");
     return;
   }
 
-  displayBufferSetCursor(db, posX->valueint, posY->valueint);
+  parseAndSetState(db, command, "bitmap");
 
   // we cannot access the array directly, so we have to loop and put the values
   // into a buffer that we can use with the display buffer
@@ -100,7 +107,7 @@ void parseAndShowBitmap(DisplayBufferHandle db, const cJSON *command) {
     if (cJSON_IsNumber(pixelValue)) {
       bmBuffer[bufIndex] = pixelValue->valueint;
     } else {
-      ESP_LOGW(TAG, "Command of type 'bitmap' has an invalid pixel value.");
+      invalidPropWarn("bitmap", "pixel value");
       bmBuffer[bufIndex] = 0;
     }
     bufIndex++;
@@ -139,16 +146,20 @@ esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
           parseAndShowLine(db, command);
         } else if (strcmp(type->valuestring, "bitmap") == 0) {
           parseAndShowBitmap(db, command);
+        } else if (strcmp(type->valuestring, "line-feed") == 0) {
+          displayBufferLineFeed(db);
+        } else if (strcmp(type->valuestring, "set-state") == 0) {
+          parseAndSetState(db, command, "set-state");
         } else {
-          ESP_LOGI(TAG, "Command %u does not have a valid 'type'",
+          ESP_LOGW(TAG, "Command %u does not have a valid 'type'",
                    commandIndex);
         }
       } else {
-        ESP_LOGI(TAG, "Command %u does not have a 'string' 'type'",
+        ESP_LOGW(TAG, "Command %u does not have a 'string' 'type'",
                  commandIndex);
       }
     } else {
-      ESP_LOGI(TAG, "Command %u is not an object", commandIndex);
+      ESP_LOGW(TAG, "Command %u is not an object", commandIndex);
     }
 
     commandIndex++;
