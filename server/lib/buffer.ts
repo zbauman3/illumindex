@@ -1,33 +1,33 @@
 
-export type Point = {
-  x: number,
-  y: number,
-};
+// export type Point = {
+//   x: number,
+//   y: number,
+// };
 
-// export type DisplayBuffer = string[];
+// // export type DisplayBuffer = string[];
 
-const width = 64;
-const height = 32;
+// const width = 64;
+// const height = 32;
 
-export class DisplayBuffer {
-  buffer: string[];
+// export class DisplayBuffer {
+//   buffer: string[];
 
-  constructor() {
-    this.buffer = new Array(width * height).fill('');
-  }
+//   constructor() {
+//     this.buffer = new Array(width * height).fill('');
+//   }
 
-  canSetPoint(point: Point) {
+//   canSetPoint(point: Point) {
 
-  }
-}
+//   }
+// }
 
 
 
-const setMatrixValue = (point: Point, value: string) => {
-  if (point.x >= width || point.y >= height) {
-    console.log('Cannot set point', point);
-    return;
-  }
+// const setMatrixValue = (point: Point, value: string) => {
+//   if (point.x >= width || point.y >= height) {
+//     console.log('Cannot set point', point);
+//     return;
+//   }
 
-  matrixData[(point.y * width) + point.x] = value;
-}
+//   matrixData[(point.y * width) + point.x] = value;
+// }
