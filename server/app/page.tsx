@@ -8,7 +8,6 @@ type Point = {
 const width = 64;
 const height = 32;
 const matrixData: string[] = new Array(width * height).fill('');
-const getRandomColor = () => '#' + (Math.random() * 0xFFFFFF << 0).toString(16).padStart(6, '0');
 
 const setMatrixValue = (point: Point, value: string) => {
   if (point.x >= width || point.y >= height) {
@@ -77,6 +76,16 @@ const drawLine = (from: Point, to: Point, color: string) => {
   }
 }
 
+const drawBuffer = (from: Point, width: number, height: number, data: string[]) => {
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      setMatrixValue({ x: from.x + col, y: from.y + row }, data[(row * width) + col]);
+    }
+  }
+}
+
+const getRandomColor = () => '#' + (Math.random() * 0xFFFFFF << 0).toString(16).padStart(6, '0');
+
 drawLine({ x: 32, y: 16 }, { x: 32, y: 0 }, getRandomColor())
 drawLine({ x: 32, y: 16 }, { x: 32, y: 31 }, getRandomColor())
 drawLine({ x: 32, y: 16 }, { x: 63, y: 16 }, getRandomColor())
@@ -97,6 +106,11 @@ drawLine({ x: 32, y: 16 }, { x: 0, y: 8 }, getRandomColor())
 drawLine({ x: 32, y: 16 }, { x: 0, y: 31 }, getRandomColor())
 drawLine({ x: 32, y: 16 }, { x: 0, y: 24 }, getRandomColor())
 drawLine({ x: 32, y: 16 }, { x: 16, y: 31 }, getRandomColor())
+
+drawBuffer({ x: 1, y: 18 }, 3, 2, [
+  'red', 'green', 'blue',
+  'blue', 'green', 'red'
+]);
 
 const Col = ({ value }: { value: string }) => (
   <div style={{ backgroundColor: value ? value : 'lightgray', width: 20, height: 20, borderRadius: 20 }} />

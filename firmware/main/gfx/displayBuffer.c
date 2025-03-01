@@ -205,40 +205,61 @@ void displayBufferDrawFastDiagLine(DisplayBufferHandle displayBuffer,
 
   if (displayBuffer->cursor.x <= toX) {
     while (displayBuffer->cursor.x <= toX) {
-      _safeSetBufferValue(displayBuffer,
-                          displayBufferPointToIndex(displayBuffer,
-                                                    displayBuffer->cursor.x,
-                                                    (uint8_t)round(unroundedY)),
-                          displayBuffer->color);
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      (uint8_t)round(unroundedY))) {
+        _safeSetBufferValue(
+            displayBuffer,
+            displayBufferPointToIndex(displayBuffer, displayBuffer->cursor.x,
+                                      (uint8_t)round(unroundedY)),
+            displayBuffer->color);
+      }
 
       displayBuffer->cursor.x++;
       unroundedY += change;
     }
   } else {
     while (displayBuffer->cursor.x >= toX) {
-      _safeSetBufferValue(displayBuffer,
-                          displayBufferPointToIndex(displayBuffer,
-                                                    displayBuffer->cursor.x,
-                                                    (uint8_t)round(unroundedY)),
-                          displayBuffer->color);
+      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+                                      (uint8_t)round(unroundedY))) {
+        _safeSetBufferValue(
+            displayBuffer,
+            displayBufferPointToIndex(displayBuffer, displayBuffer->cursor.x,
+                                      (uint8_t)round(unroundedY)),
+            displayBuffer->color);
+      }
 
       displayBuffer->cursor.x--;
       unroundedY -= change;
     }
   }
+
+  displayBufferSetCursor(displayBuffer, toX, toY);
 }
 
 void displayBufferDrawLine(DisplayBufferHandle displayBuffer, uint8_t toX,
                            uint8_t toY) {
   if (displayBuffer->cursor.x == toX) {
-    ESP_LOGI(TAG, "DRAWING VERT");
-    return displayBufferDrawFastVertLine(displayBuffer, toY);
+    displayBufferDrawFastVertLine(displayBuffer, toY);
+  } else if (displayBuffer->cursor.y == toY) {
+    displayBufferDrawFastHorizonLine(displayBuffer, toX);
+  } else {
+    displayBufferDrawFastDiagLine(displayBuffer, toX, toY);
   }
-  if (displayBuffer->cursor.y == toY) {
-    ESP_LOGI(TAG, "DRAWING HORIZ");
-    return displayBufferDrawFastHorizonLine(displayBuffer, toX);
-  }
+}
 
-  displayBufferDrawFastDiagLine(displayBuffer, toX, toY);
-  displayBufferSetCursor(displayBuffer, toX, toY);
+void displayBufferDrawBitmap(DisplayBufferHandle displayBuffer, uint8_t width,
+                             uint8_t height, uint16_t *buffer) {
+  for (uint8_t row = 0; row < height; row++) {
+    for (uint8_t col = 0; col < width; col++) {
+      if (displayBufferPointIsVisible(displayBuffer,
+                                      displayBuffer->cursor.x + col,
+                                      displayBuffer->cursor.y + row)) {
+        _safeSetBufferValue(displayBuffer,
+                            displayBufferPointToIndex(
+                                displayBuffer, displayBuffer->cursor.x + col,
+                                displayBuffer->cursor.y + row),
+                            buffer[(row * width) + col]);
+      }
+    }
+  }
 }

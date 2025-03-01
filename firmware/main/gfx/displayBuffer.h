@@ -11,7 +11,8 @@
 #define displayBufferCursorToIndex(db)                                         \
   displayBufferPointToIndex(db, db->cursor.x, db->cursor.y)
 
-#define displayBufferPointToIndex(db, x, y) ((uint16_t)((y * db->width) + x))
+#define displayBufferPointToIndex(db, x, y)                                    \
+  ((uint16_t)(((y) * db->width) + (x)))
 
 #define displayBufferCursorIsVisible(db)                                       \
   displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)
@@ -21,11 +22,11 @@
 
 #define displayBufferSetCursor(db, sx, sy)                                     \
   ({                                                                           \
-    db->cursor.x = sx;                                                         \
-    db->cursor.y = sy;                                                         \
+    db->cursor.x = (sx);                                                       \
+    db->cursor.y = (sy);                                                       \
   })
 
-#define displayBufferSetColor(db, scolor) ({ db->color = scolor; })
+#define displayBufferSetColor(db, scolor) ({ db->color = (scolor); })
 
 typedef struct {
   uint16_t *buffer;
@@ -50,5 +51,9 @@ void displayBufferDrawFastVertLine(DisplayBufferHandle displayBuffer,
                                    uint8_t to);
 void displayBufferDrawFastHorizonLine(DisplayBufferHandle displayBuffer,
                                       uint8_t to);
+void displayBufferDrawFastDiagLine(DisplayBufferHandle displayBuffer,
+                                   uint8_t toX, uint8_t toY);
 void displayBufferDrawLine(DisplayBufferHandle displayBuffer, uint8_t toX,
                            uint8_t toY);
+void displayBufferDrawBitmap(DisplayBufferHandle displayBuffer, uint8_t width,
+                             uint8_t height, uint16_t *buffer);

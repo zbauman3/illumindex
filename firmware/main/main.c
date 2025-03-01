@@ -95,6 +95,13 @@ esp_err_t appInit() {
   displayBufferSetCursor(displayBuffer, 32, 16);
   displayBufferDrawLine(displayBuffer, 32 - 16, 16 + 4);
 
+  displayBufferSetCursor(displayBuffer, 60, 29);
+  uint16_t bitmapData[6] = {
+      0b1111100000000000, 0b0000011111100000, 0b0000000000011111,
+      0b0000000000011111, 0b0000011111100000, 0b1111100000000000,
+  };
+  displayBufferDrawBitmap(displayBuffer, 3, 2, bitmapData);
+
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
 
@@ -172,7 +179,7 @@ void app_main(void) {
   while (true) {
     ESP_LOGI(TAG, "LOOP!");
 
-    if (loops >= 255) {
+    if (loops >= 10) {
       loops = 0;
       ESP_LOGI(TAG, "Starting wifi test");
       fetchAndDisplayData();
