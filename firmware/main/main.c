@@ -1,6 +1,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "driver/gpio.h"
 #include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -14,7 +15,6 @@
 #include "network/wifi.h"
 #include "util/565_color.h"
 #include "util/commands.h"
-#include "util/config.h"
 #include "util/error_helpers.h"
 
 static const char *TAG = "APP_MAIN";
@@ -34,19 +34,20 @@ esp_err_t appInit() {
   MatrixInitConfig matrixConfig = {
       .pins =
           {
-              .a0 = MATRIX_ADDR_A,
-              .a1 = MATRIX_ADDR_B,
-              .a2 = MATRIX_ADDR_C,
-              .a3 = MATRIX_ADDR_D,
-              .latch = MATRIX_LATCH,
-              .clock = MATRIX_CLOCK,
-              .oe = MATRIX_OE,
-              .r1 = MATRIX_RED_1,
-              .b1 = MATRIX_BLUE_1,
-              .g1 = MATRIX_GREEN_1,
-              .r2 = MATRIX_RED_2,
-              .b2 = MATRIX_BLUE_2,
-              .g2 = MATRIX_GREEN_2,
+              // green and blue are switched here due to the `ICN2037` wiring
+              .a0 = GPIO_NUM_9,     // 9
+              .a1 = GPIO_NUM_10,    // 10
+              .a2 = GPIO_NUM_11,    // 11
+              .a3 = GPIO_NUM_12,    // 12
+              .latch = GPIO_NUM_5,  // 5
+              .clock = GPIO_NUM_36, // SCK
+              .oe = GPIO_NUM_6,     // 6
+              .r1 = GPIO_NUM_17,    // A1
+              .b1 = GPIO_NUM_18,    // A0
+              .g1 = GPIO_NUM_16,    // A2
+              .r2 = GPIO_NUM_14,    // A4
+              .b2 = GPIO_NUM_15,    // A3
+              .g2 = GPIO_NUM_8,     // A5
           },
   };
   ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
@@ -71,8 +72,8 @@ esp_err_t fetchAndDisplayData() {
   ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup, TAG,
                     "Error initiating the request context");
 
-  ctx->url = API_ENDPOINT_URL;
-  ctx->method = API_ENDPOINT_METHOD;
+  ctx->url = CONFIG_ENDPOINT_URL;
+  ctx->method = HTTP_METHOD_GET;
 
   ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup, TAG,
                     "Error fetching data from endpoint");
@@ -108,14 +109,13 @@ void app_main(void) {
   }
 
   uint8_t loops = 255;
-  const uint8_t loopReset = 136;
   while (true) {
-    if (loops >= loopReset) {
+    if (loops >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
       if (fetchAndDisplayData() == ESP_OK) {
         loops = 0;
       } else {
         // try again in 10 seconds
-        loops = loopReset - 10;
+        loops = CONFIG_ENDPOINT_FETCH_INTERVAL - 10;
       }
     }
 

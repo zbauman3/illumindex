@@ -1,6 +1,13 @@
 menu "Wifi Config"
-    config WIFI_SSID
-        string "The name of the WiFi network."
-    config WIFI_PWD
-        string "The password of the WiFi network."
+  config WIFI_SSID
+      string "The name of the WiFi network."
+  config WIFI_PWD
+      string "The password of the WiFi network."
+endmenu
+
+menu "Endpoint Config"
+  config ENDPOINT_URL
+      string "The URL for fetching data."
+  config ENDPOINT_FETCH_INTERVAL
+      int "The number of seconds to wait between fetching."
 endmenu
