@@ -4,17 +4,19 @@
 #include "driver/gptimer.h"
 #include "esp_err.h"
 
-#define MATRIX_RAW_BUFFER_SIZE (sizeof(uint16_t) * 64 * 32)
-
 // 10MHz = .1µs resolution
 #define MATRIX_TIMER_RESOLUTION 10000000
-#define MATRIX_TIMER_ALARM_COUNT_5                                             \
-  ((uint64_t)(MATRIX_TIMER_RESOLUTION / 16 / 1200))
-#define MATRIX_TIMER_ALARM_COUNT_4 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_5 / 2))
-#define MATRIX_TIMER_ALARM_COUNT_3 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_4 / 2))
-#define MATRIX_TIMER_ALARM_COUNT_2 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_3 / 2))
-#define MATRIX_TIMER_ALARM_COUNT_1 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_2 / 2))
-#define MATRIX_TIMER_ALARM_COUNT_0 ((uint64_t)(MATRIX_TIMER_ALARM_COUNT_1 / 2))
+#define MATRIX_TIMER_ALARM_COUNT 6
+#define MATRIX_TIMER_ALARMS(_var, _height)                                     \
+  uint64_t _var[6];                                                            \
+  ({                                                                           \
+    _var[5] = ((uint64_t)(MATRIX_TIMER_RESOLUTION / ((_height) / 2) / 1200));  \
+    _var[4] = ((uint64_t)(_var[5] / 2));                                       \
+    _var[3] = ((uint64_t)(_var[4] / 2));                                       \
+    _var[2] = ((uint64_t)(_var[3] / 2));                                       \
+    _var[1] = ((uint64_t)(_var[2] / 2));                                       \
+    _var[0] = ((uint64_t)(_var[1] / 2));                                       \
+  })
 
 typedef struct {
   uint8_t r1;
@@ -45,12 +47,15 @@ typedef struct {
   uint16_t *rawFrameBuffer;
   uint8_t rowNum;
   uint8_t bitNum;
+  uint8_t width;
+  uint8_t height;
 } MatrixState;
 
 typedef MatrixState *MatrixHandle;
 
 /** Allocates the resources for a matrix and masses back a handle */
-esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config);
+esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config,
+                     uint8_t width, uint8_t height);
 /** Starts the hardware resources associated with the matrix */
 esp_err_t matrixStart(MatrixHandle matrix);
 /** Stops the hardware resources associated with the matrix */

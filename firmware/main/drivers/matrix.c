@@ -26,9 +26,9 @@ matrixTimerCallback(gptimer_handle_t timer,
   static uint8_t pixelByte;
 
   MatrixHandle matrix = (MatrixHandle)userData;
-  rowOffset = matrix->rowNum * 64;
+  rowOffset = matrix->rowNum * matrix->width;
 
-  for (col = 0; col < 64; col++) {
+  for (col = 0; col < matrix->width; col++) {
     SET_565_MATRIX_BYTE(
         // put the value into the variable
         pixelByte,
@@ -72,7 +72,7 @@ matrixTimerCallback(gptimer_handle_t timer,
   if (matrix->bitNum >= 6) {
     matrix->bitNum = 0;
     matrix->rowNum++;
-    if (matrix->rowNum >= 16) {
+    if (matrix->rowNum >= (uint8_t)(matrix->height / 2)) {
       matrix->rowNum = 0;
     }
   }
@@ -83,17 +83,22 @@ matrixTimerCallback(gptimer_handle_t timer,
   return false;
 }
 
-esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
+esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config,
+                     uint8_t width, uint8_t height) {
   // allocate the the state
   MatrixHandle matrix = (MatrixHandle)malloc(sizeof(MatrixState));
 
   // misc setup
   matrix->rowNum = 0;
   matrix->bitNum = 0;
+  matrix->width = width;
+  matrix->height = height;
 
   // allocate and clear the frame buffers
-  matrix->rawFrameBuffer = (uint16_t *)malloc(MATRIX_RAW_BUFFER_SIZE);
-  memset(matrix->rawFrameBuffer, 0, MATRIX_RAW_BUFFER_SIZE);
+  matrix->rawFrameBuffer =
+      (uint16_t *)malloc(sizeof(uint16_t) * matrix->width * matrix->height);
+  memset(matrix->rawFrameBuffer, 0,
+         sizeof(uint16_t) * matrix->width * matrix->height);
 
   // allocate and copy pins
   matrix->pins = (MatrixPins *)malloc(sizeof(MatrixPins));
@@ -147,29 +152,12 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
                       "Failed to enable timer");
 
   // timer alarms
+  MATRIX_TIMER_ALARMS(alarmTimes, matrix->height);
   gptimer_alarm_config_t alarm_config;
-  alarm_config.reload_count = 0;
-  for (uint8_t i = 0; i < 6; i++) {
-    switch (i) {
-    case 0:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_0;
-      break;
-    case 1:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_1;
-      break;
-    case 2:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_2;
-      break;
-    case 3:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_3;
-      break;
-    case 4:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_4;
-      break;
-    case 5:
-      alarm_config.alarm_count = MATRIX_TIMER_ALARM_COUNT_5;
-      break;
-    }
+  for (uint8_t i = 0; i < MATRIX_TIMER_ALARM_COUNT; i++) {
+    alarm_config.alarm_count = alarmTimes[i];
+    alarm_config.reload_count = 0;
+
     if (i == 5) {
       alarm_config.flags.auto_reload_on_alarm = true;
     } else {
@@ -218,7 +206,8 @@ esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
                     TAG, "RESET: Failed to reset timer count");
   matrix->rowNum = 0;
   matrix->bitNum = 0;
-  memcpy(matrix->rawFrameBuffer, buffer, MATRIX_RAW_BUFFER_SIZE);
+  memcpy(matrix->rawFrameBuffer, buffer,
+         sizeof(uint16_t) * matrix->width * matrix->height);
   ESP_GOTO_ON_ERROR(gptimer_start(matrix->timer), matrixShow_cleanup, TAG,
                     "RESET: Failed to start timer");
 

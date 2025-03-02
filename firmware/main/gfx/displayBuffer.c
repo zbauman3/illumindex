@@ -35,19 +35,21 @@ void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
   displayBufferLineFeed(displayBuffer);
 }
 
-esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
+esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
+                            uint8_t width, uint8_t height) {
   DisplayBufferHandle displayBuffer =
       (DisplayBufferHandle)malloc(sizeof(DisplayBuffer));
 
-  displayBuffer->buffer = (uint16_t *)malloc(DISPLAY_BUFFER_SIZE);
+  displayBufferSetColor(displayBuffer, 0b1111100000000000);
+  displayBufferSetCursor(displayBuffer, 0, 0);
+  displayBuffer->width = width;
+  displayBuffer->height = height;
+
+  displayBuffer->buffer = (uint16_t *)malloc(
+      sizeof(uint16_t) * displayBuffer->width * displayBuffer->height);
   displayBufferClear(displayBuffer);
 
   fontInit(&displayBuffer->font);
-
-  displayBufferSetColor(displayBuffer, 0b1111100000000000);
-  displayBufferSetCursor(displayBuffer, 0, 0);
-  displayBuffer->width = 64;
-  displayBuffer->height = 32;
 
   *displayBufferHandle = displayBuffer;
 
@@ -55,7 +57,8 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle) {
 }
 
 void displayBufferClear(DisplayBufferHandle displayBuffer) {
-  memset(displayBuffer->buffer, 0, DISPLAY_BUFFER_SIZE);
+  memset(displayBuffer->buffer, 0,
+         sizeof(uint16_t) * displayBuffer->width * displayBuffer->height);
 }
 
 void displayBufferEnd(DisplayBufferHandle displayBuffer) {

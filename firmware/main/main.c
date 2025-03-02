@@ -17,6 +17,9 @@
 #include "util/commands.h"
 #include "util/error_helpers.h"
 
+#define MATRIX_WIDTH 64
+#define MATRIX_HEIGHT 32
+
 static const char *TAG = "APP_MAIN";
 static MatrixHandle matrix;
 static DisplayBufferHandle displayBuffer;
@@ -50,9 +53,11 @@ esp_err_t appInit() {
               .g2 = GPIO_NUM_8,     // A5
           },
   };
-  ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
+  ESP_ERROR_BUBBLE(
+      matrixInit(&matrix, &matrixConfig, MATRIX_WIDTH, MATRIX_HEIGHT));
   ESP_ERROR_BUBBLE(matrixStart(matrix));
-  ESP_ERROR_BUBBLE(displayBufferInit(&displayBuffer));
+  ESP_ERROR_BUBBLE(
+      displayBufferInit(&displayBuffer, MATRIX_WIDTH, MATRIX_HEIGHT));
 
   displayBufferSetColor(displayBuffer, RGB_TO_565(0, 255, 149));
   displayBufferSetCursor(displayBuffer, 0, 10);

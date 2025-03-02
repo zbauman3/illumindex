@@ -6,8 +6,6 @@
 #include "drivers/matrix.h"
 #include "gfx/fonts.h"
 
-#define DISPLAY_BUFFER_SIZE MATRIX_RAW_BUFFER_SIZE
-
 #define displayBufferCursorToIndex(db)                                         \
   displayBufferPointToIndex(db, db->cursor.x, db->cursor.y)
 
@@ -48,7 +46,8 @@ typedef struct {
 
 typedef DisplayBuffer *DisplayBufferHandle;
 
-esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle);
+esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
+                            uint8_t width, uint8_t height);
 void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
 void displayBufferClear(DisplayBufferHandle displayBufferHandle);
 void displayBufferDrawString(DisplayBufferHandle displayBuffer,
