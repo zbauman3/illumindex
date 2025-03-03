@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 export const config = {
-  matcher: '/(api/commands|commands)',
+  matcher: '/(api/command|command)',
 };
 
 const password = process.env.SITE_PASSWORD;
