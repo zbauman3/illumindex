@@ -35,7 +35,7 @@ matrixTimerCallback(gptimer_handle_t timer,
         // pull the "top" row from the frame buffer
         matrix->rawFrameBuffer[rowOffset + col],
         // pull the "bottom" row ...
-        matrix->rawFrameBuffer[1024 + rowOffset + col],
+        matrix->rawFrameBuffer[matrix->splitOffset + rowOffset + col],
         // just this loop's bit
         matrix->bitNum);
 
@@ -52,10 +52,13 @@ matrixTimerCallback(gptimer_handle_t timer,
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
 
   // set new address
-  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b0001 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b0010 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b0100 ? 1 : 0);
-  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b1000 ? 1 : 0);
+  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
+  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
+  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
+  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
+  if (matrix->addrBits == 5) {
+    gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
+  }
 
   // latch, then reset all bundle outputs
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
@@ -83,16 +86,22 @@ matrixTimerCallback(gptimer_handle_t timer,
   return false;
 }
 
-esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config,
-                     uint8_t width, uint8_t height) {
+esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   // allocate the the state
   MatrixHandle matrix = (MatrixHandle)malloc(sizeof(MatrixState));
 
   // misc setup
   matrix->rowNum = 0;
   matrix->bitNum = 0;
-  matrix->width = width;
-  matrix->height = height;
+  matrix->width = config->width;
+  matrix->height = config->height;
+  matrix->splitOffset = (matrix->height / 2) * matrix->width;
+
+  if (matrix->height > 32) {
+    matrix->addrBits = 5;
+  } else {
+    matrix->addrBits = 4;
+  }
 
   // allocate and clear the frame buffers
   matrix->rawFrameBuffer =
@@ -114,6 +123,11 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config,
       .pull_down_en = 0,
       .pull_up_en = 0,
   };
+
+  if (matrix->addrBits == 5) {
+    io_conf.pin_bit_mask |= _BV_1ULL(matrix->pins->a4);
+  }
+
   ESP_RETURN_ON_ERROR(gpio_config(&io_conf), TAG, "Failed to init matrix GPIO");
 
   // setup the dedicated GPIO

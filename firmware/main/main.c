@@ -18,7 +18,7 @@
 #include "util/error_helpers.h"
 
 #define MATRIX_WIDTH 64
-#define MATRIX_HEIGHT 32
+#define MATRIX_HEIGHT 64
 
 static const char *TAG = "APP_MAIN";
 static MatrixHandle matrix;
@@ -35,6 +35,8 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(esp_event_loop_create_default());
 
   MatrixInitConfig matrixConfig = {
+      .width = MATRIX_WIDTH,
+      .height = MATRIX_HEIGHT,
       .pins =
           {
               // green and blue are switched here due to the `ICN2037` wiring
@@ -42,26 +44,27 @@ esp_err_t appInit() {
               .a1 = GPIO_NUM_10,    // 10
               .a2 = GPIO_NUM_11,    // 11
               .a3 = GPIO_NUM_12,    // 12
+              .a4 = GPIO_NUM_13,    // 13
               .latch = GPIO_NUM_5,  // 5
               .clock = GPIO_NUM_36, // SCK
               .oe = GPIO_NUM_6,     // 6
-              .r1 = GPIO_NUM_17,    // A1
-              .b1 = GPIO_NUM_18,    // A0
+              .r1 = GPIO_NUM_18,    // A0
+              .b1 = GPIO_NUM_17,    // A1
               .g1 = GPIO_NUM_16,    // A2
-              .r2 = GPIO_NUM_14,    // A4
-              .b2 = GPIO_NUM_15,    // A3
+              .r2 = GPIO_NUM_15,    // A3
+              .b2 = GPIO_NUM_14,    // A4
               .g2 = GPIO_NUM_8,     // A5
           },
   };
-  ESP_ERROR_BUBBLE(
-      matrixInit(&matrix, &matrixConfig, MATRIX_WIDTH, MATRIX_HEIGHT));
+  ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
   ESP_ERROR_BUBBLE(matrixStart(matrix));
   ESP_ERROR_BUBBLE(
       displayBufferInit(&displayBuffer, MATRIX_WIDTH, MATRIX_HEIGHT));
 
   displayBufferSetColor(displayBuffer, RGB_TO_565(0, 255, 149));
-  displayBufferSetCursor(displayBuffer, 0, 10);
+  displayBufferSetCursor(displayBuffer, 0, (MATRIX_HEIGHT / 2) - 8);
   fontSetSize(displayBuffer->font, FONT_SIZE_LG);
+
   displayBufferDrawString(displayBuffer, "Starting");
 
   matrixShow(matrix, displayBuffer->buffer);

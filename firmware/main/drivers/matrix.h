@@ -10,7 +10,8 @@
 #define MATRIX_TIMER_ALARMS(_var, _height)                                     \
   uint64_t _var[6];                                                            \
   ({                                                                           \
-    _var[5] = ((uint64_t)(MATRIX_TIMER_RESOLUTION / ((_height) / 2) / 1200));  \
+    _var[5] = ((uint64_t)(MATRIX_TIMER_RESOLUTION / ((_height) / 2) /          \
+                          ((_height) > 32 ? 600 : 1200)));                     \
     _var[4] = ((uint64_t)(_var[5] / 2));                                       \
     _var[3] = ((uint64_t)(_var[4] / 2));                                       \
     _var[2] = ((uint64_t)(_var[3] / 2));                                       \
@@ -18,6 +19,7 @@
     _var[0] = ((uint64_t)(_var[1] / 2));                                       \
   })
 
+// if using a 5-bit address matrix, a4 MUST be set
 typedef struct {
   uint8_t r1;
   uint8_t r2;
@@ -30,6 +32,8 @@ typedef struct {
   uint8_t a1;
   uint8_t a2;
   uint8_t a3;
+  // if using a 5-bit address matrix, a4 MUST be set
+  uint8_t a4;
 
   uint8_t latch;
   uint8_t clock;
@@ -38,6 +42,8 @@ typedef struct {
 
 typedef struct {
   MatrixPins pins;
+  uint8_t width;
+  uint8_t height;
 } MatrixInitConfig;
 
 typedef struct {
@@ -49,13 +55,14 @@ typedef struct {
   uint8_t bitNum;
   uint8_t width;
   uint8_t height;
+  uint8_t addrBits;
+  uint16_t splitOffset;
 } MatrixState;
 
 typedef MatrixState *MatrixHandle;
 
 /** Allocates the resources for a matrix and masses back a handle */
-esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config,
-                     uint8_t width, uint8_t height);
+esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config);
 /** Starts the hardware resources associated with the matrix */
 esp_err_t matrixStart(MatrixHandle matrix);
 /** Stops the hardware resources associated with the matrix */
