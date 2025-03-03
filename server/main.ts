@@ -52,9 +52,18 @@ export const main = (): AllCommands[] => {
       size: { width: 3, height: 5 }
     }),
     createCommand({
+      type: 'string',
+      value: 'This is some long text to wrap and show the second half',
+      fontSize: 'md',
+      position: {
+        x: 0,
+        y: 32
+      }
+    }),
+    createCommand({
       type: 'line',
       color: rgbTo565(0, 255, 0),
-      position: { x: 0, y: 31 },
+      position: { x: 0, y: 63 },
       to: { x: 63, y: 0 }
     })
   ];
