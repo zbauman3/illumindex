@@ -30,7 +30,7 @@ export default function Page() {
 
   return (
     <>
-      <textarea style={{ width: '100%', }} value={value} onChange={(e) => { setValue(e.target.value); }}></textarea>
+      <textarea style={{ width: '100%', minHeight: 500 }} value={value} onChange={(e) => { setValue(e.target.value); }}></textarea>
       <button onClick={() => { sendCommands(value); }}>Save</button>
     </>
   )
