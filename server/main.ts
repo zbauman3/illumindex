@@ -20,7 +20,7 @@ export const main = async (config: CommandsConfig): Promise<AllCommands[]> => {
   if (trashInfo.trash) {
     commands.push(createCommand({
       type: 'string',
-      value: `Trash: ${trashInfo.trash.dayShort}`,
+      value: `Trash ${trashInfo.trash.dayShort}`,
     }))
   }
 
@@ -33,7 +33,7 @@ export const main = async (config: CommandsConfig): Promise<AllCommands[]> => {
   if (trashInfo.recycling) {
     commands.push(createCommand({
       type: 'string',
-      value: `Recycle: ${trashInfo.recycling.dayShort}`,
+      value: `Recycl ${trashInfo.recycling.dayShort}`,
     }))
   }
 
