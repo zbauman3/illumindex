@@ -1,29 +1,39 @@
 import { NextRequest } from 'next/server';
-import { createClient } from 'redis';
+import z from "zod";
 
-const redis = await createClient({
-  url: process.env.REDIS_URL
+import { getCommands, setCommands, getCommandsConfig } from "../../../lib/storage";
+import { commandsArray, type CommandsArray } from "../../../lib/commands";
+import { main } from "../../../main";
+
+const postBodySchema = z.object({
+  commands: z.string()
 })
-  .on('error', err => console.log('Redis Client Error', err))
-  .connect();
-
-// import { main } from "../../../main";
 
 export async function GET() {
-  const value = await redis.get('commands');
-  const commands = JSON.parse(value || '');
+  const config = await getCommandsConfig();
+
+  if (config.dataSource === 'storage') {
+    const commands = await getCommands();
+    return Response.json(commands);
+  }
+
+  const commands = await main(config);
   return Response.json(commands);
 }
 
-
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  if (!body || typeof body !== 'object' || !('commands' in body) || typeof body.commands !== 'string') {
+  let parsedCommands: CommandsArray;
+
+  try {
+    const body = await request.json();
+    const parsedBody = postBodySchema.parse(body);
+    parsedCommands = commandsArray.parse(JSON.parse(parsedBody.commands))
+  } catch (e) {
+    console.error('POST error', e);
     return new Response(null, { status: 400 });
   }
 
-  // Just to make sure it's valid, first
-  await redis.set('commands', JSON.stringify(JSON.parse(body.commands)));
+  await setCommands(parsedCommands);
 
-  return GET();
+  return Response.json(parsedCommands);
 }

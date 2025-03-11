@@ -20,7 +20,7 @@ static const char *TAG = "COMMANDS";
 void parseAndSetState(DisplayBufferHandle db, const cJSON *command,
                       char *type) {
   const cJSON *fontSize = cJSON_GetObjectItemCaseSensitive(command, "fontSize");
-  if (cJSON_IsString(fontSize)) {
+  if (cJSON_IsString(fontSize) && fontSize->valuestring != NULL) {
     if (strcmp(fontSize->valuestring, "sm") == 0) {
       fontSetSize(db->font, FONT_SIZE_SM);
     } else if (strcmp(fontSize->valuestring, "lg") == 0) {
@@ -52,7 +52,7 @@ void parseAndSetState(DisplayBufferHandle db, const cJSON *command,
 
 void parseAndShowString(DisplayBufferHandle db, const cJSON *command) {
   const cJSON *value = cJSON_GetObjectItemCaseSensitive(command, "value");
-  if (!cJSON_IsString(value)) {
+  if (!cJSON_IsString(value) && value->valuestring != NULL) {
     invalidShapeWarn("string");
     return;
   }
@@ -138,7 +138,7 @@ esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
   cJSON_ArrayForEach(command, json) {
     if (cJSON_IsObject(command)) {
       type = cJSON_GetObjectItemCaseSensitive(command, "type");
-      if (cJSON_IsString(type)) {
+      if (cJSON_IsString(type) && type->valuestring != NULL) {
         if (strcmp(type->valuestring, "string") == 0) {
           parseAndShowString(db, command);
         } else if (strcmp(type->valuestring, "line") == 0) {

@@ -44,7 +44,7 @@ esp_err_t appInit() {
               .a1 = GPIO_NUM_10,    // 10
               .a2 = GPIO_NUM_11,    // 11
               .a3 = GPIO_NUM_12,    // 12
-              .a4 = GPIO_NUM_13,    // 13
+              .a4 = GPIO_NUM_35,    // MOSI
               .latch = GPIO_NUM_5,  // 5
               .clock = GPIO_NUM_36, // SCK
               .oe = GPIO_NUM_6,     // 6
@@ -92,6 +92,8 @@ esp_err_t fetchAndDisplayData() {
                     ctx->response->statusCode);
 
   displayBufferClear(displayBuffer);
+  displayBufferSetCursor(displayBuffer, 0, 0);
+  displayBufferSetColor(displayBuffer, 0b1111111111111111);
 
   ESP_GOTO_ON_ERROR(parseAndShowCommands(displayBuffer, ctx->response->data,
                                          ctx->response->length),
@@ -108,6 +110,14 @@ fetchAndDisplayData_cleanup:
 }
 
 void app_main(void) {
+  // TODO
+  // For some reason, immediately starting the display and/or wifi causes a
+  // crash loop. I'm assuming this is something to do with the USB CDC stack,
+  // because the device will turn on and run the display for a few seconds, but
+  // never shows up as a USB device, then crashes.
+  ESP_LOGI(TAG, "Waiting");
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
+
   esp_err_t initRet = appInit();
   if (initRet != ESP_OK) {
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
@@ -118,6 +128,8 @@ void app_main(void) {
 
   uint8_t loops = 255;
   while (true) {
+    ESP_LOGI(TAG, "LOOP");
+
     if (loops >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
       if (fetchAndDisplayData() == ESP_OK) {
         loops = 0;
