@@ -6,6 +6,25 @@
 #include "drivers/matrix.h"
 #include "gfx/fonts.h"
 
+// validates that setting an index in the buffer is not an overflow
+#define safeSetBufferValue(db, index, value)                                   \
+  ({                                                                           \
+    if ((index) < db->width * db->height) {                                    \
+      db->buffer[(index)] = (value);                                           \
+    }                                                                          \
+  })
+
+// wraps, but does not check that the new row (y) is within range
+#define moveCursorOneCharWrap(db)                                              \
+  ({                                                                           \
+    if (db->cursor.x + (db->font->width * 2) + db->font->spacing <=            \
+        db->width) {                                                           \
+      db->cursor.x += db->font->width + db->font->spacing;                     \
+    } else {                                                                   \
+      displayBufferLineFeed(db);                                               \
+    }                                                                          \
+  })
+
 #define displayBufferCursorToIndex(db)                                         \
   displayBufferPointToIndex(db, db->cursor.x, db->cursor.y)
 
@@ -46,19 +65,15 @@ typedef struct {
 
 typedef DisplayBuffer *DisplayBufferHandle;
 
-esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
-                            uint8_t width, uint8_t height);
-void displayBufferEnd(DisplayBufferHandle displayBufferHandle);
-void displayBufferClear(DisplayBufferHandle displayBufferHandle);
-void displayBufferDrawString(DisplayBufferHandle displayBuffer,
-                             char *stringBuff);
-void displayBufferDrawFastVertLine(DisplayBufferHandle displayBuffer,
-                                   uint8_t to);
-void displayBufferDrawFastHorizonLine(DisplayBufferHandle displayBuffer,
-                                      uint8_t to);
-void displayBufferDrawFastDiagLine(DisplayBufferHandle displayBuffer,
-                                   uint8_t toX, uint8_t toY);
-void displayBufferDrawLine(DisplayBufferHandle displayBuffer, uint8_t toX,
-                           uint8_t toY);
-void displayBufferDrawBitmap(DisplayBufferHandle displayBuffer, uint8_t width,
+esp_err_t displayBufferInit(DisplayBufferHandle *dbHandle, uint8_t width,
+                            uint8_t height);
+void displayBufferEnd(DisplayBufferHandle dbHandle);
+void displayBufferClear(DisplayBufferHandle dbHandle);
+void displayBufferDrawString(DisplayBufferHandle db, char *string);
+void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to);
+void displayBufferDrawFastHorizonLine(DisplayBufferHandle db, uint8_t to);
+void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
+                                   uint8_t toY);
+void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY);
+void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
                              uint8_t height, uint16_t *buffer);

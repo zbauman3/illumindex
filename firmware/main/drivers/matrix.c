@@ -86,6 +86,7 @@ matrixTimerCallback(gptimer_handle_t timer,
   return false;
 }
 
+// Allocates the resources for a matrix and masses back a handle
 esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   // allocate the the state
   MatrixHandle matrix = (MatrixHandle)malloc(sizeof(MatrixState));
@@ -188,18 +189,22 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   return ESP_OK;
 };
 
+// Starts the hardware resources associated with the matrix
 esp_err_t matrixStart(MatrixHandle matrix) {
   ESP_RETURN_ON_ERROR(gptimer_start(matrix->timer), TAG,
                       "START: Failed to start timer");
   return ESP_OK;
 }
 
+// Stops the hardware resources associated with the matrix
 esp_err_t matrixStop(MatrixHandle matrix) {
   ESP_RETURN_ON_ERROR(gptimer_stop(matrix->timer), TAG,
                       "STOP: Failed to stop timer");
   return ESP_OK;
 }
 
+// Stops the hardware resources associated with the matrix and frees all
+// internal memory
 esp_err_t matrixEnd(MatrixHandle matrix) {
   ESP_RETURN_ON_ERROR(matrixStop(matrix), TAG, "END: Failed to stop.");
   gptimer_del_timer(matrix->timer);
@@ -210,6 +215,7 @@ esp_err_t matrixEnd(MatrixHandle matrix) {
   return ESP_OK;
 }
 
+// Shows a `buffer` in the `matrix`
 esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
   esp_err_t ret = ESP_OK;
   taskENTER_CRITICAL(&matrixSpinlock);

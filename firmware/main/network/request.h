@@ -2,8 +2,8 @@
 
 #include "esp_http_client.h"
 
-// 28KiB = (64 * 64) values of 65,535 plus some
-#define REQUEST_MAX_OUTPUT_BUFFER (1024 * 28)
+// 28KiB = (64 * 64) values of 65,535, then double to allow for layering
+#define REQUEST_MAX_OUTPUT_BUFFER (1024 * 28 * 2)
 
 typedef struct {
   size_t length;

@@ -39,7 +39,6 @@ esp_err_t appInit() {
       .height = MATRIX_HEIGHT,
       .pins =
           {
-              // green and blue are switched here due to the `ICN2037` wiring
               .a0 = GPIO_NUM_9,     // 9
               .a1 = GPIO_NUM_10,    // 10
               .a2 = GPIO_NUM_11,    // 11
@@ -86,7 +85,7 @@ esp_err_t fetchAndDisplayData() {
   ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup, TAG,
                     "Error fetching data from endpoint");
 
-  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 400, ESP_ERR_INVALID_RESPONSE,
+  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
                     fetchAndDisplayData_cleanup, TAG,
                     "Invalid response status code \"%d\"",
                     ctx->response->statusCode);
@@ -116,30 +115,38 @@ void app_main(void) {
   // because the device will turn on and run the display for a few seconds, but
   // never shows up as a USB device, then crashes.
   ESP_LOGI(TAG, "Waiting");
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  vTaskDelay(500 / portTICK_PERIOD_MS);
 
   esp_err_t initRet = appInit();
   if (initRet != ESP_OK) {
+    // only need to clean this up. Everything else is memory that will reset
+    matrixStop(matrix);
+
+    // TODO
+    // Show error on display? Might need to leave the matrix running...
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
-    vTaskDelay(1000 / portTICK_PERIOD_MS);
+    vTaskDelay(3000 / portTICK_PERIOD_MS);
+
     esp_restart();
     return;
   }
 
-  uint8_t loops = 255;
+  uint8_t loopSeconds = 255;
   while (true) {
     ESP_LOGI(TAG, "LOOP");
 
-    if (loops >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
+    if (loopSeconds >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
+      // TODO
+      // error state for too many failures
       if (fetchAndDisplayData() == ESP_OK) {
-        loops = 0;
+        loopSeconds = 0;
       } else {
         // try again in 10 seconds
-        loops = CONFIG_ENDPOINT_FETCH_INTERVAL - 10;
+        loopSeconds = CONFIG_ENDPOINT_FETCH_INTERVAL - 10;
       }
     }
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
-    loops++;
+    loopSeconds++;
   }
 }

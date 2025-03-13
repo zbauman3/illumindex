@@ -8,63 +8,39 @@
 
 #include "gfx/fonts.h"
 #include "util/helpers.h"
-#include "util/math.h"
 
 const static char *TAG = "DISPLAY_BUFFER";
 
-// avoids setting values that are out of range
-void _safeSetBufferValue(DisplayBufferHandle displayBuffer, uint16_t index,
-                         uint16_t value) {
-  if (index < displayBuffer->width * displayBuffer->height) {
-    displayBuffer->buffer[index] = value;
-  }
-}
-
-// wraps, but does not check that the new row (y) is within range
-void _moveCursorOneCharWrap(DisplayBufferHandle displayBuffer) {
-  // no overflowing, just update
-  if (displayBuffer->cursor.x + (displayBuffer->font->width * 2) +
-          displayBuffer->font->spacing <=
-      displayBuffer->width) {
-    displayBuffer->cursor.x +=
-        displayBuffer->font->width + displayBuffer->font->spacing;
-    return;
-  }
-
-  // otherwise, wrap
-  displayBufferLineFeed(displayBuffer);
-}
-
+// allocates all memory required for the DisplayBuffer and initiates the values
 esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
                             uint8_t width, uint8_t height) {
-  DisplayBufferHandle displayBuffer =
-      (DisplayBufferHandle)malloc(sizeof(DisplayBuffer));
+  DisplayBufferHandle db = (DisplayBufferHandle)malloc(sizeof(DisplayBuffer));
 
-  displayBufferSetColor(displayBuffer, 0b1111100000000000);
-  displayBufferSetCursor(displayBuffer, 0, 0);
-  displayBuffer->width = width;
-  displayBuffer->height = height;
+  displayBufferSetColor(db, 0b1111100000000000);
+  displayBufferSetCursor(db, 0, 0);
+  db->width = width;
+  db->height = height;
 
-  displayBuffer->buffer = (uint16_t *)malloc(
-      sizeof(uint16_t) * displayBuffer->width * displayBuffer->height);
-  displayBufferClear(displayBuffer);
+  db->buffer = (uint16_t *)malloc(sizeof(uint16_t) * db->width * db->height);
+  displayBufferClear(db);
 
-  fontInit(&displayBuffer->font);
+  fontInit(&db->font);
 
-  *displayBufferHandle = displayBuffer;
+  *displayBufferHandle = db;
 
   return ESP_OK;
 }
 
-void displayBufferClear(DisplayBufferHandle displayBuffer) {
-  memset(displayBuffer->buffer, 0,
-         sizeof(uint16_t) * displayBuffer->width * displayBuffer->height);
+// resets all values in the buffer to `0`
+void displayBufferClear(DisplayBufferHandle db) {
+  memset(db->buffer, 0, sizeof(uint16_t) * db->width * db->height);
 }
 
-void displayBufferEnd(DisplayBufferHandle displayBuffer) {
-  fontEnd(displayBuffer->font);
-  free(displayBuffer->buffer);
-  free(displayBuffer);
+// cleans up all memory associated with the buffer
+void displayBufferEnd(DisplayBufferHandle db) {
+  fontEnd(db->font);
+  free(db->buffer);
+  free(db);
 }
 
 // This will apply the provided string to the buffer, using the buffer's current
@@ -111,7 +87,7 @@ void displayBufferDrawString(DisplayBufferHandle db, char *string) {
       for (chunkBitN = 1; chunkBitN <= db->font->bitsPerChunk; chunkBitN++) {
         // mask the chunk bit, then AND it to the chunk value. Use the result as
         // a boolean to check if we should set the value to the color or blank
-        _safeSetBufferValue(
+        safeSetBufferValue(
             db, bufferStartIdx + bitmapRowIdx,
             (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN))
                 ? db->color
@@ -127,140 +103,124 @@ void displayBufferDrawString(DisplayBufferHandle db, char *string) {
     }
 
     // we're done with this character, move to the next position.
-    _moveCursorOneCharWrap(db);
+    moveCursorOneCharWrap(db);
   }
 }
 
-void displayBufferDrawFastVertLine(DisplayBufferHandle displayBuffer,
-                                   uint8_t to) {
-  // faster to write it twice
-  if (displayBuffer->cursor.y > to) {
-    while (displayBuffer->cursor.y >= to) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
-                                      displayBuffer->cursor.y)) {
-        _safeSetBufferValue(displayBuffer,
-                            displayBufferPointToIndex(displayBuffer,
-                                                      displayBuffer->cursor.x,
-                                                      displayBuffer->cursor.y),
-                            displayBuffer->color);
+void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
+  // faster to write it twice ¯\_(ツ)_/¯
+  if (db->cursor.y > to) {
+    while (db->cursor.y >= to) {
+      if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
+        safeSetBufferValue(
+            db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
+            db->color);
       }
 
-      displayBuffer->cursor.y--;
+      db->cursor.y--;
     }
   } else {
-    while (displayBuffer->cursor.y <= to) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
-                                      displayBuffer->cursor.y)) {
-        _safeSetBufferValue(displayBuffer,
-                            displayBufferPointToIndex(displayBuffer,
-                                                      displayBuffer->cursor.x,
-                                                      displayBuffer->cursor.y),
-                            displayBuffer->color);
+    while (db->cursor.y <= to) {
+      if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
+        safeSetBufferValue(
+            db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
+            db->color);
       }
 
-      displayBuffer->cursor.y++;
+      db->cursor.y++;
     }
   }
 
-  displayBufferSetCursor(displayBuffer, displayBuffer->cursor.x, to);
+  displayBufferSetCursor(db, db->cursor.x, to);
 }
 
-void displayBufferDrawFastHorizonLine(DisplayBufferHandle displayBuffer,
-                                      uint8_t to) {
-  // faster to write it twice
-  if (displayBuffer->cursor.x > to) {
-    while (displayBuffer->cursor.x >= to) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
-                                      displayBuffer->cursor.y)) {
-        _safeSetBufferValue(displayBuffer,
-                            displayBufferPointToIndex(displayBuffer,
-                                                      displayBuffer->cursor.x,
-                                                      displayBuffer->cursor.y),
-                            displayBuffer->color);
+void displayBufferDrawFastHorizonLine(DisplayBufferHandle db, uint8_t to) {
+  // faster to write it twice ¯\_(ツ)_/¯
+  if (db->cursor.x > to) {
+    while (db->cursor.x >= to) {
+      if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
+        safeSetBufferValue(
+            db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
+            db->color);
       }
 
-      displayBuffer->cursor.x--;
+      db->cursor.x--;
     }
   } else {
-    while (displayBuffer->cursor.x <= to) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
-                                      displayBuffer->cursor.y)) {
-        _safeSetBufferValue(displayBuffer,
-                            displayBufferPointToIndex(displayBuffer,
-                                                      displayBuffer->cursor.x,
-                                                      displayBuffer->cursor.y),
-                            displayBuffer->color);
+    while (db->cursor.x <= to) {
+      if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
+        safeSetBufferValue(
+            db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
+            db->color);
       }
 
-      displayBuffer->cursor.x++;
+      db->cursor.x++;
     }
   }
 
-  displayBufferSetCursor(displayBuffer, to, displayBuffer->cursor.y);
+  displayBufferSetCursor(db, to, db->cursor.y);
 }
 
-void displayBufferDrawFastDiagLine(DisplayBufferHandle displayBuffer,
-                                   uint8_t toX, uint8_t toY) {
-  float change = ((float)displayBuffer->cursor.y - (float)toY) /
-                 ((float)displayBuffer->cursor.x - (float)toX);
-  float unroundedY = (float)displayBuffer->cursor.y;
+void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
+                                   uint8_t toY) {
+  float change =
+      ((float)db->cursor.y - (float)toY) / ((float)db->cursor.x - (float)toX);
+  float unroundedY = (float)db->cursor.y;
 
-  if (displayBuffer->cursor.x <= toX) {
-    while (displayBuffer->cursor.x <= toX) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+  // faster to write it twice ¯\_(ツ)_/¯
+  if (db->cursor.x <= toX) {
+    while (db->cursor.x <= toX) {
+      if (displayBufferPointIsVisible(db, db->cursor.x,
                                       (uint8_t)round(unroundedY))) {
-        _safeSetBufferValue(
-            displayBuffer,
-            displayBufferPointToIndex(displayBuffer, displayBuffer->cursor.x,
-                                      (uint8_t)round(unroundedY)),
-            displayBuffer->color);
+        safeSetBufferValue(db,
+                           displayBufferPointToIndex(
+                               db, db->cursor.x, (uint8_t)round(unroundedY)),
+                           db->color);
       }
 
-      displayBuffer->cursor.x++;
+      db->cursor.x++;
       unroundedY += change;
     }
   } else {
-    while (displayBuffer->cursor.x >= toX) {
-      if (displayBufferPointIsVisible(displayBuffer, displayBuffer->cursor.x,
+    while (db->cursor.x >= toX) {
+      if (displayBufferPointIsVisible(db, db->cursor.x,
                                       (uint8_t)round(unroundedY))) {
-        _safeSetBufferValue(
-            displayBuffer,
-            displayBufferPointToIndex(displayBuffer, displayBuffer->cursor.x,
-                                      (uint8_t)round(unroundedY)),
-            displayBuffer->color);
+        safeSetBufferValue(db,
+                           displayBufferPointToIndex(
+                               db, db->cursor.x, (uint8_t)round(unroundedY)),
+                           db->color);
       }
 
-      displayBuffer->cursor.x--;
+      db->cursor.x--;
       unroundedY -= change;
     }
   }
 
-  displayBufferSetCursor(displayBuffer, toX, toY);
+  displayBufferSetCursor(db, toX, toY);
 }
 
-void displayBufferDrawLine(DisplayBufferHandle displayBuffer, uint8_t toX,
-                           uint8_t toY) {
-  if (displayBuffer->cursor.x == toX) {
-    displayBufferDrawFastVertLine(displayBuffer, toY);
-  } else if (displayBuffer->cursor.y == toY) {
-    displayBufferDrawFastHorizonLine(displayBuffer, toX);
+// if you know the shape of your line already, you can save a few clocks by
+// using the above `displayBufferDrawFast*` versions
+void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY) {
+  if (db->cursor.x == toX) {
+    displayBufferDrawFastVertLine(db, toY);
+  } else if (db->cursor.y == toY) {
+    displayBufferDrawFastHorizonLine(db, toX);
   } else {
-    displayBufferDrawFastDiagLine(displayBuffer, toX, toY);
+    displayBufferDrawFastDiagLine(db, toX, toY);
   }
 }
 
-void displayBufferDrawBitmap(DisplayBufferHandle displayBuffer, uint8_t width,
+void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
                              uint8_t height, uint16_t *buffer) {
   for (uint8_t row = 0; row < height; row++) {
     for (uint8_t col = 0; col < width; col++) {
-      if (displayBufferPointIsVisible(displayBuffer,
-                                      displayBuffer->cursor.x + col,
-                                      displayBuffer->cursor.y + row)) {
-        _safeSetBufferValue(displayBuffer,
-                            displayBufferPointToIndex(
-                                displayBuffer, displayBuffer->cursor.x + col,
-                                displayBuffer->cursor.y + row),
-                            buffer[(row * width) + col]);
+      if (displayBufferPointIsVisible(db, db->cursor.x + col,
+                                      db->cursor.y + row)) {
+        safeSetBufferValue(db,
+                           displayBufferPointToIndex(db, db->cursor.x + col,
+                                                     db->cursor.y + row),
+                           buffer[(row * width) + col]);
       }
     }
   }

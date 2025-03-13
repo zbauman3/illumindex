@@ -124,7 +124,6 @@ esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
   const cJSON *command = NULL;
   const cJSON *type = NULL;
   uint16_t commandIndex = 0;
-
   cJSON *json = cJSON_ParseWithLength(data, length);
 
   ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,

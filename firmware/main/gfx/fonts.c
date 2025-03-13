@@ -296,6 +296,7 @@ const static uint8_t ascii4By6[] = {
     0x5A, 0x00, 0x00, // ~
 };
 
+// allocates all memory needed for the font
 void fontInit(FontHandle *fontHandle) {
   FontHandle font = (FontHandle)malloc(sizeof(Font));
   fontSetSize(font, FONT_SIZE_MD);
