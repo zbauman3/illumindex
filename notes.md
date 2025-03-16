@@ -13,3 +13,7 @@
   - https://docs.espressif.com/projects/esp-idf/en/stable/esp32s2/api-reference/peripherals/dedic_gpio.html#manipulate-gpios-by-writing-assembly-code
 - Bitmap Fonts: http://www.piclist.com/tecHREF/datafile/charset/extractor/charset_extractor.htm
   - https://bitmap-code-generator.benalman.com/
+- SPIRAM (QSPI)
+  - Must enable with `SPIRAM`
+  - Also need to set `SPIRAM_USE` to allow using `malloc`\
+  - Lots of other fun config related to `SPIRAM`
