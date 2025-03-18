@@ -1,6 +1,5 @@
 #pragma once
 
-#include "esp_event.h"
 #include "freertos/event_groups.h"
 
 // Signals that we are connected to the network

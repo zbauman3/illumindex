@@ -2,8 +2,8 @@
 
 #include "esp_err.h"
 #include <inttypes.h>
+#include <stdbool.h>
 
-#include "drivers/matrix.h"
 #include "gfx/fonts.h"
 
 // validates that setting an index in the buffer is not an overflow
