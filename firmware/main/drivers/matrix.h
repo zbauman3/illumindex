@@ -11,7 +11,7 @@
   uint64_t _var[6];                                                            \
   ({                                                                           \
     _var[5] = ((uint64_t)(MATRIX_TIMER_RESOLUTION / ((_height) / 2) /          \
-                          ((_height) > 32 ? 600 : 1200)));                     \
+                          ((_height) > 32 ? 500 : 1000)));                     \
     _var[4] = ((uint64_t)(_var[5] / 2));                                       \
     _var[3] = ((uint64_t)(_var[4] / 2));                                       \
     _var[2] = ((uint64_t)(_var[3] / 2));                                       \

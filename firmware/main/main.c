@@ -115,7 +115,7 @@ void app_main(void) {
   // because the device will turn on and run the display for a few seconds, but
   // never shows up as a USB device, then crashes.
   ESP_LOGI(TAG, "Waiting");
-  vTaskDelay(500 / portTICK_PERIOD_MS);
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 
   esp_err_t initRet = appInit();
   if (initRet != ESP_OK) {

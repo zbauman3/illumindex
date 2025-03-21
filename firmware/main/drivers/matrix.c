@@ -1,5 +1,3 @@
-#include "freertos/FreeRTOS.h"
-
 #include "driver/dedic_gpio.h"
 #include "driver/gpio.h"
 #include "driver/gptimer.h"
@@ -16,7 +14,6 @@
 #include "util/helpers.h"
 
 static const char *TAG = "MATRIX_DRIVER";
-static portMUX_TYPE matrixSpinlock = portMUX_INITIALIZER_UNLOCKED;
 
 static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
@@ -217,21 +214,7 @@ esp_err_t matrixEnd(MatrixHandle matrix) {
 
 // Shows a `buffer` in the `matrix`
 esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
-  esp_err_t ret = ESP_OK;
-  taskENTER_CRITICAL(&matrixSpinlock);
-
-  ESP_GOTO_ON_ERROR(gptimer_stop(matrix->timer), matrixShow_cleanup, TAG,
-                    "RESET: Failed to stop timer");
-  ESP_GOTO_ON_ERROR(gptimer_set_raw_count(matrix->timer, 0), matrixShow_cleanup,
-                    TAG, "RESET: Failed to reset timer count");
-  matrix->rowNum = 0;
-  matrix->bitNum = 0;
   memcpy(matrix->rawFrameBuffer, buffer,
          sizeof(uint16_t) * matrix->width * matrix->height);
-  ESP_GOTO_ON_ERROR(gptimer_start(matrix->timer), matrixShow_cleanup, TAG,
-                    "RESET: Failed to start timer");
-
-matrixShow_cleanup:
-  taskEXIT_CRITICAL(&matrixSpinlock);
-  return ret;
+  return ESP_OK;
 }

@@ -21,7 +21,7 @@ export const storageKeys = {
   commands: 'commands'
 } as const;
 
-export const defaultCommanConfig: CommandsConfig = {
+export const defaultCommandConfig: CommandsConfig = {
   colorTheme: rgbTo565(0, 255, 156),
   dataSource: 'source-code'
 }
@@ -30,10 +30,11 @@ export const getCommandsConfig = async (): Promise<CommandsConfig> => {
   try {
     const value = await redis.get(storageKeys.commandsConfig);
     return commandsConfig.parse(JSON.parse(value || '{}'));
-  } catch (e) {
-    console.error(`Unable to get ${storageKeys.commandsConfig}`, e);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (_) {
+    console.warn(`Unable to get ${storageKeys.commandsConfig}`);
 
-    return defaultCommanConfig
+    return defaultCommandConfig
   }
 }
 

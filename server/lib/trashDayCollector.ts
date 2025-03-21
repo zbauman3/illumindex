@@ -61,6 +61,11 @@ export const trashDayCollector = async (): Promise<TrashEvent> => {
   url.searchParams.set('_', `${Math.round(Date.now() / 1000)}`)
 
   const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`Invalid response from ${url.host} - ${response.status}`)
+  }
+
   const json = await response.json();
   const parsedResponse = responseSchema.parse(json);
 
