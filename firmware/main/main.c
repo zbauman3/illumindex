@@ -133,9 +133,8 @@ void app_main(void) {
 
   uint8_t loopSeconds = 255;
   while (true) {
-    ESP_LOGI(TAG, "LOOP");
-
     if (loopSeconds >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
+      ESP_LOGI(TAG, "FETCH");
       // TODO
       // error state for too many failures
       if (fetchAndDisplayData() == ESP_OK) {

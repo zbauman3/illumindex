@@ -15,35 +15,91 @@
 
 static const char *TAG = "MATRIX_DRIVER";
 
+#define shiftOutVal(_val)                                                      \
+  ({                                                                           \
+    dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b00000000);             \
+    dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b01000000);             \
+  })
+
+#define shiftOutRow(_b, _o)                                                    \
+  ({                                                                           \
+    shiftOutVal(_b[(_o) + 0]);                                                 \
+    shiftOutVal(_b[(_o) + 1]);                                                 \
+    shiftOutVal(_b[(_o) + 2]);                                                 \
+    shiftOutVal(_b[(_o) + 3]);                                                 \
+    shiftOutVal(_b[(_o) + 4]);                                                 \
+    shiftOutVal(_b[(_o) + 5]);                                                 \
+    shiftOutVal(_b[(_o) + 6]);                                                 \
+    shiftOutVal(_b[(_o) + 7]);                                                 \
+    shiftOutVal(_b[(_o) + 8]);                                                 \
+    shiftOutVal(_b[(_o) + 9]);                                                 \
+    shiftOutVal(_b[(_o) + 10]);                                                \
+    shiftOutVal(_b[(_o) + 11]);                                                \
+    shiftOutVal(_b[(_o) + 12]);                                                \
+    shiftOutVal(_b[(_o) + 13]);                                                \
+    shiftOutVal(_b[(_o) + 14]);                                                \
+    shiftOutVal(_b[(_o) + 15]);                                                \
+    shiftOutVal(_b[(_o) + 16]);                                                \
+    shiftOutVal(_b[(_o) + 17]);                                                \
+    shiftOutVal(_b[(_o) + 18]);                                                \
+    shiftOutVal(_b[(_o) + 19]);                                                \
+    shiftOutVal(_b[(_o) + 20]);                                                \
+    shiftOutVal(_b[(_o) + 21]);                                                \
+    shiftOutVal(_b[(_o) + 22]);                                                \
+    shiftOutVal(_b[(_o) + 23]);                                                \
+    shiftOutVal(_b[(_o) + 24]);                                                \
+    shiftOutVal(_b[(_o) + 25]);                                                \
+    shiftOutVal(_b[(_o) + 26]);                                                \
+    shiftOutVal(_b[(_o) + 27]);                                                \
+    shiftOutVal(_b[(_o) + 28]);                                                \
+    shiftOutVal(_b[(_o) + 29]);                                                \
+    shiftOutVal(_b[(_o) + 30]);                                                \
+    shiftOutVal(_b[(_o) + 31]);                                                \
+    shiftOutVal(_b[(_o) + 32]);                                                \
+    shiftOutVal(_b[(_o) + 33]);                                                \
+    shiftOutVal(_b[(_o) + 34]);                                                \
+    shiftOutVal(_b[(_o) + 35]);                                                \
+    shiftOutVal(_b[(_o) + 36]);                                                \
+    shiftOutVal(_b[(_o) + 37]);                                                \
+    shiftOutVal(_b[(_o) + 38]);                                                \
+    shiftOutVal(_b[(_o) + 39]);                                                \
+    shiftOutVal(_b[(_o) + 40]);                                                \
+    shiftOutVal(_b[(_o) + 41]);                                                \
+    shiftOutVal(_b[(_o) + 42]);                                                \
+    shiftOutVal(_b[(_o) + 43]);                                                \
+    shiftOutVal(_b[(_o) + 44]);                                                \
+    shiftOutVal(_b[(_o) + 45]);                                                \
+    shiftOutVal(_b[(_o) + 46]);                                                \
+    shiftOutVal(_b[(_o) + 47]);                                                \
+    shiftOutVal(_b[(_o) + 48]);                                                \
+    shiftOutVal(_b[(_o) + 49]);                                                \
+    shiftOutVal(_b[(_o) + 50]);                                                \
+    shiftOutVal(_b[(_o) + 51]);                                                \
+    shiftOutVal(_b[(_o) + 52]);                                                \
+    shiftOutVal(_b[(_o) + 53]);                                                \
+    shiftOutVal(_b[(_o) + 54]);                                                \
+    shiftOutVal(_b[(_o) + 55]);                                                \
+    shiftOutVal(_b[(_o) + 56]);                                                \
+    shiftOutVal(_b[(_o) + 57]);                                                \
+    shiftOutVal(_b[(_o) + 58]);                                                \
+    shiftOutVal(_b[(_o) + 59]);                                                \
+    shiftOutVal(_b[(_o) + 60]);                                                \
+    shiftOutVal(_b[(_o) + 61]);                                                \
+    shiftOutVal(_b[(_o) + 62]);                                                \
+    shiftOutVal(_b[(_o) + 63]);                                                \
+  })
+
 static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
                     const gptimer_alarm_event_data_t *edata, void *userData) {
-  static uint8_t col;
+  static MatrixHandle matrix;
   static uint16_t rowOffset;
-  static uint8_t pixelByte;
 
-  MatrixHandle matrix = (MatrixHandle)userData;
-  rowOffset = matrix->rowNum * matrix->width;
+  matrix = (MatrixHandle)userData;
+  rowOffset = (matrix->rowNum * matrix->width) +
+              (matrix->bitNum * matrix->width * matrix->height);
 
-  for (col = 0; col < matrix->width; col++) {
-    SET_565_MATRIX_BYTE(
-        // put the value into the variable
-        pixelByte,
-        // pull the "top" row from the frame buffer
-        matrix->rawFrameBuffer[rowOffset + col],
-        // pull the "bottom" row ...
-        matrix->rawFrameBuffer[matrix->splitOffset + rowOffset + col],
-        // just this loop's bit
-        matrix->bitNum);
-
-    // shift in each column. Clock is on the rising edge
-    dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b00000000);
-    // delay so the ICN2037 can keep up
-    asm volatile("nop");
-    asm volatile("nop");
-    asm volatile("nop");
-    dedic_gpio_cpu_ll_write_mask(0b01111111, pixelByte | 0b01000000);
-  }
+  shiftOutRow(matrix->outputBuffer, rowOffset);
 
   // blank screen
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
@@ -61,19 +117,26 @@ matrixTimerCallback(gptimer_handle_t timer,
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
   // delay so the ICN2037 can keep up
   asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
   dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
 
   // show new row
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
 
-  matrix->bitNum++;
-  if (matrix->bitNum >= 6) {
-    matrix->bitNum = 0;
-    matrix->rowNum++;
-    if (matrix->rowNum >= (uint8_t)(matrix->height / 2)) {
-      matrix->rowNum = 0;
+  matrix->bitNumInc++;
+  if (matrix->bitNumInc == 65) {
+    matrix->bitNumInc = 0;
+  }
+
+  if (matrix->bitNumInc == 32 || matrix->bitNumInc == 16 ||
+      matrix->bitNumInc == 8 || matrix->bitNumInc == 4 ||
+      matrix->bitNumInc == 2 || matrix->bitNumInc == 1) {
+    matrix->bitNum++;
+    if (matrix->bitNum >= MATRIX_BIT_DEPTH) {
+      matrix->bitNum = 0;
+      matrix->rowNum++;
+      if (matrix->rowNum >= (uint8_t)(matrix->height / 2)) {
+        matrix->rowNum = 0;
+      }
     }
   }
 
@@ -91,6 +154,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   // misc setup
   matrix->rowNum = 0;
   matrix->bitNum = 0;
+  matrix->bitNumInc = 0;
   matrix->width = config->width;
   matrix->height = config->height;
   matrix->splitOffset = (matrix->height / 2) * matrix->width;
@@ -102,10 +166,14 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   }
 
   // allocate and clear the frame buffers
-  matrix->rawFrameBuffer =
-      (uint16_t *)malloc(sizeof(uint16_t) * matrix->width * matrix->height);
-  memset(matrix->rawFrameBuffer, 0,
-         sizeof(uint16_t) * matrix->width * matrix->height);
+  matrix->processBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
+                                            matrix->height * MATRIX_BIT_DEPTH);
+  matrix->outputBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
+                                           matrix->height * MATRIX_BIT_DEPTH);
+  memset(matrix->processBuffer, 0,
+         sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
+  memset(matrix->outputBuffer, 0,
+         sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
 
   // allocate and copy pins
   matrix->pins = (MatrixPins *)malloc(sizeof(MatrixPins));
@@ -163,22 +231,14 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   ESP_RETURN_ON_ERROR(gptimer_enable(matrix->timer), TAG,
                       "Failed to enable timer");
 
-  // timer alarms
-  MATRIX_TIMER_ALARMS(alarmTimes, matrix->height);
-  gptimer_alarm_config_t alarm_config;
-  for (uint8_t i = 0; i < MATRIX_TIMER_ALARM_COUNT; i++) {
-    alarm_config.alarm_count = alarmTimes[i];
-    alarm_config.reload_count = 0;
-
-    if (i == 5) {
-      alarm_config.flags.auto_reload_on_alarm = true;
-    } else {
-      alarm_config.flags.auto_reload_on_alarm = false;
-    }
-
-    ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config),
-                        TAG, "Failed to create timer alarm");
-  }
+  // timer alarm
+  gptimer_alarm_config_t alarm_config = {
+      .alarm_count = MATRIX_TIMER_ALARM,
+      .reload_count = 0,
+      .flags.auto_reload_on_alarm = true,
+  };
+  ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config),
+                      TAG, "Failed to create timer alarm");
 
   // pass back the config
   *matrixHandle = matrix;
@@ -207,14 +267,40 @@ esp_err_t matrixEnd(MatrixHandle matrix) {
   gptimer_del_timer(matrix->timer);
   dedic_gpio_del_bundle(matrix->gpioBundle);
   free(matrix->pins);
-  free(matrix->rawFrameBuffer);
+  free(matrix->processBuffer);
+  free(matrix->outputBuffer);
   free(matrix);
   return ESP_OK;
 }
 
 // Shows a `buffer` in the `matrix`
 esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
-  memcpy(matrix->rawFrameBuffer, buffer,
-         sizeof(uint16_t) * matrix->width * matrix->height);
+  uint16_t rowAndBitOffset;
+  uint16_t rowOffset;
+  uint8_t row;
+  uint8_t col;
+  uint8_t bitNum;
+
+  for (bitNum = 0; bitNum < MATRIX_BIT_DEPTH; bitNum++) {
+    for (row = 0; row < matrix->height; row++) {
+      rowOffset = (row * matrix->width);
+      rowAndBitOffset = rowOffset + (bitNum * matrix->width * matrix->height);
+      for (col = 0; col < matrix->width; col++) {
+        SET_565_MATRIX_BYTE(
+            // put the value into the variable
+            matrix->processBuffer[rowAndBitOffset + col],
+            // pull the "top" row from the frame buffer
+            buffer[rowOffset + col],
+            // pull the "bottom" row ...
+            buffer[matrix->splitOffset + rowOffset + col],
+            // just this loop's bit
+            bitNum);
+      }
+    }
+  }
+
+  memcpy(matrix->outputBuffer, matrix->processBuffer,
+         sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
+
   return ESP_OK;
 }

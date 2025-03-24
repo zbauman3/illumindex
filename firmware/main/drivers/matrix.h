@@ -4,20 +4,10 @@
 #include "driver/gptimer.h"
 #include "esp_err.h"
 
-// 10MHz = .1µs resolution
-#define MATRIX_TIMER_RESOLUTION 10000000
-#define MATRIX_TIMER_ALARM_COUNT 6
-#define MATRIX_TIMER_ALARMS(_var, _height)                                     \
-  uint64_t _var[6];                                                            \
-  ({                                                                           \
-    _var[5] = ((uint64_t)(MATRIX_TIMER_RESOLUTION / ((_height) / 2) /          \
-                          ((_height) > 32 ? 500 : 1000)));                     \
-    _var[4] = ((uint64_t)(_var[5] / 2));                                       \
-    _var[3] = ((uint64_t)(_var[4] / 2));                                       \
-    _var[2] = ((uint64_t)(_var[3] / 2));                                       \
-    _var[1] = ((uint64_t)(_var[2] / 2));                                       \
-    _var[0] = ((uint64_t)(_var[1] / 2));                                       \
-  })
+// 40MHz = .025µs resolution. This is max.
+#define MATRIX_TIMER_RESOLUTION 40000000
+#define MATRIX_TIMER_ALARM 271
+#define MATRIX_BIT_DEPTH 6
 
 // if using a 5-bit address matrix, a4 MUST be set
 typedef struct {
@@ -50,9 +40,11 @@ typedef struct {
   MatrixPins *pins;
   dedic_gpio_bundle_handle_t gpioBundle;
   gptimer_handle_t timer;
-  uint16_t *rawFrameBuffer;
+  uint8_t *processBuffer;
+  uint8_t *outputBuffer;
   uint8_t rowNum;
   uint8_t bitNum;
+  uint8_t bitNumInc;
   uint8_t width;
   uint8_t height;
   uint8_t addrBits;
