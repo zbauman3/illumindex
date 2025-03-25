@@ -4,9 +4,18 @@
 #include "driver/gptimer.h"
 #include "esp_err.h"
 
+// src        = 80,000,000hz  |
+// speed      = 40,000,000hz  |
+// prescale   = src / speed   | 2
+// timer      = 272           |
+// period     = speed / timer | 0.0068ms
+// row        = period * 32   | 0.2176 ms
+// hz         = row * 32      | 143.6121323529 Hz
+
 // 40MHz = .025µs resolution. This is max.
 #define MATRIX_TIMER_RESOLUTION 40000000
-#define MATRIX_TIMER_ALARM 271
+// 0.0068ms period. 143Hz
+#define MATRIX_TIMER_ALARM 272
 #define MATRIX_BIT_DEPTH 6
 
 // if using a 5-bit address matrix, a4 MUST be set
@@ -40,15 +49,16 @@ typedef struct {
   MatrixPins *pins;
   dedic_gpio_bundle_handle_t gpioBundle;
   gptimer_handle_t timer;
-  uint8_t *processBuffer;
-  uint8_t *outputBuffer;
+  uint8_t *displayBuffer;
   uint8_t rowNum;
   uint8_t bitNum;
   uint8_t bitNumInc;
   uint8_t width;
   uint8_t height;
-  uint8_t addrBits;
+  uint8_t halfHeight;
   uint16_t splitOffset;
+  bool fiveBitAddress;
+  uint16_t currentBufferOffset;
 } MatrixState;
 
 typedef MatrixState *MatrixHandle;

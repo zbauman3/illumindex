@@ -17,7 +17,7 @@ static const char *TAG = "MATRIX_DRIVER";
 
 #define shiftOutVal(_val)                                                      \
   ({                                                                           \
-    dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b00000000);             \
+    dedic_gpio_cpu_ll_write_mask(0b01111111, (_val));                          \
     dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b01000000);             \
   })
 
@@ -93,24 +93,43 @@ static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
                     const gptimer_alarm_event_data_t *edata, void *userData) {
   static MatrixHandle matrix;
-  static uint16_t rowOffset;
-
   matrix = (MatrixHandle)userData;
-  rowOffset = (matrix->rowNum * matrix->width) +
-              (matrix->bitNum * matrix->width * matrix->height);
 
-  shiftOutRow(matrix->outputBuffer, rowOffset);
+  shiftOutRow(matrix->displayBuffer, matrix->currentBufferOffset);
 
   // blank screen
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
 
-  // set new address
-  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
-  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
-  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
-  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
-  if (matrix->addrBits == 5) {
-    gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
+  matrix->bitNumInc++;
+  if (matrix->bitNumInc == 65) {
+    matrix->bitNumInc = 0;
+  } else if (matrix->bitNumInc == 32 || matrix->bitNumInc == 16 ||
+             matrix->bitNumInc == 8 || matrix->bitNumInc == 4 ||
+             matrix->bitNumInc == 2 || matrix->bitNumInc == 1) {
+    // do setup for the next loop
+    matrix->bitNum++;
+    if (matrix->bitNum == MATRIX_BIT_DEPTH) {
+      matrix->bitNum = 0;
+      matrix->rowNum++;
+      if (matrix->rowNum == matrix->halfHeight) {
+        matrix->rowNum = 0;
+      }
+
+      // set new address. This is placed inside the `if` because addresses only
+      // need to be updated when the row number changes
+      gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
+      gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
+      gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
+      gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
+      if (matrix->fiveBitAddress) {
+        gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
+      }
+    }
+
+    // setting this now to prevent extra work in every loop
+    matrix->currentBufferOffset =
+        (matrix->rowNum * matrix->width) +
+        (matrix->bitNum * matrix->width * matrix->height);
   }
 
   // latch, then reset all bundle outputs
@@ -121,27 +140,6 @@ matrixTimerCallback(gptimer_handle_t timer,
 
   // show new row
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
-
-  matrix->bitNumInc++;
-  if (matrix->bitNumInc == 65) {
-    matrix->bitNumInc = 0;
-  }
-
-  if (matrix->bitNumInc == 32 || matrix->bitNumInc == 16 ||
-      matrix->bitNumInc == 8 || matrix->bitNumInc == 4 ||
-      matrix->bitNumInc == 2 || matrix->bitNumInc == 1) {
-    matrix->bitNum++;
-    if (matrix->bitNum >= MATRIX_BIT_DEPTH) {
-      matrix->bitNum = 0;
-      matrix->rowNum++;
-      if (matrix->rowNum >= (uint8_t)(matrix->height / 2)) {
-        matrix->rowNum = 0;
-      }
-    }
-  }
-
-  // reset bundle outputs
-  dedic_gpio_cpu_ll_write_mask(0b11111111, 0b00000000);
 
   return false;
 }
@@ -157,22 +155,15 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   matrix->bitNumInc = 0;
   matrix->width = config->width;
   matrix->height = config->height;
+  matrix->halfHeight = matrix->height / 2;
+  matrix->currentBufferOffset = 0;
   matrix->splitOffset = (matrix->height / 2) * matrix->width;
+  matrix->fiveBitAddress = matrix->height > 32;
 
-  if (matrix->height > 32) {
-    matrix->addrBits = 5;
-  } else {
-    matrix->addrBits = 4;
-  }
-
-  // allocate and clear the frame buffers
-  matrix->processBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
+  // allocate and clear the frame buffer
+  matrix->displayBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
                                             matrix->height * MATRIX_BIT_DEPTH);
-  matrix->outputBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
-                                           matrix->height * MATRIX_BIT_DEPTH);
-  memset(matrix->processBuffer, 0,
-         sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
-  memset(matrix->outputBuffer, 0,
+  memset(matrix->displayBuffer, 0,
          sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
 
   // allocate and copy pins
@@ -190,7 +181,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
       .pull_up_en = 0,
   };
 
-  if (matrix->addrBits == 5) {
+  if (matrix->fiveBitAddress) {
     io_conf.pin_bit_mask |= _BV_1ULL(matrix->pins->a4);
   }
 
@@ -267,8 +258,7 @@ esp_err_t matrixEnd(MatrixHandle matrix) {
   gptimer_del_timer(matrix->timer);
   dedic_gpio_del_bundle(matrix->gpioBundle);
   free(matrix->pins);
-  free(matrix->processBuffer);
-  free(matrix->outputBuffer);
+  free(matrix->displayBuffer);
   free(matrix);
   return ESP_OK;
 }
@@ -288,7 +278,7 @@ esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
       for (col = 0; col < matrix->width; col++) {
         SET_565_MATRIX_BYTE(
             // put the value into the variable
-            matrix->processBuffer[rowAndBitOffset + col],
+            matrix->displayBuffer[rowAndBitOffset + col],
             // pull the "top" row from the frame buffer
             buffer[rowOffset + col],
             // pull the "bottom" row ...
@@ -298,9 +288,6 @@ esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
       }
     }
   }
-
-  memcpy(matrix->outputBuffer, matrix->processBuffer,
-         sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
 
   return ESP_OK;
 }
