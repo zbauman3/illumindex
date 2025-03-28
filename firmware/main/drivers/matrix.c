@@ -95,18 +95,17 @@ matrixTimerCallback(gptimer_handle_t timer,
   static MatrixHandle matrix;
   matrix = (MatrixHandle)userData;
 
-  shiftOutRow(matrix->displayBuffer, matrix->currentBufferOffset);
-
-  // blank screen
-  gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
-
   matrix->bitNumInc++;
   if (matrix->bitNumInc == 65) {
     matrix->bitNumInc = 0;
-  } else if (matrix->bitNumInc == 32 || matrix->bitNumInc == 16 ||
-             matrix->bitNumInc == 8 || matrix->bitNumInc == 4 ||
-             matrix->bitNumInc == 2 || matrix->bitNumInc == 1) {
-    // do setup for the next loop
+    // never running on a `0`, to skip
+    return false;
+  }
+
+  if (matrix->bitNumInc == 1 || matrix->bitNumInc == 2 ||
+      matrix->bitNumInc == 4 || matrix->bitNumInc == 8 ||
+      matrix->bitNumInc == 16 || matrix->bitNumInc == 32) {
+
     matrix->bitNum++;
     if (matrix->bitNum == MATRIX_BIT_DEPTH) {
       matrix->bitNum = 0;
@@ -114,9 +113,20 @@ matrixTimerCallback(gptimer_handle_t timer,
       if (matrix->rowNum == matrix->halfHeight) {
         matrix->rowNum = 0;
       }
+    }
 
-      // set new address. This is placed inside the `if` because addresses only
-      // need to be updated when the row number changes
+    matrix->currentBufferOffset =
+        (matrix->rowNum * matrix->width) +
+        (matrix->bitNum * matrix->width * matrix->height);
+
+    shiftOutRow(matrix->displayBuffer, matrix->currentBufferOffset);
+
+    // blank screen
+    gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
+
+    // saves some cycles
+    if (matrix->bitNum == 0) {
+      // set new address.
       gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
       gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
       gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
@@ -126,20 +136,14 @@ matrixTimerCallback(gptimer_handle_t timer,
       }
     }
 
-    // setting this now to prevent extra work in every loop
-    matrix->currentBufferOffset =
-        (matrix->rowNum * matrix->width) +
-        (matrix->bitNum * matrix->width * matrix->height);
+    // latch, then reset all bundle outputs
+    dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
+    // delay so the ICN2037 can keep up
+    asm volatile("nop");
+    dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
+    // show new row
+    gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
   }
-
-  // latch, then reset all bundle outputs
-  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
-  // delay so the ICN2037 can keep up
-  asm volatile("nop");
-  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
-
-  // show new row
-  gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
 
   return false;
 }
