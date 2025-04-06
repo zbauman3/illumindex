@@ -5,6 +5,8 @@ import { rgbTo565 } from "../../lib/util"
 import { BitmapComponent } from "../../components/Bitmap";
 import { type Bitmap, createEmptyBitmap, mergeBitmaps } from "../../lib/bitmaps";
 
+export const dynamic = 'error';
+
 const getTargetIndex = ({ target }: { target?: EventTarget }) => {
   if (!(target instanceof HTMLDivElement)) {
     return -1;
@@ -18,35 +20,56 @@ const getTargetIndex = ({ target }: { target?: EventTarget }) => {
   return index
 }
 
+const bitmapToTextfieldData = (bitmap: Bitmap) => {
+  return JSON.stringify(bitmap.data).replace(/\[|\]|,$|/g, '')
+}
+
 const DrawingBitmap = ({ bitmapRef }: { bitmapRef: RefObject<Bitmap | undefined> }) => {
   const [bitmap, setBitmap] = useState<Bitmap>(createEmptyBitmap(64, 64));
   bitmapRef.current = bitmap;
-
-  const [red, setRed] = useState<number>(255);
-  const [green, setGreen] = useState<number>(255);
-  const [blue, setBlue] = useState<number>(255);
+  const [red, setRed] = useState<string>('255');
+  const [green, setGreen] = useState<string>('255');
+  const [blue, setBlue] = useState<string>('255');
   const [display, setDisplay] = useState<boolean>(false);
   const [newWidth, setNewWidth] = useState<string>(bitmap.size.width.toString())
   const [newHeight, setNewHeight] = useState<string>(bitmap.size.height.toString())
   const [clearMode, setClearMode] = useState<boolean>(false);
   const [textAreaValue, setTextAreaValue] = useState<string>('');
   const mouseDownRef = useRef<boolean>(false);
+  const [chooseColor, setChooseColor] = useState<boolean>(false);
 
   const activatePixel = useCallback((index: number) => {
     setBitmap((prev) => {
       const newBitmap = { ...prev }
-      newBitmap.data[index] = clearMode ? 0 : rgbTo565(red, green, blue)
+      newBitmap.data[index] = clearMode ? 0 : rgbTo565(parseInt(red || '0'), parseInt(green || '0'), parseInt(blue || '0'))
       return newBitmap
     })
   }, [red, green, blue, clearMode])
 
   const onMouseDownHandler = useCallback<MouseEventHandler>(({ target }) => {
-    mouseDownRef.current = true;
     const index = getTargetIndex({ target });
-    if (index > -1) {
-      activatePixel(index)
+    if (index === -1) {
+      return
     }
-  }, [activatePixel]);
+
+    if (chooseColor) {
+      setChooseColor(false);
+      if (!(target instanceof HTMLDivElement)) {
+        return
+      }
+      const color = window.getComputedStyle(target).backgroundColor.match(/\d+/g);
+      if (!color || color.length !== 3) {
+        return
+      }
+      setRed(color[0]);
+      setGreen(color[1]);
+      setBlue(color[2]);
+      return
+    }
+
+    mouseDownRef.current = true;
+    activatePixel(index);
+  }, [activatePixel, chooseColor]);
 
   const onMouseUpHandler = useCallback<MouseEventHandler>(() => {
     mouseDownRef.current = false;
@@ -82,10 +105,25 @@ const DrawingBitmap = ({ bitmapRef }: { bitmapRef: RefObject<Bitmap | undefined>
         return;
       }
       setBitmap({ size: { width: bitmap.size.width, height: bitmap.size.height }, data })
+      setDisplay(false);
+      setTextAreaValue('')
     } catch (e) {
       alert(e);
     }
   }, [bitmap.size.width, bitmap.size.height, textAreaValue]);
+
+  const saveToClipboard = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(bitmapToTextfieldData(bitmap));
+    } catch (error) {
+      if (error instanceof Error) {
+        alert(error.message)
+      } else {
+        alert('Error with clipboard. See the console for details.');
+        console.error(error);
+      }
+    }
+  }, [bitmap]);
 
   return (
     <div>
@@ -93,25 +131,28 @@ const DrawingBitmap = ({ bitmapRef }: { bitmapRef: RefObject<Bitmap | undefined>
         bitmap={bitmap}
         onMouseDown={onMouseDownHandler}
         onMouseUp={onMouseUpHandler}
+        onMouseLeave={onMouseUpHandler}
         onMouseOverCapture={onMouseEnterHandler}
       />
       <div style={{ paddingTop: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'nowrap' }}>
           <div>
-            R: <input type="range" min="0" max="255" value={red} onChange={(e) => setRed(parseInt(e.target.value))} /> <br />
-            G: <input type="range" min="0" max="255" value={green} onChange={(e) => setGreen(parseInt(e.target.value))} /> <br />
-            B: <input type="range" min="0" max="255" value={blue} onChange={(e) => setBlue(parseInt(e.target.value))} /> <br />
+            R: <input type="range" min="0" max="255" value={red} onChange={(e) => setRed(e.target.value)} /> <input type="text" value={red} onChange={(e) => setRed(e.target.value)} /> <br />
+            G: <input type="range" min="0" max="255" value={green} onChange={(e) => setGreen(e.target.value)} /> <input type="text" value={green} onChange={(e) => setGreen(e.target.value)} /> <br />
+            B: <input type="range" min="0" max="255" value={blue} onChange={(e) => setBlue(e.target.value)} /> <input type="text" value={blue} onChange={(e) => setBlue(e.target.value)} /> <br />
             <button onClick={clearBitmap}>Clear Sheet</button> <br /> <br />
           </div>
           <div style={{ paddingLeft: 20 }}>
             <div style={{ height: 40, width: 40, backgroundColor: `rgb(${red}, ${green}, ${blue})`, border: '1px solid gray' }} />
-            <label>Eraser: <input type="checkbox" checked={clearMode} onChange={() => setClearMode(!clearMode)} /></label>
+            <label>Eraser: <input type="checkbox" checked={clearMode} onChange={() => setClearMode(!clearMode)} /></label><br />
+            <label>Match: <input type="checkbox" checked={chooseColor} onChange={() => setChooseColor(!chooseColor)} /></label>
           </div>
         </div>
         W: <input type="number" value={newWidth} onChange={(e) => setNewWidth(e.target.value)} /> <br />
         H: <input type="number" value={newHeight} onChange={(e) => setNewHeight(e.target.value)} /> <br />
         <button onClick={() => setNewWidthAndHeight(parseInt(newWidth), parseInt(newHeight))}>Clear & Set Size</button> <br /> <br />
-        <button onClick={() => { setTextAreaValue(JSON.stringify(bitmap.data).replace(/\[|\]|,$|/g, '')); setDisplay(!display) }}>Toggle JSON</button>
+        <button onClick={() => { setTextAreaValue(bitmapToTextfieldData(bitmap)); setDisplay(!display) }}>Toggle JSON</button>
+        <button onClick={saveToClipboard}>Copy Value</button>
       </div>
       {display && (
         <>
@@ -128,17 +169,18 @@ const DrawingBitmap = ({ bitmapRef }: { bitmapRef: RefObject<Bitmap | undefined>
 
 const SavedBitmap = ({ drawingBitmapRef }: { drawingBitmapRef: RefObject<Bitmap | undefined> }) => {
   const [currentBitmap, setCurrentBitmap] = useState<Bitmap | undefined>(undefined);
-  const [prevBitmap, setPrevBitmap] = useState<Bitmap | undefined>(undefined);
+  const [prevBitmaps, setPrevBitmaps] = useState<Bitmap[]>([]);
   const [merge, setMerge] = useState<boolean>(true);
   const [display, setDisplay] = useState<boolean>(false);
 
-  const copyBitmap = useCallback(() => {
-    const bitmap = drawingBitmapRef.current;
-    if (!bitmap) {
+  const copyBitmap = useCallback<MouseEventHandler>((e) => {
+    console.log('CLICK!', e.target)
+    if (!drawingBitmapRef.current) {
       return
     }
+    const bitmap = { ...drawingBitmapRef.current, data: [...drawingBitmapRef.current.data] };
 
-    setPrevBitmap(currentBitmap);
+    setPrevBitmaps((c) => currentBitmap ? [...c, currentBitmap] : c);
     if (merge) {
       if (!currentBitmap) {
         setCurrentBitmap(mergeBitmaps({ base: createEmptyBitmap(bitmap.size.width, bitmap.size.height), overlay: bitmap, offsetX: 0, offsetY: 0 }));
@@ -150,15 +192,24 @@ const SavedBitmap = ({ drawingBitmapRef }: { drawingBitmapRef: RefObject<Bitmap 
     }
   }, [drawingBitmapRef, merge, currentBitmap]);
 
+  const hasPrevious = prevBitmaps.length > 0;
+
   const undoLastChange = useCallback(() => {
+    const prevBitmap = prevBitmaps.pop();
+    if (!prevBitmap) {
+      return
+    }
     setCurrentBitmap(prevBitmap)
-    setPrevBitmap(undefined);
-  }, [prevBitmap])
+    setPrevBitmaps([...prevBitmaps]);
+  }, [prevBitmaps])
 
   const clearBitmap = useCallback(() => {
-    setPrevBitmap(currentBitmap)
+    if (!confirm('Clear the current bitmap and history?')) {
+      return
+    }
+    setPrevBitmaps([])
     setCurrentBitmap(undefined)
-  }, [currentBitmap])
+  }, [])
 
   return (
     <div>
@@ -166,8 +217,8 @@ const SavedBitmap = ({ drawingBitmapRef }: { drawingBitmapRef: RefObject<Bitmap 
         <BitmapComponent bitmap={currentBitmap} />
       )}
       <div style={{ paddingTop: 10 }}>
-        <button disabled={!prevBitmap} onClick={undoLastChange}>Revert</button> <br />
         <button disabled={!currentBitmap} onClick={clearBitmap}>Clear</button> <br />
+        <button disabled={!hasPrevious} onClick={undoLastChange}>Revert</button> <br />
         <button onClick={copyBitmap}>Apply Bitmap</button> <br />
         <label>Merge: <input type="checkbox" checked={merge} onChange={() => setMerge(!merge)} /></label> <br /> <br />
         <button disabled={!currentBitmap} onClick={() => setDisplay(!display)}>Toggle JSON</button>

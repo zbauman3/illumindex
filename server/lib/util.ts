@@ -12,14 +12,13 @@ export const rgbTo565 = (red: number, green: number, blue: number): Color565 => 
 
 export const uint16_tTo255RGB = (color: number) => {
   const parsedColor = ensure_uint16_t(color);
-  const red = (parsedColor & 0xF800) >> 8;
-  const green = (parsedColor & 0x07E0) >> 3;
-  const blue = (parsedColor & 0x001F) << 3;
-  // now scale up the values to 255
+  const red = (parsedColor & 0b1111100000000000) >> 8;
+  const green = (parsedColor & 0b0000011111100000) >> 3;
+  const blue = (parsedColor & 0b0000000000011111) << 3;
   return {
-    red: red * 8,
-    green: green * 4,
-    blue: blue * 8,
+    red: ensure_uint8_t(red),
+    green: ensure_uint8_t(green),
+    blue: ensure_uint8_t(blue),
   }
 }
 

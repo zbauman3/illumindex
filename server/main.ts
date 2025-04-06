@@ -102,7 +102,7 @@ export const main = async (config: CommandsConfig): Promise<AllCommands[]> => {
       x: 1,
       y: 33
     },
-    ...bitmaps.sun,
+    ...bitmaps.mergeManyBitmaps({ base: bitmaps.sun, overlays: [bitmaps.cloudDark, bitmaps.lightning], offsetX: 0, offsetY: 0 }),
   }))
 
   return commands

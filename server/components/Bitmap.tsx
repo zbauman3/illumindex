@@ -10,7 +10,6 @@ const BitmapDot = ({ color, index, }: { index: number, color: number, }) => {
   const { red, blue, green } = uint16_tTo255RGB(color)
   return (
     <div
-      data-index={index}
       style={{
         flexGrow: 0,
         flexShrink: 0,

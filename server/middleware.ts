@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 export const config = {
-  matcher: '/(api/command|command)',
+  matcher: '/((?!_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|bitmaps).*)',
 };
 
 const password = process.env.SITE_PASSWORD;
