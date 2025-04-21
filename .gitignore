@@ -2,3 +2,6 @@ build/
 sdkconfig
 sdkconfig.old
 .DS_Store
+hardware/*
+!hardware/*_sch
+!hardware/*.step
