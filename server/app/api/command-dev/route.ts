@@ -1,39 +1,39 @@
-import { NextRequest } from 'next/server';
-import z from "zod";
+// import { NextRequest } from 'next/server';
+// import z from "zod";
 
-import { getCommands, setCommands, getCommandsConfig } from "../../../lib/storage";
-import { commandsArray, type CommandsArray } from "../../../lib/commands";
+import { defaultCommandConfig } from "../../../lib/storage";
+// import { commandsArray, type CommandsArray } from "../../../lib/commands";
 import { mainDev } from "../../../main";
 
-const postBodySchema = z.object({
-  commands: z.string()
-})
+// const postBodySchema = z.object({
+//   commands: z.string()
+// })
 
 export async function GET() {
-  const config = await getCommandsConfig();
+  // const config = await getCommandsConfig();
 
-  if (config.dataSource === 'storage') {
-    const commands = await getCommands();
-    return Response.json(commands);
-  }
+  // if (config.dataSource === 'storage') {
+  //   const commands = await getCommands();
+  //   return Response.json(commands);
+  // }
 
-  const commands = await mainDev(config);
+  const commands = await mainDev(defaultCommandConfig);
   return Response.json(commands);
 }
 
-export async function POST(request: NextRequest) {
-  let parsedCommands: CommandsArray;
+// export async function POST(request: NextRequest) {
+//   let parsedCommands: CommandsArray;
 
-  try {
-    const body = await request.json();
-    const parsedBody = postBodySchema.parse(body);
-    parsedCommands = commandsArray.parse(JSON.parse(parsedBody.commands))
-  } catch (e) {
-    console.error('POST error', e);
-    return new Response(null, { status: 400 });
-  }
+//   try {
+//     const body = await request.json();
+//     const parsedBody = postBodySchema.parse(body);
+//     parsedCommands = commandsArray.parse(JSON.parse(parsedBody.commands))
+//   } catch (e) {
+//     console.error('POST error', e);
+//     return new Response(null, { status: 400 });
+//   }
 
-  await setCommands(parsedCommands);
+//   await setCommands(parsedCommands);
 
-  return Response.json(parsedCommands);
-}
+//   return Response.json(parsedCommands);
+// }

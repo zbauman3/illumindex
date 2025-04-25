@@ -18,7 +18,9 @@ static const char *TAG = "MATRIX_DRIVER";
 #define shiftOutVal(_val)                                                      \
   ({                                                                           \
     dedic_gpio_cpu_ll_write_mask(0b01111111, (_val));                          \
+    asm volatile("nop");                                                       \
     dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b01000000);             \
+    asm volatile("nop");                                                       \
   })
 
 #define shiftOutRow(_b, _o)                                                    \

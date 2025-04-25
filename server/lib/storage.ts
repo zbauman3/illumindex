@@ -1,14 +1,14 @@
-import { createClient } from 'redis';
+// import { createClient } from 'redis';
 import z from "zod";
 
-import { commandsArray, type CommandsArray } from "./commands";
+// import { commandsArray, type CommandsArray } from "./commands";
 import { ensure565Color, rgbTo565 } from './util';
 
-export const redis = await createClient({
-  url: process.env.REDIS_URL
-})
-  .on('error', err => console.log('Redis Client Error', err))
-  .connect();
+// export const redis = await createClient({
+//   url: process.env.REDIS_URL
+// })
+//   .on('error', err => console.log('Redis Client Error', err))
+//   .connect();
 
 export type CommandsConfig = z.infer<typeof commandsConfig>;
 export const commandsConfig = z.object({
@@ -26,41 +26,41 @@ export const defaultCommandConfig: CommandsConfig = {
   dataSource: 'source-code'
 }
 
-export const getCommandsConfig = async (): Promise<CommandsConfig> => {
-  try {
-    const value = await redis.get(storageKeys.commandsConfig);
-    return commandsConfig.parse(JSON.parse(value || '{}'));
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (_) {
-    console.warn(`Unable to get ${storageKeys.commandsConfig}`);
+// export const getCommandsConfig = async (): Promise<CommandsConfig> => {
+//   try {
+//     const value = await redis.get(storageKeys.commandsConfig);
+//     return commandsConfig.parse(JSON.parse(value || '{}'));
+//     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+//   } catch (_) {
+//     console.warn(`Unable to get ${storageKeys.commandsConfig}`);
 
-    return defaultCommandConfig
-  }
-}
+//     return defaultCommandConfig
+//   }
+// }
 
-export const setCommandsConfig = async (config: CommandsConfig) => {
-  try {
-    await redis.set(storageKeys.commandsConfig, JSON.stringify(config));
-  } catch (e) {
-    console.error(`Unable to set ${storageKeys.commandsConfig}`, e);
-  }
-}
+// export const setCommandsConfig = async (config: CommandsConfig) => {
+//   try {
+//     await redis.set(storageKeys.commandsConfig, JSON.stringify(config));
+//   } catch (e) {
+//     console.error(`Unable to set ${storageKeys.commandsConfig}`, e);
+//   }
+// }
 
-export const getCommands = async (): Promise<CommandsArray> => {
-  try {
-    const value = await redis.get(storageKeys.commands);
-    return commandsArray.parse(JSON.parse(value || ''));
-  } catch (e) {
-    console.error(`Unable to get ${storageKeys.commands}`, e);
+// export const getCommands = async (): Promise<CommandsArray> => {
+//   try {
+//     const value = await redis.get(storageKeys.commands);
+//     return commandsArray.parse(JSON.parse(value || ''));
+//   } catch (e) {
+//     console.error(`Unable to get ${storageKeys.commands}`, e);
 
-    return []
-  }
-}
+//     return []
+//   }
+// }
 
-export const setCommands = async (commands: CommandsArray) => {
-  try {
-    await redis.set(storageKeys.commands, JSON.stringify(commands));
-  } catch (e) {
-    console.error(`Unable to set ${storageKeys.commands}`, e);
-  }
-}
+// export const setCommands = async (commands: CommandsArray) => {
+//   try {
+//     await redis.set(storageKeys.commands, JSON.stringify(commands));
+//   } catch (e) {
+//     console.error(`Unable to set ${storageKeys.commands}`, e);
+//   }
+// }
