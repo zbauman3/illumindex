@@ -39,20 +39,22 @@ esp_err_t appInit() {
       .height = MATRIX_HEIGHT,
       .pins =
           {
-              .a0 = GPIO_NUM_9,     // 9
-              .a1 = GPIO_NUM_10,    // 10
-              .a2 = GPIO_NUM_11,    // 11
+              .a0 = GPIO_NUM_10,    // 10
+              .a1 = GPIO_NUM_11,    // 11
+              .a2 = GPIO_NUM_9,     // 9
               .a3 = GPIO_NUM_12,    // 12
-              .a4 = GPIO_NUM_35,    // MOSI
+              .a4 = GPIO_NUM_6,     // 6
               .latch = GPIO_NUM_5,  // 5
               .clock = GPIO_NUM_36, // SCK
-              .oe = GPIO_NUM_6,     // 6
-              .r1 = GPIO_NUM_18,    // A0
-              .b1 = GPIO_NUM_17,    // A1
-              .g1 = GPIO_NUM_16,    // A2
-              .r2 = GPIO_NUM_15,    // A3
-              .b2 = GPIO_NUM_14,    // A4
-              .g2 = GPIO_NUM_8,     // A5
+              .oe = GPIO_NUM_35,    // MOSI
+              .g1 = GPIO_NUM_18,    // A0
+              .g2 = GPIO_NUM_17,    // A1
+              // Blue and red are swapped, as compared to the physical
+              // connector. This is due to the pin mapping on the ICN2037
+              .b1 = GPIO_NUM_16, // A2
+              .b2 = GPIO_NUM_15, // A3
+              .r1 = GPIO_NUM_14, // A4
+              .r2 = GPIO_NUM_8,  // A5
           },
   };
   ESP_ERROR_BUBBLE(matrixInit(&matrix, &matrixConfig));
