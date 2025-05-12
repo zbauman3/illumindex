@@ -14,7 +14,8 @@ esp_err_t remoteStateInit(RemoteStateHandle *remoteStateHandle) {
       (RemoteStateHandle)malloc(sizeof(RemoteState));
 
   remoteState->isDevMode = false;
-  remoteState->devModeEndpoint = NULL;
+  remoteState->commandEndpoint = CONFIG_ENDPOINT_URL;
+  remoteState->fetchInterval = CONFIG_ENDPOINT_FETCH_INTERVAL;
 
   // pass back the state
   *remoteStateHandle = remoteState;
@@ -43,22 +44,30 @@ esp_err_t remoteStateParse(RemoteStateHandle remoteState, char *data,
 
   remoteState->isDevMode = cJSON_IsTrue(values);
 
-  values = cJSON_GetObjectItemCaseSensitive(json, "devModeEndpoint");
+  values = cJSON_GetObjectItemCaseSensitive(json, "commandEndpoint");
   ESP_GOTO_ON_FALSE(cJSON_IsString(values) && values->valuestring != NULL,
                     ESP_ERR_INVALID_RESPONSE, remoteStateParse_cleanup, TAG,
-                    "data.devModeEndpoint is not a string");
+                    "data.commandEndpoint is not a string");
   ESP_GOTO_ON_FALSE(strlen(values->valuestring) > 0, ESP_ERR_INVALID_RESPONSE,
                     remoteStateParse_cleanup, TAG,
-                    "data.devModeEndpoint is empty");
-
+                    "data.commandEndpoint is empty");
   // free the old endpoint if it exists
-  if (remoteState->devModeEndpoint != NULL) {
-    free(remoteState->devModeEndpoint);
+  if (remoteState->commandEndpoint != NULL) {
+    free(remoteState->commandEndpoint);
   }
   // allocate the new endpoint
-  remoteState->devModeEndpoint =
+  remoteState->commandEndpoint =
       (char *)malloc(strlen(values->valuestring) + 1);
-  strcpy(remoteState->devModeEndpoint, values->valuestring);
+  strcpy(remoteState->commandEndpoint, values->valuestring);
+
+  values = cJSON_GetObjectItemCaseSensitive(json, "fetchInterval");
+  ESP_GOTO_ON_FALSE(cJSON_IsNumber(values), ESP_ERR_INVALID_RESPONSE,
+                    remoteStateParse_cleanup, TAG,
+                    "data.fetchInterval is not a number");
+  ESP_GOTO_ON_FALSE(values->valueint > 0 && values->valueint <= 65535,
+                    ESP_ERR_INVALID_RESPONSE, remoteStateParse_cleanup, TAG,
+                    "data.fetchInterval is not valid");
+  remoteState->fetchInterval = values->valueint;
 
 remoteStateParse_cleanup:
   cJSON_Delete(json);

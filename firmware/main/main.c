@@ -120,9 +120,11 @@ esp_err_t appInit() {
   }
 
   if (remoteState->isDevMode) {
-    ESP_LOGI(TAG, "Running in dev mode pointing to %s",
-             remoteState->devModeEndpoint);
+    ESP_LOGI(TAG, "Running in dev mode");
   }
+
+  ESP_LOGI(TAG, "Pointing to \"%s\"", remoteState->commandEndpoint);
+  ESP_LOGI(TAG, "Fetch interval \"%u\"", remoteState->fetchInterval);
 
   setFeedbackStateAndShow();
 
@@ -137,9 +139,7 @@ esp_err_t fetchAndDisplayData() {
   ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup,
                     TAG_FETCH_CMDS, "Error initiating the request context");
 
-  ctx->url = remoteState->isDevMode && remoteState->devModeEndpoint != NULL
-                 ? remoteState->devModeEndpoint
-                 : CONFIG_ENDPOINT_URL;
+  ctx->url = remoteState->commandEndpoint;
   ctx->method = HTTP_METHOD_GET;
 
   ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup,
@@ -191,18 +191,16 @@ void app_main(void) {
     return;
   }
 
-  uint8_t loopSeconds = 255;
+  uint16_t loopSeconds = 65535;
   uint8_t fetchFailureCount = 0;
   while (true) {
-    if (loopSeconds >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
-      // TODO
-      // error state for too many failures
+    if (loopSeconds >= remoteState->fetchInterval) {
       if (fetchAndDisplayData() == ESP_OK) {
         loopSeconds = 0;
         fetchFailureCount = 0;
       } else {
         // try again in 10 seconds
-        loopSeconds = 10;
+        loopSeconds = remoteState->fetchInterval - 10;
         fetchFailureCount++;
         if (fetchFailureCount > 5) {
           commandsInvalid = true;

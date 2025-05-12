@@ -2,7 +2,8 @@ import z from "zod";
 
 export const remoteStateSchema = z.object({
   isDevMode: z.boolean(),
-  devModeEndpoint: z.string(),
+  commandEndpoint: z.string(),
+  fetchInterval: z.number().int().min(10).max(65535),
 });
 export type RemoteState = z.infer<typeof remoteStateSchema>;
 
@@ -19,7 +20,11 @@ const defaultState: RemoteState = (() => {
     }
   }
 
-  return { isDevMode: false, devModeEndpoint: "" };
+  return {
+    isDevMode: false,
+    commandEndpoint: `https://illumindex.vercel.app/api/command?token=${process.env.SITE_PASSWORD}`,
+    fetchInterval: 60 * 5,
+  };
 })()
 
 export { defaultState }

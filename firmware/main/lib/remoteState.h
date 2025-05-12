@@ -5,7 +5,8 @@
 
 typedef struct {
   bool isDevMode;
-  char *devModeEndpoint;
+  char *commandEndpoint;
+  uint16_t fetchInterval;
 } RemoteState;
 
 typedef RemoteState *RemoteStateHandle;
