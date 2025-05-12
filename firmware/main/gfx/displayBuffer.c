@@ -225,8 +225,17 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
   }
 }
 
-void displayBufferAddFeedback(DisplayBufferHandle db, bool isDevMode) {
+void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
+                              bool commandsInvalid, bool isDevMode) {
   if (isDevMode) {
-    db->buffer[0] = 0b1111111111100000;
+    db->buffer[0] = 0b0000000000011111;
+  }
+
+  if (remoteStateInvalid) {
+    db->buffer[2] = 0b1111111111100000;
+  }
+
+  if (commandsInvalid) {
+    db->buffer[4] = 0b1111100000000000;
   }
 }

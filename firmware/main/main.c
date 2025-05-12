@@ -28,6 +28,15 @@ static MatrixHandle matrix;
 static DisplayBufferHandle displayBuffer;
 static RemoteStateHandle remoteState;
 
+static bool remoteStateInvalid = false;
+static bool commandsInvalid = false;
+
+esp_err_t setFeedbackStateAndShow() {
+  displayBufferAddFeedback(displayBuffer, remoteStateInvalid, commandsInvalid,
+                           remoteState->isDevMode);
+  return matrixShow(matrix, displayBuffer->buffer);
+}
+
 esp_err_t fetchRemoteState() {
   ESP_LOGI(TAG_FETCH_STATE, "FETCHING DATA");
   esp_err_t ret = ESP_OK;
@@ -105,12 +114,17 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(wifi_init());
 
   remoteStateInit(&remoteState);
-  ESP_ERROR_BUBBLE(fetchRemoteState());
+  if (fetchRemoteState() != ESP_OK) {
+    remoteStateInvalid = true;
+    ESP_LOGE(TAG, "Failed to fetch remote state");
+  }
 
   if (remoteState->isDevMode) {
     ESP_LOGI(TAG, "Running in dev mode pointing to %s",
              remoteState->devModeEndpoint);
   }
+
+  setFeedbackStateAndShow();
 
   return ESP_OK;
 }
@@ -145,11 +159,9 @@ esp_err_t fetchAndDisplayData() {
                     fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
                     "Invalid JSON response or content length");
 
-  displayBufferAddFeedback(displayBuffer, remoteState->isDevMode);
-
-  ESP_GOTO_ON_ERROR(matrixShow(matrix, displayBuffer->buffer),
-                    fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
-                    "Error setting the new buffer");
+  commandsInvalid = false;
+  ESP_GOTO_ON_ERROR(setFeedbackStateAndShow(), fetchAndDisplayData_cleanup,
+                    TAG_FETCH_CMDS, "Error setting the new buffer");
 
 fetchAndDisplayData_cleanup:
   requestEnd(ctx);
@@ -173,22 +185,29 @@ void app_main(void) {
     // TODO
     // Show error on display? Might need to leave the matrix running...
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
-    vTaskDelay(3000 / portTICK_PERIOD_MS);
+    vTaskDelay(10000 / portTICK_PERIOD_MS);
 
     esp_restart();
     return;
   }
 
   uint8_t loopSeconds = 255;
+  uint8_t fetchFailureCount = 0;
   while (true) {
     if (loopSeconds >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
       // TODO
       // error state for too many failures
       if (fetchAndDisplayData() == ESP_OK) {
         loopSeconds = 0;
+        fetchFailureCount = 0;
       } else {
         // try again in 10 seconds
-        loopSeconds = CONFIG_ENDPOINT_FETCH_INTERVAL - 10;
+        loopSeconds = 10;
+        fetchFailureCount++;
+        if (fetchFailureCount > 5) {
+          commandsInvalid = true;
+          setFeedbackStateAndShow();
+        }
       }
     }
 
