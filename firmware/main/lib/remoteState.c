@@ -51,10 +51,6 @@ esp_err_t remoteStateParse(RemoteStateHandle remoteState, char *data,
   ESP_GOTO_ON_FALSE(strlen(values->valuestring) > 0, ESP_ERR_INVALID_RESPONSE,
                     remoteStateParse_cleanup, TAG,
                     "data.commandEndpoint is empty");
-  // free the old endpoint if it exists
-  if (remoteState->commandEndpoint != NULL) {
-    free(remoteState->commandEndpoint);
-  }
   // allocate the new endpoint
   remoteState->commandEndpoint =
       (char *)malloc(strlen(values->valuestring) + 1);
