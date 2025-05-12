@@ -77,3 +77,4 @@ void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
 void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY);
 void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
                              uint8_t height, uint16_t *buffer);
+void displayBufferAddFeedback(DisplayBufferHandle db, bool isDevMode);

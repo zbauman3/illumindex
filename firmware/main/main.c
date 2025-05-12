@@ -107,6 +107,11 @@ esp_err_t appInit() {
   remoteStateInit(&remoteState);
   ESP_ERROR_BUBBLE(fetchRemoteState());
 
+  if (remoteState->isDevMode) {
+    ESP_LOGI(TAG, "Running in dev mode pointing to %s",
+             remoteState->devModeEndpoint);
+  }
+
   return ESP_OK;
 }
 
@@ -139,6 +144,8 @@ esp_err_t fetchAndDisplayData() {
                                          ctx->response->length),
                     fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
                     "Invalid JSON response or content length");
+
+  displayBufferAddFeedback(displayBuffer, remoteState->isDevMode);
 
   ESP_GOTO_ON_ERROR(matrixShow(matrix, displayBuffer->buffer),
                     fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,

@@ -224,3 +224,9 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
     }
   }
 }
+
+void displayBufferAddFeedback(DisplayBufferHandle db, bool isDevMode) {
+  if (isDevMode) {
+    db->buffer[0] = 0b1111111111100000;
+  }
+}

@@ -113,5 +113,6 @@
     "OPENOCD_SCRIPTS": "/Users/zanebauman/.espressif/tools/openocd-esp32/v0.12.0-esp32-20240318/openocd-esp32/share/openocd/scripts",
     "ESP_ROM_ELF_DIR": "/Users/zanebauman/.espressif/tools/esp-rom-elfs/20240305/",
     "IDF_TARGET": "esp32s3"
-  }
+  },
+  "idf.monitorPort": "/dev/tty.usbmodem101"
 }
