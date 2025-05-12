@@ -5,8 +5,14 @@ export const config = {
 };
 
 const password = process.env.SITE_PASSWORD;
+const isLocalDev = process.env.VERCEL !== '1';
 
 export default function middleware(request: NextRequest) {
+  // Allow local development without password
+  if (isLocalDev) {
+    return;
+  }
+
   const token = request.nextUrl.searchParams.get('token');
   if (!password || token !== password) {
     return new Response(null, { status: 404 });

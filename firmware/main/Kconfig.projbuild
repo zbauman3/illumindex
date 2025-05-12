@@ -6,6 +6,8 @@ menu "Wifi Config"
 endmenu
 
 menu "Endpoint Config"
+  config ENDPOINT_STATE_URL
+      string "The URL for fetching state data."
   config ENDPOINT_URL
       string "The URL for fetching data."
   config ENDPOINT_FETCH_INTERVAL

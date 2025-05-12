@@ -11,6 +11,7 @@
 #include "drivers/matrix.h"
 #include "gfx/displayBuffer.h"
 #include "gfx/fonts.h"
+#include "lib/remoteState.h"
 #include "network/request.h"
 #include "network/wifi.h"
 #include "util/565_color.h"
@@ -21,8 +22,40 @@
 #define MATRIX_HEIGHT 64
 
 static const char *TAG = "APP_MAIN";
+static const char *TAG_FETCH_CMDS = "APP_MAIN:FETCH_CMDS";
+static const char *TAG_FETCH_STATE = "APP_MAIN:FETCH_STATE";
 static MatrixHandle matrix;
 static DisplayBufferHandle displayBuffer;
+static RemoteStateHandle remoteState;
+
+esp_err_t fetchRemoteState() {
+  ESP_LOGI(TAG_FETCH_STATE, "FETCHING DATA");
+  esp_err_t ret = ESP_OK;
+  RequestContextHandle ctx;
+
+  ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchRemoteState_cleanup,
+                    TAG_FETCH_STATE, "Error initiating the request context");
+
+  ctx->url = CONFIG_ENDPOINT_STATE_URL;
+  ctx->method = HTTP_METHOD_GET;
+
+  ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchRemoteState_cleanup,
+                    TAG_FETCH_STATE, "Error fetching data from endpoint");
+
+  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
+                    fetchRemoteState_cleanup, TAG_FETCH_STATE,
+                    "Invalid response status code \"%d\"",
+                    ctx->response->statusCode);
+
+  ESP_GOTO_ON_ERROR(
+      remoteStateParse(remoteState, ctx->response->data, ctx->response->length),
+      fetchRemoteState_cleanup, TAG_FETCH_STATE,
+      "Invalid JSON response or content length");
+
+fetchRemoteState_cleanup:
+  requestEnd(ctx);
+  return ret;
+}
 
 esp_err_t appInit() {
   esp_err_t init_ret = nvs_flash_init();
@@ -71,24 +104,30 @@ esp_err_t appInit() {
   matrixShow(matrix, displayBuffer->buffer);
   ESP_ERROR_BUBBLE(wifi_init());
 
+  remoteStateInit(&remoteState);
+  ESP_ERROR_BUBBLE(fetchRemoteState());
+
   return ESP_OK;
 }
 
 esp_err_t fetchAndDisplayData() {
+  ESP_LOGI(TAG_FETCH_CMDS, "FETCHING DATA");
   esp_err_t ret = ESP_OK;
   RequestContextHandle ctx;
 
-  ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup, TAG,
-                    "Error initiating the request context");
+  ESP_GOTO_ON_ERROR(requestInit(&ctx), fetchAndDisplayData_cleanup,
+                    TAG_FETCH_CMDS, "Error initiating the request context");
 
-  ctx->url = CONFIG_ENDPOINT_URL;
+  ctx->url = remoteState->isDevMode && remoteState->devModeEndpoint != NULL
+                 ? remoteState->devModeEndpoint
+                 : CONFIG_ENDPOINT_URL;
   ctx->method = HTTP_METHOD_GET;
 
-  ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup, TAG,
-                    "Error fetching data from endpoint");
+  ESP_GOTO_ON_ERROR(requestPerform(ctx), fetchAndDisplayData_cleanup,
+                    TAG_FETCH_CMDS, "Error fetching data from endpoint");
 
   ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
-                    fetchAndDisplayData_cleanup, TAG,
+                    fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
                     "Invalid response status code \"%d\"",
                     ctx->response->statusCode);
 
@@ -98,11 +137,11 @@ esp_err_t fetchAndDisplayData() {
 
   ESP_GOTO_ON_ERROR(parseAndShowCommands(displayBuffer, ctx->response->data,
                                          ctx->response->length),
-                    fetchAndDisplayData_cleanup, TAG,
+                    fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
                     "Invalid JSON response or content length");
 
   ESP_GOTO_ON_ERROR(matrixShow(matrix, displayBuffer->buffer),
-                    fetchAndDisplayData_cleanup, TAG,
+                    fetchAndDisplayData_cleanup, TAG_FETCH_CMDS,
                     "Error setting the new buffer");
 
 fetchAndDisplayData_cleanup:
@@ -136,7 +175,6 @@ void app_main(void) {
   uint8_t loopSeconds = 255;
   while (true) {
     if (loopSeconds >= CONFIG_ENDPOINT_FETCH_INTERVAL) {
-      ESP_LOGI(TAG, "FETCH");
       // TODO
       // error state for too many failures
       if (fetchAndDisplayData() == ESP_OK) {
