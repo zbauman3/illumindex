@@ -12,7 +12,7 @@
 #define fontAsciiToIndex(ascii) (uint8_t)(ascii - FONT_ASCII_MIN)
 #define fontIsValidAscii(ascii)                                                \
   (ascii <= FONT_ASCII_MAX && ascii >= FONT_ASCII_MIN)
-#define fontIsValidChunk(font, ascii) (chunk <= font->chunksPerChar)
+#define fontIsValidChunk(font, ascii) (ascii <= font->chunksPerChar)
 
 typedef enum {
   fontSizeSm = FONT_SIZE_SM,

@@ -98,3 +98,24 @@ export const getWeatherData = async () => {
   const parsedResponse = weatherDataResponseSchema.parse(json);
   return parsedResponse;
 }
+
+
+// const getWeatherOutput = async (commands: AllCommands[]) => {
+//   const wetherData = await getWeatherData();
+//   const currentWeather = wetherData[0];
+//   // const nextWeather = wetherData[1];
+
+//   if (currentWeather) {
+//     commands.push(createCommand({
+//       type: 'set-state',
+//       position: {
+//         x: 0,
+//         y: 32
+//       }
+//     }))
+//     commands.push(createCommand({
+//       type: 'string',
+//       value: `Temp ${currentWeather.temperature}F`,
+//     }))
+//   }
+// }

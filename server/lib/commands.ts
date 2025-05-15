@@ -1,17 +1,22 @@
 import z from "zod";
 
+import { FontSize } from "./font";
+
 const commandState = z.object({
   color: z.number().optional(),
   fontSize: z.union([
-    z.literal('sm'),
-    z.literal('md'),
-    z.literal('lg')]
+    z.literal(FontSize.fontSizeSm),
+    z.literal(FontSize.fontSizeMd),
+    z.literal(FontSize.fontSizeLg)]
   ).optional(),
   position: z.object({
     x: z.number(),
     y: z.number()
   }).optional()
 })
+
+export type State = Required<z.infer<typeof commandState>>
+export type Point = State['position']
 
 export type CommandString = z.infer<typeof commandString>;
 export const commandString = commandState.extend({

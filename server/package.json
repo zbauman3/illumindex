@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "types": "tsc --noEmit"
+    "types": "tsc --noEmit",
+    "devMode:set": "npx tsx --env-file=.env.local ./lib/updateEnv.ts dev-mode",
+    "devMode:clear": "npx tsx --env-file=.env.local ./lib/updateEnv.ts clear"
   },
   "dependencies": {
     "next": "15.1.7",
@@ -23,6 +25,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
+    "tsx": "^4.19.4",
     "typescript": "^5",
     "vercel": "^41.3.0"
   }
