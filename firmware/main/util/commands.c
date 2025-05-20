@@ -118,6 +118,80 @@ void parseAndShowBitmap(DisplayBufferHandle db, const cJSON *command) {
   free(bmBuffer);
 }
 
+void parseAndShowAnimation(DisplayBufferHandle db, const cJSON *command) {
+  const cJSON *position = cJSON_GetObjectItemCaseSensitive(command, "position");
+  const cJSON *size = cJSON_GetObjectItemCaseSensitive(command, "size");
+  const cJSON *delay = cJSON_GetObjectItemCaseSensitive(command, "delay");
+  const cJSON *frames = cJSON_GetObjectItemCaseSensitive(command, "frames");
+  if (!cJSON_IsObject(position) || !cJSON_IsObject(size) ||
+      !cJSON_IsNumber(delay) || !cJSON_IsArray(frames)) {
+    invalidShapeWarn("animation");
+    return;
+  }
+
+  const cJSON *positionX = cJSON_GetObjectItemCaseSensitive(position, "x");
+  const cJSON *positionY = cJSON_GetObjectItemCaseSensitive(position, "y");
+  if (!cJSON_IsNumber(positionX) || !cJSON_IsNumber(positionY)) {
+    invalidPropWarn("animation", "position");
+    return;
+  }
+
+  const cJSON *sizeW = cJSON_GetObjectItemCaseSensitive(size, "width");
+  const cJSON *sizeH = cJSON_GetObjectItemCaseSensitive(size, "height");
+  if (!cJSON_IsNumber(sizeW) || !cJSON_IsNumber(sizeH)) {
+    invalidPropWarn("animation", "size");
+    return;
+  }
+
+  uint16_t frameCount = 0;
+  // the frame we're iterating
+  uint16_t frameI = 0;
+  // the value within the frame
+  uint16_t pixelValueI;
+  const cJSON *frame = NULL;
+  const cJSON *pixelValue = NULL;
+  // we need to know how many frames there are in order to know how big of an
+  // array to allocate. This could be done by dynamically reallocating the
+  // array, but this code doesn't need to be incredibly performant, so looping
+  // the elements twice isn't a big deal.
+  cJSON_ArrayForEach(frame, frames) { frameCount++; }
+
+  displayBufferAnimationInit(db, delay->valueint, positionX->valueint,
+                             positionY->valueint, sizeW->valueint,
+                             sizeH->valueint, frameCount);
+
+  // now loop all frames and extract their values
+  cJSON_ArrayForEach(frame, frames) {
+    if (cJSON_IsArray(frame)) {
+      pixelValueI = 0;
+      cJSON_ArrayForEach(pixelValue, frame) {
+        if (pixelValueI < db->animation->size.length) {
+          if (cJSON_IsNumber(pixelValue)) {
+            db->animation->frames[frameI][pixelValueI] = pixelValue->valueint;
+          } else {
+            invalidPropWarn("animation", "frames > frame > value");
+          }
+        } else {
+          invalidPropWarn("animation", "frames > frame.length");
+          // no need to continue if we're past the frame length
+          break;
+        }
+
+        pixelValueI++;
+      }
+    } else {
+      invalidPropWarn("animation", "frames > frame");
+    }
+
+    frameI++;
+  }
+
+  // Pretend like we've just shown the last frame
+  db->animation->lastFrameIndex = db->animation->frameCount;
+  // output the "next" frame, which will be the first one
+  displayBufferAnimationShowNext(db);
+}
+
 esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
                                size_t length) {
   esp_err_t ret = ESP_OK;
@@ -125,6 +199,9 @@ esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
   const cJSON *type = NULL;
   uint16_t commandIndex = 0;
   cJSON *json = cJSON_ParseWithLength(data, length);
+
+  // we're restarting with the db, clear any animation data
+  displayBufferAnimationEnd(db);
 
   ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
                     parseAndShowCommands_cleanup, TAG,
@@ -148,6 +225,8 @@ esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
           displayBufferLineFeed(db);
         } else if (strcmp(type->valuestring, "set-state") == 0) {
           parseAndSetState(db, command, "set-state");
+        } else if (strcmp(type->valuestring, "animation") == 0) {
+          parseAndShowAnimation(db, command);
         } else {
           ESP_LOGW(TAG, "Command %u does not have a valid 'type'",
                    commandIndex);

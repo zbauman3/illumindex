@@ -1,5 +1,8 @@
 #pragma once
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include "esp_err.h"
 #include <stdbool.h>
 
@@ -11,6 +14,8 @@ typedef struct {
   MatrixHandle matrix;
   DisplayBufferHandle displayBuffer;
   StateHandle state;
+  TaskHandle_t mainTaskHandle;
+  TaskHandle_t animationTaskHandle;
 } Display;
 
 typedef Display *DisplayHandle;
@@ -19,5 +24,4 @@ esp_err_t displayInit(DisplayHandle *displayHandle,
                       MatrixInitConfig *matrixConfig);
 
 void displayEnd(DisplayHandle display);
-void displaySetup(DisplayHandle display);
-void displayLoop(DisplayHandle display);
+esp_err_t displayStart(DisplayHandle display);

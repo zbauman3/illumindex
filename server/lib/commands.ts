@@ -66,6 +66,18 @@ export const commandSetState = commandState.extend({
   type: z.literal('set-state'),
 })
 
+export type CommandAnimation = z.infer<typeof commandAnimation>
+export const commandAnimation = z.object({
+  type: z.literal('animation'),
+  delay: z.number(),
+  position: commandState.shape.position.refine((a) => !!a),
+  size: z.object({
+    width: z.number(),
+    height: z.number()
+  }),
+  frames: z.array(z.number().array())
+})
+
 export type AllCommands = z.infer<typeof allCommands>
 export const allCommands = z.union([
   commandString,
@@ -73,6 +85,7 @@ export const allCommands = z.union([
   commandBitmap,
   commandNewLine,
   commandSetState,
+  commandAnimation
 ])
 
 export type CommandsArray = z.infer<typeof commandsArray>

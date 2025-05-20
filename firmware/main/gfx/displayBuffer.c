@@ -19,6 +19,7 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
   displayBufferSetCursor(db, 0, 0);
   db->width = width;
   db->height = height;
+  db->animation = NULL;
 
   db->buffer = (uint16_t *)malloc(sizeof(uint16_t) * db->width * db->height);
   displayBufferClear(db);
@@ -28,6 +29,72 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
   *displayBufferHandle = db;
 
   return ESP_OK;
+}
+
+void displayBufferAnimationInit(DisplayBufferHandle db, uint16_t delay,
+                                uint8_t posX, uint8_t posY, uint8_t width,
+                                uint8_t height, uint16_t frameCount) {
+
+  // always clear previous data
+  displayBufferAnimationEnd(db);
+
+  db->animation = (AnimationHandle)malloc(sizeof(Animation));
+  db->animation->delay = delay;
+  db->animation->position.x = posX;
+  db->animation->position.y = posY;
+  db->animation->size.width = width;
+  db->animation->size.height = height;
+  db->animation->size.length =
+      db->animation->size.width * db->animation->size.height;
+  db->animation->lastFrameIndex = 0;
+  db->animation->frameCount = frameCount;
+
+  // allocate the first dimension for all frames
+  db->animation->frames =
+      (uint16_t **)malloc(sizeof(uint16_t *) * db->animation->frameCount);
+
+  for (uint16_t i = 0; i < db->animation->frameCount; i++) {
+    // for each frame, allocate space for the bitmap
+    db->animation->frames[i] =
+        (uint16_t *)malloc(sizeof(uint16_t) * db->animation->size.length);
+    // set to all empty data. This will be the default if there's invalid data
+    memset(db->animation->frames[i], 0,
+           sizeof(uint16_t) * db->animation->size.length);
+  }
+}
+
+void displayBufferAnimationEnd(DisplayBufferHandle db) {
+  if (db->animation == NULL) {
+    return;
+  }
+
+  for (uint16_t i = 0; i < db->animation->frameCount; i++) {
+    free(db->animation->frames[i]);
+  }
+
+  free(db->animation->frames);
+  free(db->animation);
+
+  db->animation = NULL;
+}
+
+void displayBufferAnimationShowNext(DisplayBufferHandle db) {
+  displayBufferSetCursor(db, db->animation->position.x,
+                         db->animation->position.y);
+
+  db->animation->lastFrameIndex++;
+  if (db->animation->lastFrameIndex >= db->animation->frameCount) {
+    db->animation->lastFrameIndex = 0;
+  }
+
+  // no need to do anything if there are no frames to show
+  if (db->animation->frameCount == 0) {
+    return;
+  }
+
+  displayBufferDrawBitmap(db, db->animation->size.width,
+                          db->animation->size.height,
+                          db->animation->frames[db->animation->lastFrameIndex]);
 }
 
 // resets all values in the buffer to `0`

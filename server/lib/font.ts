@@ -295,11 +295,12 @@ export const ascii4By6 = [
 export const FONT_ASCII_MIN = 32;
 export const FONT_ASCII_MAX = 126;
 
-export enum FontSize {
-  fontSizeSm = 'sm',
-  fontSizeMd = 'md',
-  fontSizeLg = 'lg',
-};
+export const FontSize = {
+  fontSizeSm: 'sm',
+  fontSizeMd: 'md',
+  fontSizeLg: 'lg',
+} as const;
+export type FontSize = typeof FontSize[keyof typeof FontSize];
 
 export type FontSizeDetails = {
   width: number,

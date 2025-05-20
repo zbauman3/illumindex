@@ -9,12 +9,109 @@
 #include "util/error_helpers.h"
 
 static const char *TAG = "DISPLAY";
+static const char *MAIN_TASK_NAME = "DISPLAY:MAIN_TASK";
+static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
 
 esp_err_t displaySend(DisplayHandle display) {
   displayBufferAddFeedback(
       display->displayBuffer, display->state->remoteStateInvalid,
       display->state->commandsInvalid, display->state->isDevMode);
   return matrixShow(display->matrix, display->displayBuffer->buffer);
+}
+
+esp_err_t fetchAndDisplayData(DisplayHandle display) {
+  ESP_LOGD(MAIN_TASK_NAME, "FETCHING DATA");
+  esp_err_t ret = ESP_OK;
+  RequestContextHandle ctx;
+
+  ESP_GOTO_ON_ERROR(requestInit(&ctx), displayFetchData_cleanup, MAIN_TASK_NAME,
+                    "Error initiating the request context");
+
+  ctx->url = display->state->commandEndpoint;
+  ctx->method = HTTP_METHOD_GET;
+
+  ESP_GOTO_ON_ERROR(requestPerform(ctx), displayFetchData_cleanup,
+                    MAIN_TASK_NAME, "Error fetching data from endpoint");
+
+  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
+                    displayFetchData_cleanup, MAIN_TASK_NAME,
+                    "Invalid response status code \"%d\"",
+                    ctx->response->statusCode);
+
+  // stop the animation task to prevent it from updating the display buffer
+  vTaskSuspend(display->animationTaskHandle);
+
+  displayBufferClear(display->displayBuffer);
+  displayBufferSetCursor(display->displayBuffer, 0, 0);
+  displayBufferSetColor(display->displayBuffer, 0b1111111111111111);
+
+  ESP_GOTO_ON_ERROR(parseAndShowCommands(display->displayBuffer,
+                                         ctx->response->data,
+                                         ctx->response->length),
+                    displayFetchData_cleanup, MAIN_TASK_NAME,
+                    "Invalid JSON response or content length");
+
+  if (display->displayBuffer->animation != NULL) {
+    ESP_LOGD(MAIN_TASK_NAME, "Animation detected. Starting %s.",
+             ANIMATION_TASK_NAME);
+    vTaskResume(display->animationTaskHandle);
+  } else {
+    ESP_LOGD(MAIN_TASK_NAME, "No animation. Leaving %s suspended.",
+             ANIMATION_TASK_NAME);
+  }
+
+  display->state->commandsInvalid = false;
+  ESP_GOTO_ON_ERROR(displaySend(display), displayFetchData_cleanup,
+                    MAIN_TASK_NAME, "Error setting the new buffer");
+
+displayFetchData_cleanup:
+  requestEnd(ctx);
+  return ret;
+}
+
+void mainTask(void *pvParameters) {
+  DisplayHandle display = (DisplayHandle)pvParameters;
+
+  for (;;) {
+    if (display->state->loopSeconds >= display->state->fetchInterval) {
+      if (fetchAndDisplayData(display) == ESP_OK) {
+        display->state->loopSeconds = 0;
+        display->state->fetchFailureCount = 0;
+      } else {
+        // try again in 5 seconds
+        display->state->loopSeconds = display->state->fetchInterval - 5;
+
+        display->state->fetchFailureCount++;
+        if (display->state->fetchFailureCount > 5) {
+          display->state->commandsInvalid = true;
+          displaySend(display);
+        }
+      }
+    } else {
+      display->state->loopSeconds++;
+    }
+
+    vTaskDelay(1000 / portTICK_PERIOD_MS);
+  }
+}
+
+void animationTask(void *pvParameters) {
+  DisplayHandle display = (DisplayHandle)pvParameters;
+
+  for (;;) {
+  animationTask_restart:
+    if (display->displayBuffer->animation == NULL) {
+      ESP_LOGI(ANIMATION_TASK_NAME, "Ran with NULL. Suspending self.");
+      vTaskSuspend(NULL);
+      // use a goto to make sure we always check the state after resuming
+      goto animationTask_restart;
+    }
+
+    displayBufferAnimationShowNext(display->displayBuffer);
+    displaySend(display);
+    // max animation speed is limited by the freertos tick...
+    vTaskDelay(display->displayBuffer->animation->delay / portTICK_PERIOD_MS);
+  }
 }
 
 esp_err_t displayInit(DisplayHandle *displayHandle,
@@ -52,9 +149,20 @@ void displayEnd(DisplayHandle display) {
   matrixEnd(display->matrix);
   displayBufferEnd(display->displayBuffer);
   stateEnd(display->state);
+
+  TaskHandle_t taskHandle;
+  taskHandle = xTaskGetHandle(MAIN_TASK_NAME);
+  if (taskHandle != NULL && taskHandle == display->mainTaskHandle) {
+    vTaskDelete(display->mainTaskHandle);
+  }
+
+  taskHandle = xTaskGetHandle(ANIMATION_TASK_NAME);
+  if (taskHandle != NULL && taskHandle == display->animationTaskHandle) {
+    vTaskDelete(display->animationTaskHandle);
+  }
 }
 
-void displaySetup(DisplayHandle display) {
+esp_err_t displayStart(DisplayHandle display) {
   if (stateFetchRemote(display->state) != ESP_OK) {
     display->state->remoteStateInvalid = true;
     ESP_LOGE(TAG, "Failed to fetch remote state");
@@ -68,63 +176,25 @@ void displaySetup(DisplayHandle display) {
   ESP_LOGI(TAG, "Fetch interval \"%u\"", display->state->fetchInterval);
 
   displaySend(display);
-}
 
-esp_err_t fetchAndDisplayData(DisplayHandle display) {
-  ESP_LOGI(TAG, "FETCHING DATA");
-  esp_err_t ret = ESP_OK;
-  RequestContextHandle ctx;
+  BaseType_t taskCreate;
+  taskCreate = xTaskCreatePinnedToCore(mainTask, MAIN_TASK_NAME, 4096, display,
+                                       tskIDLE_PRIORITY + 1,
+                                       &display->mainTaskHandle, 1);
 
-  ESP_GOTO_ON_ERROR(requestInit(&ctx), displayFetchData_cleanup, TAG,
-                    "Error initiating the request context");
-
-  ctx->url = display->state->commandEndpoint;
-  ctx->method = HTTP_METHOD_GET;
-
-  ESP_GOTO_ON_ERROR(requestPerform(ctx), displayFetchData_cleanup, TAG,
-                    "Error fetching data from endpoint");
-
-  ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
-                    displayFetchData_cleanup, TAG,
-                    "Invalid response status code \"%d\"",
-                    ctx->response->statusCode);
-
-  displayBufferClear(display->displayBuffer);
-  displayBufferSetCursor(display->displayBuffer, 0, 0);
-  displayBufferSetColor(display->displayBuffer, 0b1111111111111111);
-
-  ESP_GOTO_ON_ERROR(
-      parseAndShowCommands(display->displayBuffer, ctx->response->data,
-                           ctx->response->length),
-      displayFetchData_cleanup, TAG, "Invalid JSON response or content length");
-
-  display->state->commandsInvalid = false;
-  ESP_GOTO_ON_ERROR(displaySend(display), displayFetchData_cleanup, TAG,
-                    "Error setting the new buffer");
-
-displayFetchData_cleanup:
-  requestEnd(ctx);
-  return ret;
-}
-
-void displayLoop(DisplayHandle display) {
-  if (display->state->loopSeconds >= display->state->fetchInterval) {
-    if (fetchAndDisplayData(display) == ESP_OK) {
-      display->state->loopSeconds = 0;
-      display->state->fetchFailureCount = 0;
-    } else {
-      // try again in 5 seconds
-      display->state->loopSeconds = display->state->fetchInterval - 5;
-
-      display->state->fetchFailureCount++;
-      if (display->state->fetchFailureCount > 5) {
-        display->state->commandsInvalid = true;
-        displaySend(display);
-      }
-    }
-  } else {
-    display->state->loopSeconds++;
+  if (taskCreate != pdPASS || display->mainTaskHandle == NULL) {
+    ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);
+    return ESP_ERR_INVALID_STATE;
   }
 
-  vTaskDelay(1000 / portTICK_PERIOD_MS);
+  taskCreate = xTaskCreatePinnedToCore(animationTask, ANIMATION_TASK_NAME, 4096,
+                                       display, tskIDLE_PRIORITY + 2,
+                                       &display->animationTaskHandle, 1);
+
+  if (taskCreate != pdPASS || display->animationTaskHandle == NULL) {
+    ESP_LOGE(TAG, "Failed to create task '%s'", ANIMATION_TASK_NAME);
+    return ESP_ERR_INVALID_STATE;
+  }
+
+  return ESP_OK;
 }

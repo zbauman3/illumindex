@@ -52,6 +52,28 @@
   })
 
 typedef struct {
+  // delay in MS between frames.
+  // This is limited by the freertos tick
+  uint16_t delay;
+  struct {
+    uint8_t x;
+    uint8_t y;
+  } position;
+  struct {
+    uint8_t width;
+    uint8_t height;
+    uint64_t length;
+  } size;
+  // the last frame that was shown
+  uint16_t lastFrameIndex;
+  uint16_t frameCount;
+  // Once this object is created, this shape is always valid
+  uint16_t **frames;
+} Animation;
+
+typedef Animation *AnimationHandle;
+
+typedef struct {
   uint16_t *buffer;
   uint8_t width;
   uint8_t height;
@@ -61,6 +83,7 @@ typedef struct {
     uint8_t x;
     uint8_t y;
   } cursor;
+  AnimationHandle animation;
 } DisplayBuffer;
 
 typedef DisplayBuffer *DisplayBufferHandle;
@@ -79,3 +102,9 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
                              uint8_t height, uint16_t *buffer);
 void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
                               bool commandsInvalid, bool isDevMode);
+
+void displayBufferAnimationInit(DisplayBufferHandle db, uint16_t delay,
+                                uint8_t posX, uint8_t posY, uint8_t width,
+                                uint8_t height, uint16_t frameCount);
+void displayBufferAnimationEnd(DisplayBufferHandle db);
+void displayBufferAnimationShowNext(DisplayBufferHandle db);

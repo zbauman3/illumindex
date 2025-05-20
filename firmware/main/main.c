@@ -52,7 +52,7 @@ esp_err_t appInit() {
 
   ESP_ERROR_BUBBLE(wifi_init());
 
-  displaySetup(display);
+  ESP_ERROR_BUBBLE(displayStart(display));
 
   return ESP_OK;
 }
@@ -66,9 +66,5 @@ void app_main(void) {
 
     esp_restart();
     return;
-  }
-
-  while (true) {
-    displayLoop(display);
   }
 }

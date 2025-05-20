@@ -1,5 +1,5 @@
 import { type Bitmap, mergeBitmaps } from "./bitmaps";
-import { type CommandsArray, type AllCommands, type Point } from "./commands";
+import { type CommandsArray, type AllCommands, type Point, type CommandAnimation } from "./commands";
 import { type Color565 } from "./util";
 import { type FontSizeDetails, fontSizeDetailsMap, fontIsValidAscii, fontGetChunk } from "./font";
 
@@ -237,6 +237,9 @@ export const drawCommands = ({ bitmap, commands }: { bitmap: Bitmap, commands: C
           bitmap: loopBitmap
         });
         break
+      case 'animation':
+        // no-op. handled elsewhere
+        break;
       default:
         console.warn("Unknown command", command);
         break
@@ -244,4 +247,47 @@ export const drawCommands = ({ bitmap, commands }: { bitmap: Bitmap, commands: C
   }
 
   return loopBitmap
+}
+
+export const getAnimationCommand = (commands: CommandsArray): CommandAnimation | undefined => commands.find((command) => command.type === 'animation')
+
+export const doAnimationCommand = ({
+  bitmap,
+  animation,
+  lastIndex
+}: {
+  bitmap: Bitmap,
+  animation: CommandAnimation,
+  lastIndex: number
+}): {
+  bitmap: Bitmap,
+  lastIndex: number
+} => {
+  const newBitmap: Bitmap = {
+    ...bitmap,
+    data: [...bitmap.data],
+    size: { ...bitmap.size }
+  };
+
+  let nextIndex = lastIndex + 1;
+  if (nextIndex >= animation.frames.length) {
+    nextIndex = 0;
+  }
+
+  const animationBitmap: Bitmap = {
+    data: animation.frames[nextIndex]!,
+    size: { ...animation.size }
+  }
+
+  newBitmap.data = mergeBitmaps({
+    base: newBitmap,
+    overlay: animationBitmap,
+    offsetX: animation.position.x,
+    offsetY: animation.position.y
+  }).data;
+
+  return {
+    bitmap: newBitmap,
+    lastIndex: nextIndex
+  }
 }
