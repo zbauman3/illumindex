@@ -13,7 +13,11 @@ export default function middleware(request: NextRequest) {
     return;
   }
 
-  const token = request.nextUrl.searchParams.get('token');
+  let token: string | null | undefined = request.headers.get('authorization')?.split(/Bearer:\s*/)[1];
+  if (!token) {
+    token = request.nextUrl.searchParams.get('token');
+  }
+
   if (!password || token !== password) {
     return new Response(null, { status: 404 });
   }

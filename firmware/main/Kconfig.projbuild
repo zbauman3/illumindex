@@ -12,4 +12,6 @@ menu "Endpoint Config"
       string "The URL for fetching data."
   config ENDPOINT_FETCH_INTERVAL
       int "The number of seconds to wait between fetching."
+  config ENDPOINT_TOKEN
+      string "The auth token to use for hitting the endpoint."
 endmenu

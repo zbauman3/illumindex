@@ -134,6 +134,11 @@ esp_err_t requestPerform(RequestContextHandle ctx) {
     esp_http_client_set_header(client, "If-None-Match", ctx->eTag);
   }
 
+#ifdef CONFIG_ENDPOINT_TOKEN
+  esp_http_client_set_header(client, "Authorization",
+                             "Bearer: " CONFIG_ENDPOINT_TOKEN);
+#endif
+
   esp_err_t err = esp_http_client_perform(client);
 
   ctx->response->statusCode = esp_http_client_get_status_code(client);

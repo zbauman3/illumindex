@@ -12,7 +12,6 @@ import { type RemoteState } from "./state";
 const varName = 'ILLUMINDEX_DEFAULT_STATE';
 const deployment = 'illumindex.vercel.app';
 const commandPath = '/api/command'
-const token = process.env.SITE_PASSWORD;
 
 const main = async () => {
   const command = process.argv[2];
@@ -27,7 +26,7 @@ const main = async () => {
     execSync(clearCommand, { stdio: 'inherit' });
   } else {
     const localIp = execSync(`ipconfig getifaddr en0 || ipconfig getifaddr en1`, { stdio: 'pipe' }).toString().trim();
-    const commandEndpoint = `http://${localIp}:3000${commandPath}${token ? `?token=${token}` : ''}`;
+    const commandEndpoint = `http://${localIp}:3000${commandPath}`;
 
     const pushState: RemoteState = {
       commandEndpoint,
