@@ -16,6 +16,7 @@ typedef struct {
   StateHandle state;
   TaskHandle_t mainTaskHandle;
   TaskHandle_t animationTaskHandle;
+  char *lastEtag;
 } Display;
 
 typedef Display *DisplayHandle;

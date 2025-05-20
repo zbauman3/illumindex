@@ -9,6 +9,15 @@
 
 static const char *TAG = "NETWORK_REQUEST";
 
+void requestEtagInit(char **eTag) {
+  if (*eTag != NULL) {
+    free(*eTag);
+  }
+  *eTag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
+}
+
+void requestEtagCopy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
+
 static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   // Stores number of bytes read
   static int outputLen = 0;
@@ -50,6 +59,21 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
     outputLen = 0;
     break;
   }
+  case HTTP_EVENT_ON_HEADER: {
+    if (strcmp("etag", evt->header_key) == 0) {
+      RequestContextHandle ctx = evt->user_data;
+      size_t length = strlen(evt->header_value) + 1;
+
+      if (length > ETAG_LENGTH) {
+        ESP_LOGW(TAG, "ETAG length '%u' is larger than '%u'", length - 1,
+                 ETAG_LENGTH - 1);
+      } else {
+        requestEtagInit(&ctx->response->eTag);
+        requestEtagCopy(ctx->response->eTag, evt->header_value);
+      }
+    }
+    break;
+  }
   case HTTP_EVENT_DISCONNECTED: {
     int mbedtlsErr = 0;
     esp_err_t err = esp_tls_get_and_clear_last_error(
@@ -75,6 +99,8 @@ esp_err_t requestInit(RequestContextHandle *ctxHandle) {
   ctx->response = (ResponseData *)malloc(sizeof(ResponseData));
   ctx->response->data = (char *)malloc(REQUEST_MAX_OUTPUT_BUFFER);
   ctx->response->length = REQUEST_MAX_OUTPUT_BUFFER;
+  ctx->response->eTag = NULL;
+  ctx->eTag = NULL;
 
   *ctxHandle = ctx;
   return ESP_OK;
@@ -82,6 +108,12 @@ esp_err_t requestInit(RequestContextHandle *ctxHandle) {
 
 esp_err_t requestEnd(RequestContextHandle ctx) {
   free(ctx->response->data);
+  if (ctx->response->eTag != NULL) {
+    free(ctx->response->eTag);
+  }
+  if (ctx->eTag != NULL) {
+    free(ctx->eTag);
+  }
   free(ctx->response);
   free(ctx);
   return ESP_OK;
@@ -97,6 +129,11 @@ esp_err_t requestPerform(RequestContextHandle ctx) {
       .user_data = ctx,
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
+
+  if (ctx->eTag != NULL) {
+    esp_http_client_set_header(client, "If-None-Match", ctx->eTag);
+  }
+
   esp_err_t err = esp_http_client_perform(client);
 
   ctx->response->statusCode = esp_http_client_get_status_code(client);

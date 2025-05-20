@@ -29,14 +29,30 @@ esp_err_t fetchAndDisplayData(DisplayHandle display) {
 
   ctx->url = display->state->commandEndpoint;
   ctx->method = HTTP_METHOD_GET;
+  if (display->lastEtag != NULL) {
+    requestEtagInit(&ctx->eTag);
+    requestEtagCopy(ctx->eTag, display->lastEtag);
+  }
 
   ESP_GOTO_ON_ERROR(requestPerform(ctx), displayFetchData_cleanup,
                     MAIN_TASK_NAME, "Error fetching data from endpoint");
+
+  if (ctx->response->statusCode == 304) {
+    ESP_LOGD(MAIN_TASK_NAME, "Content not modified. Not updating buffer.");
+    goto displayFetchData_cleanup;
+  }
 
   ESP_GOTO_ON_FALSE(ctx->response->statusCode < 300, ESP_ERR_INVALID_RESPONSE,
                     displayFetchData_cleanup, MAIN_TASK_NAME,
                     "Invalid response status code \"%d\"",
                     ctx->response->statusCode);
+
+  if (ctx->response->eTag == NULL) {
+    ESP_LOGD(MAIN_TASK_NAME, "ETag is null");
+  } else {
+    requestEtagInit(&display->lastEtag);
+    requestEtagCopy(display->lastEtag, ctx->response->eTag);
+  }
 
   // stop the animation task to prevent it from updating the display buffer
   vTaskSuspend(display->animationTaskHandle);
@@ -119,6 +135,9 @@ esp_err_t displayInit(DisplayHandle *displayHandle,
   // allocate the the display
   DisplayHandle display = (DisplayHandle)malloc(sizeof(Display));
 
+  // reset ETag
+  display->lastEtag = NULL;
+
   // setup matrix
   ESP_ERROR_BUBBLE(matrixInit(&display->matrix, matrixConfig));
   ESP_ERROR_BUBBLE(matrixStart(display->matrix));
@@ -160,6 +179,11 @@ void displayEnd(DisplayHandle display) {
   if (taskHandle != NULL && taskHandle == display->animationTaskHandle) {
     vTaskDelete(display->animationTaskHandle);
   }
+
+  if (display->lastEtag != NULL) {
+    free(display->lastEtag);
+  }
+  free(display);
 }
 
 esp_err_t displayStart(DisplayHandle display) {
