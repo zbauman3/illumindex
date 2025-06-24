@@ -1,3 +1,83 @@
+import type { FontSize, FontSizeDetails } from "./types"
+
+export const FONT_ASCII_MIN = 32
+export const FONT_ASCII_MAX = 126
+
+export const fontSizeMap = {
+  fontSizeSm: "sm",
+  fontSizeMd: "md",
+  fontSizeLg: "lg",
+} as const
+
+export const fontSizeDetailsMap: Record<FontSize, FontSizeDetails> = {
+  [fontSizeMap.fontSizeSm]: {
+    width: 4,
+    height: 6,
+    bitsPerChunk: 8,
+    chunksPerChar: 3,
+    spacing: 1,
+    name: fontSizeMap.fontSizeSm,
+  },
+  [fontSizeMap.fontSizeLg]: {
+    width: 8,
+    height: 12,
+    bitsPerChunk: 32,
+    chunksPerChar: 3,
+    spacing: 0,
+    name: fontSizeMap.fontSizeLg,
+  },
+  [fontSizeMap.fontSizeMd]: {
+    width: 6,
+    height: 8,
+    bitsPerChunk: 16,
+    chunksPerChar: 3,
+    spacing: 0,
+    name: fontSizeMap.fontSizeMd,
+  },
+} as const
+
+export const fontAsciiToIndex = (ascii: number) => ascii - FONT_ASCII_MIN
+export const fontIsValidAscii = (ascii: number) =>
+  ascii <= FONT_ASCII_MAX && ascii >= FONT_ASCII_MIN
+export const fontIsValidChunk = (font: FontSizeDetails, chunk: number) =>
+  chunk <= font.chunksPerChar
+
+export const fontGetChunk = ({
+  size,
+  asciiChar,
+  chunk,
+}: {
+  size: FontSize
+  asciiChar: number
+  chunk: number
+}): number => {
+  const font = fontSizeDetailsMap[size]
+  if (!fontIsValidChunk(font, chunk) || !fontIsValidAscii(asciiChar)) {
+    console.warn(
+      `Invalid font chunk or ASCII character: size=${size}, asciiChar=${asciiChar}, chunk=${chunk}`
+    )
+    return 0
+  }
+
+  switch (size) {
+    case fontSizeMap.fontSizeSm:
+      return ascii4By6[
+        fontAsciiToIndex(asciiChar) * font.chunksPerChar + chunk
+      ]!
+    case fontSizeMap.fontSizeLg:
+      return ascii8By12[
+        fontAsciiToIndex(asciiChar) * font.chunksPerChar + chunk
+      ]!
+    case fontSizeMap.fontSizeMd:
+    default:
+      return ascii6By8[
+        fontAsciiToIndex(asciiChar) * font.chunksPerChar + chunk
+      ]!
+  }
+}
+
+//disable prettier formatting this array
+// prettier-ignore
 export const ascii8By12 = [
   0x00000000, 0x00000000, 0x00000000, //
   0x00307878, 0x78303000, 0x30300000, // !
@@ -96,6 +176,8 @@ export const ascii8By12 = [
   0x0073DACE, 0x00000000, 0x00000000, // ~
 ];
 
+//disable prettier formatting this array
+// prettier-ignore
 export const ascii6By8 = [
   0x0000, 0x0000, 0x0000, // Space
   0x10E3, 0x8410, 0x0100, // !
@@ -194,6 +276,8 @@ export const ascii6By8 = [
   0x2940, 0x0000, 0x0000, // ~
 ];
 
+//disable prettier formatting this array
+// prettier-ignore
 export const ascii4By6 = [
   0x00, 0x00, 0x00, // Space
   0x66, 0x60, 0x60, // !
@@ -291,68 +375,3 @@ export const ascii4By6 = [
   0x62, 0x32, 0x60, // }
   0x5A, 0x00, 0x00, // ~
 ];
-
-export const FONT_ASCII_MIN = 32;
-export const FONT_ASCII_MAX = 126;
-
-export const FontSize = {
-  fontSizeSm: 'sm',
-  fontSizeMd: 'md',
-  fontSizeLg: 'lg',
-} as const;
-export type FontSize = typeof FontSize[keyof typeof FontSize];
-
-export type FontSizeDetails = {
-  width: number,
-  height: number,
-  bitsPerChunk: number,
-  chunksPerChar: number,
-  spacing: number,
-  name: FontSize
-}
-
-export const fontSizeDetailsMap: Record<FontSize, FontSizeDetails> = {
-  [FontSize.fontSizeSm]: {
-    width: 4,
-    height: 6,
-    bitsPerChunk: 8,
-    chunksPerChar: 3,
-    spacing: 1,
-    name: FontSize.fontSizeSm,
-  },
-  [FontSize.fontSizeLg]: {
-    width: 8,
-    height: 12,
-    bitsPerChunk: 32,
-    chunksPerChar: 3,
-    spacing: 0,
-    name: FontSize.fontSizeLg,
-  },
-  [FontSize.fontSizeMd]: {
-    width: 6,
-    height: 8,
-    bitsPerChunk: 16,
-    chunksPerChar: 3,
-    spacing: 0,
-    name: FontSize.fontSizeMd,
-  },
-} as const;
-
-export const fontAsciiToIndex = (ascii: number) => (ascii - FONT_ASCII_MIN)
-export const fontIsValidAscii = (ascii: number) => (ascii <= FONT_ASCII_MAX && ascii >= FONT_ASCII_MIN)
-export const fontIsValidChunk = (font: FontSizeDetails, chunk: number) => (chunk <= font.chunksPerChar)
-export const fontGetChunk = (size: FontSize, font: FontSizeDetails, asciiChar: number, chunk: number): number => {
-  if (!fontIsValidChunk(font, chunk) || !fontIsValidAscii(asciiChar)) {
-    return 0;
-  }
-
-  switch (size) {
-    case FontSize.fontSizeSm:
-      return ascii4By6[(fontAsciiToIndex(asciiChar) * font.chunksPerChar) + chunk];
-    case FontSize.fontSizeLg:
-      return ascii8By12[(fontAsciiToIndex(asciiChar) * font.chunksPerChar) + chunk];
-    case FontSize.fontSizeMd:
-    default:
-      return ascii6By8[(fontAsciiToIndex(asciiChar) * font.chunksPerChar) + chunk];
-  }
-}

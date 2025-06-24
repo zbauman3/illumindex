@@ -1,4 +1,7 @@
 build/
+dist/
+node_modules/
+*.tsbuildinfo
 sdkconfig
 sdkconfig.old
 .DS_Store

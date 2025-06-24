@@ -1,12 +1,10 @@
-
 import { ComponentProps } from "react"
-import { uint16_tTo255RGB } from "../lib/util"
-import { type Bitmap } from "../lib/bitmaps";
+import { type Bitmap, uint16_tTo255RGB } from "@/lib"
 
-const bitmapSpace = 1;
-const dotSize = 16;
+const bitmapSpace = 1
+const dotSize = 16
 
-const BitmapDot = ({ color, index, }: { index: number, color: number, }) => {
+const BitmapDot = ({ color, index }: { index: number; color: number }) => {
   const { red, blue, green } = uint16_tTo255RGB(color)
   return (
     <div
@@ -20,10 +18,10 @@ const BitmapDot = ({ color, index, }: { index: number, color: number, }) => {
       <div
         data-index={index}
         style={{
-          display: 'inline-block',
+          display: "inline-block",
           width: dotSize,
           height: dotSize,
-          borderRadius: '100%',
+          borderRadius: "100%",
           backgroundColor: `rgb(${red}, ${green}, ${blue})`,
           margin: bitmapSpace,
         }}
@@ -32,32 +30,37 @@ const BitmapDot = ({ color, index, }: { index: number, color: number, }) => {
   )
 }
 
-const BitmapRow = ({ rowNum, row, }: { rowNum: number, row: number[], }) => {
+const BitmapRow = ({ rowNum, row }: { rowNum: number; row: number[] }) => {
   const indexBase = rowNum * row.length
   return (
     <div
       style={{
         flexGrow: 0,
         flexShrink: 0,
-        display: 'inline-flex',
-        flexDirection: 'row',
-        flexWrap: 'nowrap',
-        width: 'auto',
+        display: "inline-flex",
+        flexDirection: "row",
+        flexWrap: "nowrap",
+        width: "auto",
       }}
     >
-      {row.map((val, i) => <BitmapDot key={`${rowNum}-${i}`} index={indexBase + i} color={val} />)}
+      {row.map((val, i) => (
+        <BitmapDot key={`${rowNum}-${i}`} index={indexBase + i} color={val} />
+      ))}
     </div>
   )
 }
 
-export const BitmapComponent = ({ bitmap, ...rest }: { bitmap: Bitmap } & ComponentProps<'div'>) => {
+export const BitmapComponent = ({
+  bitmap,
+  ...rest
+}: { bitmap: Bitmap } & ComponentProps<"div">) => {
   const matrix = bitmap.data.reduce((rows, val, index) => {
     if (index % bitmap.size.width == 0) {
       rows.push([val])
     } else {
       rows[rows.length - 1].push(val)
     }
-    return rows;
+    return rows
   }, [] as number[][])
 
   return (
@@ -66,14 +69,17 @@ export const BitmapComponent = ({ bitmap, ...rest }: { bitmap: Bitmap } & Compon
       style={{
         flexGrow: 0,
         flexShrink: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        flexWrap: 'nowrap',
+        display: "flex",
+        flexDirection: "column",
+        flexWrap: "nowrap",
         padding: bitmapSpace * 2,
-        backgroundColor: '#111111',
-        width: 'auto',
-      }}>
-      {matrix.map((row, i) => <BitmapRow key={i} row={row} rowNum={i} />)}
+        backgroundColor: "#111111",
+        width: "auto",
+      }}
+    >
+      {matrix.map((row, i) => (
+        <BitmapRow key={i} row={row} rowNum={i} />
+      ))}
     </div>
   )
 }

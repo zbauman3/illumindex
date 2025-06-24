@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "npx next lint && npx prettier . --check",
+    "lint:fix": "npx next lint --fix && npx prettier . --write",
     "types": "tsc --noEmit",
     "devMode:set": "npx tsx --env-file=.env.local ./lib/updateEnv.ts dev-mode",
     "devMode:clear": "npx tsx --env-file=.env.local ./lib/updateEnv.ts clear"
@@ -25,6 +26,9 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.1.7",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.5.0",
+    "prettier": "^3.6.0",
     "tsx": "^4.19.4",
     "typescript": "^5",
     "vercel": "^41.3.0"
