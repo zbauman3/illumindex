@@ -3,7 +3,8 @@ import { main } from "@/main"
 import { createHash } from "node:crypto"
 
 export async function GET(request: NextRequest) {
-  const commands = await main()
+  const timezone = request.headers.get("x-vercel-ip-timezone")
+  const commands = await main({ timezone: timezone || undefined })
 
   // create a ETag of that data
   const hash = createHash("md5")

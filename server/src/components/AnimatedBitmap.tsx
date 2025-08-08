@@ -22,7 +22,6 @@ export const AnimatedBitmap = ({ commands }: { commands: Command[] }) => {
 
     const animation = findAnimation(commands)
     if (!animation) {
-      console.log("No animation")
       return
     }
 

@@ -9,7 +9,7 @@ export const fontSizeMap = {
   fontSizeLg: "lg",
 } as const
 
-export const fontSizeDetailsMap: Record<FontSize, FontSizeDetails> = {
+export const fontSizeDetailsMap = {
   [fontSizeMap.fontSizeSm]: {
     width: 4,
     height: 6,
@@ -34,7 +34,7 @@ export const fontSizeDetailsMap: Record<FontSize, FontSizeDetails> = {
     spacing: 0,
     name: fontSizeMap.fontSizeMd,
   },
-} as const
+} satisfies Record<FontSize, FontSizeDetails>
 
 export const fontAsciiToIndex = (ascii: number) => ascii - FONT_ASCII_MIN
 export const fontIsValidAscii = (ascii: number) =>

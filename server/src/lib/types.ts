@@ -66,6 +66,11 @@ export type CommandAnimation = {
   frames: number[][]
 }
 
+export type CommandFillSquare = State & {
+  type: "fill-square"
+  size: Size
+}
+
 export type Command =
   | CommandString
   | CommandLine
@@ -73,6 +78,7 @@ export type Command =
   | CommandSetState
   | CommandNewLine
   | CommandAnimation
+  | CommandFillSquare
 
 export type Bitmap = Pick<CommandBitmap, "size" | "data">
 

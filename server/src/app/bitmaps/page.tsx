@@ -307,44 +307,40 @@ const SavedBitmap = ({
   const [merge, setMerge] = useState<boolean>(true)
   const [display, setDisplay] = useState<boolean>(false)
 
-  const copyBitmap = useCallback<MouseEventHandler>(
-    (e) => {
-      console.log("CLICK!", e.target)
-      if (!drawingBitmapRef.current) {
-        return
-      }
-      const bitmap = {
-        ...drawingBitmapRef.current,
-        data: [...drawingBitmapRef.current.data],
-      }
+  const copyBitmap = useCallback<MouseEventHandler>(() => {
+    if (!drawingBitmapRef.current) {
+      return
+    }
+    const bitmap = {
+      ...drawingBitmapRef.current,
+      data: [...drawingBitmapRef.current.data],
+    }
 
-      setPrevBitmaps((c) => (currentBitmap ? [...c, currentBitmap] : c))
-      if (merge) {
-        if (!currentBitmap) {
-          setCurrentBitmap(
-            mergeBitmaps({
-              base: createBitmap(bitmap.size.width, bitmap.size.height),
-              overlays: [bitmap],
-              offsetX: 0,
-              offsetY: 0,
-            })
-          )
-        } else {
-          setCurrentBitmap(
-            mergeBitmaps({
-              base: currentBitmap,
-              overlays: [bitmap],
-              offsetX: 0,
-              offsetY: 0,
-            })
-          )
-        }
+    setPrevBitmaps((c) => (currentBitmap ? [...c, currentBitmap] : c))
+    if (merge) {
+      if (!currentBitmap) {
+        setCurrentBitmap(
+          mergeBitmaps({
+            base: createBitmap(bitmap.size.width, bitmap.size.height),
+            overlays: [bitmap],
+            offsetX: 0,
+            offsetY: 0,
+          })
+        )
       } else {
-        setCurrentBitmap(bitmap)
+        setCurrentBitmap(
+          mergeBitmaps({
+            base: currentBitmap,
+            overlays: [bitmap],
+            offsetX: 0,
+            offsetY: 0,
+          })
+        )
       }
-    },
-    [drawingBitmapRef, merge, currentBitmap]
-  )
+    } else {
+      setCurrentBitmap(bitmap)
+    }
+  }, [drawingBitmapRef, merge, currentBitmap])
 
   const hasPrevious = prevBitmaps.length > 0
 

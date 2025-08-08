@@ -9,8 +9,8 @@
     "lint": "npx next lint && npx prettier . --check",
     "lint:fix": "npx next lint --fix && npx prettier . --write",
     "types": "tsc --noEmit",
-    "devMode:set": "npx tsx --env-file=.env.local ./lib/updateEnv.ts dev-mode",
-    "devMode:clear": "npx tsx --env-file=.env.local ./lib/updateEnv.ts clear"
+    "devMode:set": "npx tsx --env-file=.env.local ./src/scripts/updateEnv.ts dev-mode",
+    "devMode:clear": "npx tsx --env-file=.env.local ./src/scripts/updateEnv.ts clear"
   },
   "dependencies": {
     "next": "15.1.7",

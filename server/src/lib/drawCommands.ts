@@ -1,6 +1,6 @@
 import { mergeBitmaps } from "./bitmaps"
 import { fontSizeDetailsMap, fontIsValidAscii, fontGetChunk } from "./font"
-import type { Bitmap, Command, Point, DrawingState } from "./types"
+import type { Bitmap, Command, Point, DrawingState, Size } from "./types"
 
 const parseAndSetState = (state: DrawingState, command: Command): void => {
   if ("position" in command && command.position) {
@@ -26,7 +26,7 @@ const setMatrixValue = ({
   bitmap: Bitmap
 }) => {
   if (point.x >= bitmap.size.width || point.y >= bitmap.size.height) {
-    console.log("Cannot set point", point)
+    console.warn("Cannot set point", point)
     return
   }
 
@@ -184,7 +184,7 @@ const drawString = ({
         // a boolean to check if we should set the value to the color or blank
         const setIndex = bufferStartIdx + bitmapRowIdx
         const setValue =
-          (chunkVal & (1 << (state.font.bitsPerChunk - chunkBitN))) > 0
+          (chunkVal & (1 << (state.font.bitsPerChunk - chunkBitN))) != 0
             ? state.color
             : 0
         if (setIndex < bitmap.data.length) {
@@ -208,6 +208,24 @@ const drawString = ({
       state.cursor.x += state.font.width + state.font.spacing
     } else {
       lineFeed(state)
+    }
+  }
+}
+
+const fillSquare = ({
+  point,
+  size,
+  color,
+  bitmap,
+}: {
+  point: Point
+  size: Size
+  color: number
+  bitmap: Bitmap
+}): void => {
+  for (let y = point.y; y < point.y + size.height; y++) {
+    for (let x = point.x; x < point.x + size.width; x++) {
+      setMatrixValue({ point: { x, y }, color, bitmap })
     }
   }
 }
@@ -268,6 +286,14 @@ export const drawCommands = ({
         drawString({
           state,
           value: command.value,
+          bitmap: loopBitmap,
+        })
+        break
+      case "fill-square":
+        fillSquare({
+          point: state.cursor,
+          size: command.size,
+          color: state.color,
           bitmap: loopBitmap,
         })
         break
