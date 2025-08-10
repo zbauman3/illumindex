@@ -15,3 +15,8 @@ menu "Endpoint Config"
   config ENDPOINT_TOKEN
       string "The auth token to use for hitting the endpoint."
 endmenu
+
+menu "Time Config"
+  config TIMEZONE_STRING
+      string "The timezone string to use for the device."
+endmenu

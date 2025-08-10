@@ -54,7 +54,7 @@ export type CommandSetState = State & {
   type: "set-state"
 }
 
-export type CommandNewLine = {
+export type CommandLineFeed = {
   type: "line-feed"
 }
 
@@ -66,9 +66,12 @@ export type CommandAnimation = {
   frames: number[][]
 }
 
-export type CommandFillSquare = State & {
-  type: "fill-square"
-  size: Size
+export type CommandTime = State & {
+  type: "time"
+}
+
+export type CommandDate = State & {
+  type: "date"
 }
 
 export type Command =
@@ -76,9 +79,10 @@ export type Command =
   | CommandLine
   | CommandBitmap
   | CommandSetState
-  | CommandNewLine
+  | CommandLineFeed
   | CommandAnimation
-  | CommandFillSquare
+  | CommandTime
+  | CommandDate
 
 export type Bitmap = Pick<CommandBitmap, "size" | "data">
 
