@@ -407,14 +407,12 @@ void commandCleanup(CommandHandle command) {
 
 esp_err_t commandListNodeInit(CommandListHandle commandList, CommandType type,
                               CommandHandle *commandHandle) {
-  CommandListNode *newNode = (CommandListNode *)malloc(sizeof(CommandListNode));
-
   esp_err_t cmdRet = commandInit(commandHandle, type);
   if (cmdRet != ESP_OK) {
-    free(newNode);
     return cmdRet;
   }
 
+  CommandListNode *newNode = (CommandListNode *)malloc(sizeof(CommandListNode));
   newNode->command = *commandHandle;
   newNode->next = NULL;
 
@@ -499,7 +497,7 @@ void commandListGetLastState(CommandListHandle commandList,
 
 // --------
 // Below are functions related to parsing JSON into the relevant command linked
-// list, using the above init functions.
+// list, using the above lifecycle functions.
 // --------
 
 // This is responsible for pulling off shared state data and adding it.
@@ -779,11 +777,11 @@ esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
   cJSON *json = cJSON_ParseWithLength(data, length);
 
   ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
-                    parseAndShowCommands_cleanup, TAG,
+                    parseCommands_cleanup, TAG,
                     "Invalid JSON response or content length");
 
   ESP_GOTO_ON_FALSE(cJSON_IsArray(json), ESP_ERR_INVALID_RESPONSE,
-                    parseAndShowCommands_cleanup, TAG,
+                    parseCommands_cleanup, TAG,
                     "JSON response is not an array");
 
   commandListInit(commandListHandle);
@@ -824,7 +822,7 @@ esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
     commandIndex++;
   }
 
-parseAndShowCommands_cleanup:
+parseCommands_cleanup:
   cJSON_Delete(json);
   return ret;
 }
