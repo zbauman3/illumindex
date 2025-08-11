@@ -285,38 +285,26 @@ parseAndShowCommands_cleanup:
   return ret;
 }
 
-/**
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- *
- */
+// --------
+// Below are the functions related to initiating and cleaning up the structures
+// for commands. Ideally, all memory allocation and deallocation should occur
+// within these functions
+// --------
 
-void commandStateInit(CommandState **stateHandle) {
+void commandStateInit(CommandState **stateHandle, CommandState *cloneState) {
   CommandState *state = (CommandState *)malloc(sizeof(CommandState));
+
+  if (cloneState == NULL) {
+    state->color = 65535;
+    state->fontSize = FONT_SIZE_MD;
+    state->posX = 0;
+    state->posY = 0;
+  } else {
+    state->color = cloneState->color;
+    state->fontSize = cloneState->fontSize;
+    state->posX = cloneState->posX;
+    state->posY = cloneState->posY;
+  }
 
   *stateHandle = state;
 }
@@ -473,25 +461,50 @@ void commandListCleanup(CommandListHandle commandList) {
   free(commandList);
 }
 
-/**
- *
- *
- *
- *
- * Need to think about `state` a little more. What if the
- * color, position, or font size is undefined? The structure
- * includes it by default, but it is technically optional...
- * These should be pointers that are default NULL
- *
- *
- *
- *
- */
+void commandListGetLastState(CommandListHandle commandList,
+                             CommandState **returnState) {
+  *returnState = NULL;
+
+  if (commandList->tail == NULL) {
+    return;
+  }
+
+  switch (commandList->tail->command->type) {
+  case COMMAND_TYPE_STRING:
+    *returnState = commandList->tail->command->value.string->state;
+    break;
+  case COMMAND_TYPE_LINE:
+    *returnState = commandList->tail->command->value.line->state;
+    break;
+  case COMMAND_TYPE_BITMAP:
+    *returnState = commandList->tail->command->value.bitmap->state;
+    break;
+  case COMMAND_TYPE_SETSTATE:
+    *returnState = commandList->tail->command->value.setState->state;
+    break;
+  case COMMAND_TYPE_LINEFEED:
+    //  none
+    break;
+  case COMMAND_TYPE_ANIMATION:
+    // none
+    break;
+  case COMMAND_TYPE_TIME:
+    *returnState = commandList->tail->command->value.time->state;
+    break;
+  case COMMAND_TYPE_DATE:
+    *returnState = commandList->tail->command->value.date->state;
+    break;
+  }
+}
+
+// --------
+// Below are functions related to parsing JSON into the relevant command linked
+// list, using the above init functions.
+// --------
 
 // This is responsible for pulling off shared state data and adding it.
-// `CommandState **state` must not be initiated or else this will leak data.
-void parseAndAddState(CommandState **state, const cJSON *commandJson,
-                      char *type) {
+void parseAndAddState(const cJSON *commandJson, char *type,
+                      CommandState **state, CommandState *currentState) {
   bool didInitState = false;
 
   const cJSON *fontSize =
@@ -499,7 +512,7 @@ void parseAndAddState(CommandState **state, const cJSON *commandJson,
   if (cJSON_IsString(fontSize) && fontSize->valuestring != NULL) {
     if (!didInitState) {
       didInitState = true;
-      commandStateInit(state);
+      commandStateInit(state, currentState);
     }
 
     if (strcmp(fontSize->valuestring, "sm") == 0) {
@@ -517,7 +530,7 @@ void parseAndAddState(CommandState **state, const cJSON *commandJson,
   if (cJSON_IsNumber(color)) {
     if (!didInitState) {
       didInitState = true;
-      commandStateInit(state);
+      commandStateInit(state, currentState);
     }
 
     (*state)->color = color->valueint;
@@ -533,7 +546,7 @@ void parseAndAddState(CommandState **state, const cJSON *commandJson,
     } else {
       if (!didInitState) {
         didInitState = true;
-        commandStateInit(state);
+        commandStateInit(state, currentState);
       }
 
       (*state)->posX = x->valueint;
@@ -552,7 +565,12 @@ void parseAndAppendString(CommandListHandle commandList,
 
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_STRING);
-  parseAndAddState(&command->value.string->state, commandJson, "string");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "string", &command->value.string->state,
+                   currentState);
 
   command->value.string->value =
       (char *)malloc((strlen(value->valuestring) + 1) * sizeof(char));
@@ -577,7 +595,12 @@ void parseAndAppendLine(CommandListHandle commandList,
 
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_LINE);
-  parseAndAddState(&command->value.line->state, commandJson, "line");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "line", &command->value.line->state,
+                   currentState);
 
   command->value.line->toX = toX->valueint;
   command->value.line->toY = toY->valueint;
@@ -601,7 +624,12 @@ void parseAndAppendBitmap(CommandListHandle commandList,
 
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_BITMAP);
-  parseAndAddState(&command->value.bitmap->state, commandJson, "bitmap");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "bitmap", &command->value.bitmap->state,
+                   currentState);
 
   command->value.bitmap->width = sizeW->valueint;
   command->value.bitmap->height = sizeH->valueint;
@@ -704,14 +732,24 @@ void parseAndAppendTime(CommandListHandle commandList,
                         const cJSON *commandJson) {
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_TIME);
-  parseAndAddState(&command->value.time->state, commandJson, "time");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "time", &command->value.time->state,
+                   currentState);
 }
 
 void parseAndAppendDate(CommandListHandle commandList,
                         const cJSON *commandJson) {
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_DATE);
-  parseAndAddState(&command->value.date->state, commandJson, "date");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "date", &command->value.date->state,
+                   currentState);
 }
 
 void parseAndAppendLineFeed(CommandListHandle commandList,
@@ -724,7 +762,12 @@ void parseAndAppendSetState(CommandListHandle commandList,
                             const cJSON *commandJson) {
   CommandHandle command;
   commandListNodeInit(commandList, &command, COMMAND_TYPE_SETSTATE);
-  parseAndAddState(&command->value.setState->state, commandJson, "setState");
+
+  CommandState *currentState;
+  commandListGetLastState(commandList, &currentState);
+
+  parseAndAddState(commandJson, "setState", &command->value.setState->state,
+                   currentState);
 }
 
 esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
