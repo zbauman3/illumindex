@@ -4,50 +4,36 @@ import { useEffect, useState } from "react"
 import { BitmapComponent } from "@/components/Bitmap"
 import {
   Bitmap,
-  Command,
+  CommandApiResponse,
   createBitmap,
   drawCommands,
-  findAnimation,
-  applyAnimation,
+  createNewAnimationsState,
 } from "@/lib"
 
-export const AnimatedBitmap = ({ commands }: { commands: Command[] }) => {
+export const AnimatedBitmap = ({ commands, config }: CommandApiResponse) => {
   const [bitmap, setBitmap] = useState<Bitmap>(() => createBitmap(64, 64))
 
   useEffect(() => {
-    const newBitmap = createBitmap(64, 64)
-    const updateBitmap = drawCommands({ bitmap: newBitmap, commands })
+    const allAnimationStates = createNewAnimationsState(commands)
+    const applyBitmap = () => {
+      const newBitmap = createBitmap(64, 64)
+      const updateBitmap = drawCommands({
+        bitmap: newBitmap,
+        commands,
+        config,
+        allAnimationStates,
+      })
 
-    setBitmap(updateBitmap)
-
-    const animation = findAnimation(commands)
-    if (!animation) {
-      return
+      setBitmap(updateBitmap)
     }
 
-    const firstFrame = applyAnimation({
-      animation,
-      bitmap: updateBitmap,
-      lastIndex: 0,
-    })
-
-    setBitmap(firstFrame.bitmap)
-    let lastIndex = firstFrame.lastIndex
-
-    const interval = setInterval(() => {
-      const frame = applyAnimation({
-        animation,
-        bitmap: updateBitmap,
-        lastIndex,
-      })
-      lastIndex = frame.lastIndex
-      setBitmap(frame.bitmap)
-    }, animation.delay)
+    const intTime = setInterval(applyBitmap, config.animationDelay)
+    applyBitmap()
 
     return () => {
-      clearInterval(interval)
+      clearInterval(intTime)
     }
-  }, [commands])
+  }, [commands, config])
 
   return (
     <div

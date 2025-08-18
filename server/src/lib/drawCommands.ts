@@ -1,6 +1,13 @@
 import { mergeBitmaps } from "./bitmaps"
 import { fontSizeDetailsMap, fontIsValidAscii, fontGetChunk } from "./font"
-import type { Bitmap, Command, Point, DrawingState, Size } from "./types"
+import type {
+  Bitmap,
+  Command,
+  CommandApiResponse,
+  Point,
+  DrawingState,
+  AnimationState,
+} from "./types"
 
 const parseAndSetState = (state: DrawingState, command: Command): void => {
   if ("position" in command && command.position) {
@@ -212,38 +219,18 @@ const drawString = ({
   }
 }
 
-const fillSquare = ({
-  point,
-  size,
-  color,
-  bitmap,
-}: {
-  point: Point
-  size: Size
-  color: number
-  bitmap: Bitmap
-}): void => {
-  for (let y = point.y; y < point.y + size.height; y++) {
-    for (let x = point.x; x < point.x + size.width; x++) {
-      setMatrixValue({ point: { x, y }, color, bitmap })
-    }
-  }
-}
-
 /**
  * This function takes a bitmap and a list of commands, and draws the
  * commands onto the bitmap.
- *
- * **This does not handle animations**. To apply an animation you should use the
- * `findAnimation` and `applyAnimation` functions.
  */
 export const drawCommands = ({
   bitmap,
   commands,
+  allAnimationStates,
 }: {
   bitmap: Bitmap
-  commands: Command[]
-}): Bitmap => {
+  allAnimationStates: AnimationState[]
+} & CommandApiResponse): Bitmap => {
   const state: DrawingState = {
     cursor: { x: 0, y: 0 },
     color: 0b0000011111111111,
@@ -252,6 +239,7 @@ export const drawCommands = ({
     },
   }
   const loopBitmap: Bitmap = bitmap
+  const animationCount = 0
 
   for (const command of commands) {
     parseAndSetState(state, command)
@@ -261,7 +249,36 @@ export const drawCommands = ({
         // already done above
         break
       case "animation":
-        // no-op. handled externally
+        const animationState = allAnimationStates[animationCount]
+        if (!animationState) {
+          throw new Error("Missing animation state")
+        }
+
+        animationState.lastShowFrame++
+        if (animationState.lastShowFrame >= animationState.frameCount) {
+          animationState.lastShowFrame = 0
+        }
+
+        const prevX = state.cursor.x
+        const prevY = state.cursor.y
+
+        state.cursor.x = command.position.x
+        state.cursor.y = command.position.y
+
+        loopBitmap.data = mergeBitmaps({
+          base: loopBitmap,
+          overlays: [
+            {
+              data: command.frames[animationState.lastShowFrame],
+              size: command.size,
+            },
+          ],
+          offsetX: state.cursor.x,
+          offsetY: state.cursor.y,
+        }).data
+
+        state.cursor.x = prevX
+        state.cursor.y = prevY
         break
       case "bitmap":
         loopBitmap.data = mergeBitmaps({
@@ -289,11 +306,25 @@ export const drawCommands = ({
           bitmap: loopBitmap,
         })
         break
-      case "fill-square":
-        fillSquare({
-          point: state.cursor,
-          size: command.size,
-          color: state.color,
+      case "time":
+        const timeStr = new Date().toLocaleTimeString("en-US", {
+          timeStyle: "short",
+        })
+        drawString({
+          state,
+          value: timeStr,
+          bitmap: loopBitmap,
+        })
+        break
+      case "date":
+        const dateStr = new Date().toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "2-digit",
+        })
+        drawString({
+          state,
+          value: dateStr,
           bitmap: loopBitmap,
         })
         break

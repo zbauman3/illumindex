@@ -62,8 +62,12 @@ export type CommandAnimation = {
   type: "animation"
   position: Point
   size: Size
-  delay: number
   frames: number[][]
+}
+
+export type AnimationState = {
+  frameCount: number
+  lastShowFrame: number
 }
 
 export type CommandTime = State & {
@@ -90,4 +94,13 @@ export type DrawingState = {
   cursor: Point
   color: number
   font: FontSizeDetails
+}
+
+type CommandsConfig = {
+  animationDelay: number
+}
+
+export type CommandApiResponse = {
+  config: CommandsConfig
+  commands: Command[]
 }
