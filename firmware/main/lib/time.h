@@ -20,19 +20,13 @@ typedef struct {
   bool isDST;
 } TimeInfo;
 
-typedef TimeInfo *TimeInfoHandle;
-
 // should be called after the network is initialized
 // initializes the SNTP client and starts it
 // uses the default NTP server pool "pool.ntp.org"
 // configures it to renew servers after getting a new IP address
 // and to use the first server from the DHCP response
 // sets the IP event to renew servers when the STA gets an IP address
-esp_err_t time_init();
+esp_err_t timeInit();
 
-// gets the current time and fills the provided TimeInfo structure
-void time_get(TimeInfoHandle timeInfo);
-
-// maps month integers to strings. This is zero-indexed.
-const char *monthNameStrings[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+// updates the global time variable with the current time
+void timeGet(TimeInfo *timeInfo);

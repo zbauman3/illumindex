@@ -12,10 +12,26 @@ static const char *TAG = "DISPLAY";
 static const char *MAIN_TASK_NAME = "DISPLAY:MAIN_TASK";
 static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
 
+// maps month integers to strings. This is zero-indexed.
+char *monthNameStrings[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                              "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+
 void setState(DisplayBufferHandle db, CommandState *state) {
-  fontSetSize(db->font, state->fontSize);
-  displayBufferSetColor(db, state->color);
-  displayBufferSetCursor(db, state->posX, state->posY);
+  if (state == NULL) {
+    return;
+  }
+
+  if (commandStateHasColor(state)) {
+    displayBufferSetColor(db, state->color);
+  }
+
+  if (commandStateHasFont(state)) {
+    fontSetSize(db->font, state->fontSize);
+  }
+
+  if (commandStateHasPosition(state)) {
+    displayBufferSetCursor(db, state->posX, state->posY);
+  }
 }
 
 esp_err_t displayBuildAndShow(DisplayHandle display) {
@@ -67,7 +83,8 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
           loopNode->command->value.animation->height,
           loopNode->command->value.animation->frames +
               (loopNode->command->value.animation->lastShowFrame *
-               loopNode->command->value.animation->frameSize));
+               loopNode->command->value.animation->width *
+               loopNode->command->value.animation->height));
 
       displayBufferSetCursor(display->displayBuffer, prevX, prevY);
 
@@ -75,23 +92,25 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
     }
     case COMMAND_TYPE_TIME: {
       setState(display->displayBuffer, loopNode->command->value.time->state);
-      TimeInfoHandle timeInfo;
+
       char timeString[8];
-      time_get(timeInfo);
-      snprintf(timeString, sizeof(timeString), "%u:%u %s", timeInfo->hour12,
-               timeInfo->minute, timeInfo->isPM ? "PM" : "AM");
+      TimeInfo timeInfo;
+      timeGet(&timeInfo);
+      snprintf(timeString, sizeof(timeString), "%u:%u %s", timeInfo.hour12,
+               timeInfo.minute, timeInfo.isPM ? "PM" : "AM");
 
       displayBufferDrawString(display->displayBuffer, timeString);
       break;
     }
     case COMMAND_TYPE_DATE: {
       setState(display->displayBuffer, loopNode->command->value.date->state);
-      TimeInfoHandle timeInfo;
-      char timeString[12];
-      time_get(timeInfo);
+
+      TimeInfo timeInfo;
+      char timeString[13];
+      timeGet(&timeInfo);
       snprintf(timeString, sizeof(timeString), "%s %u, %u",
-               monthNameStrings[timeInfo->month - 1], timeInfo->dayOfMonth,
-               timeInfo->year);
+               monthNameStrings[timeInfo.month - 1], timeInfo.dayOfMonth,
+               timeInfo.year);
 
       displayBufferDrawString(display->displayBuffer, timeString);
       break;
@@ -160,6 +179,9 @@ esp_err_t fetchCommands(DisplayHandle display) {
 
 displayFetchData_cleanup:
   requestEnd(ctx);
+  if (ret != ESP_OK) {
+    requestEtagEnd(&display->lastEtag);
+  }
   return ret;
 }
 
@@ -169,7 +191,6 @@ void mainTask(void *pvParameters) {
   // the `loopSeconds` could be really long, so instead of using that for
   // `vTaskDelay`, we use a separate variable to track the delay in increments
   // of 1s.
-  uint32_t delay = 0;
   while (true) {
     if (display->state->loopSeconds >= display->state->fetchInterval) {
       if (fetchCommands(display) == ESP_OK) {
@@ -236,12 +257,21 @@ esp_err_t displayInit(DisplayHandle *displayHandle,
   ESP_ERROR_BUBBLE(commandListNodeInit(display->commands, COMMAND_TYPE_STRING,
                                        &startCommand));
 
+  commandStateInit(&startCommand->value.string->state);
+
   startCommand->value.string->state->color = RGB_TO_565(0, 255, 149);
+  commandStateSetColorFlag(startCommand->value.string->state);
+
   startCommand->value.string->state->posX = 0;
   startCommand->value.string->state->posY =
       (display->displayBuffer->height / 2) - 8;
+  commandStateSetPositionFlag(startCommand->value.string->state);
+
   startCommand->value.string->state->fontSize = FONT_SIZE_LG;
-  startCommand->value.string->value = "Starting";
+  commandStateSetFontFlag(startCommand->value.string->state);
+
+  startCommand->value.string->value = malloc(sizeof(char) * 9);
+  strcpy(startCommand->value.string->value, "Starting");
 
   displayBuildAndShow(display);
 

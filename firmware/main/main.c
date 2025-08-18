@@ -53,7 +53,7 @@ esp_err_t appInit() {
 
   ESP_ERROR_BUBBLE(wifi_init());
 
-  ESP_ERROR_BUBBLE(time_init());
+  ESP_ERROR_BUBBLE(timeInit());
 
   ESP_ERROR_BUBBLE(displayStart(display));
 

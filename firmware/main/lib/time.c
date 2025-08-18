@@ -8,7 +8,7 @@
 
 static const char *TAG = "TIME";
 
-esp_err_t time_init() {
+esp_err_t timeInit() {
   ESP_LOGD(TAG, "Initializing time module");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
   config.start = true;
@@ -25,7 +25,7 @@ esp_err_t time_init() {
   return ESP_OK;
 }
 
-void time_get(TimeInfoHandle timeInfo) {
+void timeGet(TimeInfo *timeInfo) {
   time_t now;
   struct tm cTimeinfo;
   time(&now);

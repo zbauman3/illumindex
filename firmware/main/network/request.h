@@ -28,3 +28,4 @@ esp_err_t requestEnd(RequestContextHandle ctx);
 esp_err_t requestPerform(RequestContextHandle ctx);
 void requestEtagInit(char **eTag);
 void requestEtagCopy(char *to, char *from);
+void requestEtagEnd(char **eTag);

@@ -10,13 +10,16 @@
 static const char *TAG = "NETWORK_REQUEST";
 
 void requestEtagInit(char **eTag) {
-  if (*eTag != NULL) {
-    free(*eTag);
-  }
+  requestEtagEnd(eTag);
   *eTag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
 }
 
 void requestEtagCopy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
+
+void requestEtagEnd(char **eTag) {
+  free(*eTag);
+  *eTag = NULL;
+}
 
 static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   // Stores number of bytes read

@@ -15,7 +15,32 @@ typedef struct {
   uint16_t animationDelay;
 } CommandConfig;
 
+#define COMMAND_STATE_FLAGS_COLOR (1 << 0)
+#define COMMAND_STATE_FLAGS_POSITION (1 << 1)
+#define COMMAND_STATE_FLAGS_FONT (1 << 2)
+
+#define commandStateHasColor(state)                                            \
+  ((bool)((state)->flags & COMMAND_STATE_FLAGS_COLOR))
+#define commandStateHasPosition(state)                                         \
+  ((bool)((state)->flags & COMMAND_STATE_FLAGS_POSITION))
+#define commandStateHasFont(state)                                             \
+  ((bool)((state)->flags & COMMAND_STATE_FLAGS_FONT))
+
+#define commandStateSetColorFlag(state)                                        \
+  (state)->flags |= COMMAND_STATE_FLAGS_COLOR;
+#define commandStateSetPositionFlag(state)                                     \
+  (state)->flags |= COMMAND_STATE_FLAGS_POSITION;
+#define commandStateSetFontFlag(state)                                         \
+  (state)->flags |= COMMAND_STATE_FLAGS_FONT;
+#define commandStateClearColorFlag(state)                                      \
+  (state)->flags &= ~COMMAND_STATE_FLAGS_COLOR;
+#define commandStateClearPositionFlag(state)                                   \
+  (state)->flags &= ~COMMAND_STATE_FLAGS_POSITION;
+#define commandStateClearFontFlag(state)                                       \
+  (state)->flags &= ~COMMAND_STATE_FLAGS_FONT;
+
 typedef struct {
+  uint8_t flags;
   uint16_t color;
   uint16_t posX;
   uint16_t posY;
@@ -76,7 +101,6 @@ typedef struct {
   uint16_t height;
   uint16_t width;
   uint16_t frameCount;
-  uint64_t frameSize;
   uint16_t lastShowFrame;
   uint16_t *frames;
 } CommandAnimation;
@@ -123,6 +147,8 @@ typedef struct {
 } CommandList;
 
 typedef CommandList *CommandListHandle;
+
+void commandStateInit(CommandState **stateHandle);
 
 void commandListInit(CommandListHandle *commandListHandle);
 esp_err_t commandListNodeInit(CommandListHandle commandList, CommandType type,

@@ -23,20 +23,14 @@ static const char *TAG = "COMMANDS";
 // within these functions
 // --------
 
-void commandStateInit(CommandState **stateHandle, CommandState *cloneState) {
+void commandStateInit(CommandState **stateHandle) {
   CommandState *state = (CommandState *)malloc(sizeof(CommandState));
 
-  if (cloneState == NULL) {
-    state->color = 65535;
-    state->fontSize = FONT_SIZE_MD;
-    state->posX = 0;
-    state->posY = 0;
-  } else {
-    state->color = cloneState->color;
-    state->fontSize = cloneState->fontSize;
-    state->posX = cloneState->posX;
-    state->posY = cloneState->posY;
-  }
+  state->color = 65535;
+  state->fontSize = FONT_SIZE_MD;
+  state->posX = 0;
+  state->posY = 0;
+  state->flags = 0;
 
   *stateHandle = state;
 }
@@ -198,42 +192,6 @@ void commandListCleanup(CommandListHandle commandList) {
   free(commandList);
 }
 
-void commandListGetLastState(CommandListHandle commandList,
-                             CommandState **returnState) {
-  *returnState = NULL;
-
-  if (commandList->tail == NULL) {
-    return;
-  }
-
-  switch (commandList->tail->command->type) {
-  case COMMAND_TYPE_STRING:
-    *returnState = commandList->tail->command->value.string->state;
-    break;
-  case COMMAND_TYPE_LINE:
-    *returnState = commandList->tail->command->value.line->state;
-    break;
-  case COMMAND_TYPE_BITMAP:
-    *returnState = commandList->tail->command->value.bitmap->state;
-    break;
-  case COMMAND_TYPE_SETSTATE:
-    *returnState = commandList->tail->command->value.setState->state;
-    break;
-  case COMMAND_TYPE_LINEFEED:
-    //  none
-    break;
-  case COMMAND_TYPE_ANIMATION:
-    // none
-    break;
-  case COMMAND_TYPE_TIME:
-    *returnState = commandList->tail->command->value.time->state;
-    break;
-  case COMMAND_TYPE_DATE:
-    *returnState = commandList->tail->command->value.date->state;
-    break;
-  }
-}
-
 // --------
 // Below are functions related to parsing JSON into the relevant command linked
 // list, using the above lifecycle functions.
@@ -241,23 +199,26 @@ void commandListGetLastState(CommandListHandle commandList,
 
 // This is responsible for pulling off shared state data and adding it.
 void parseAndAddState(const cJSON *commandJson, char *type,
-                      CommandState **state, CommandState *currentState) {
-  bool didInitState = false;
+                      CommandState **state) {
+  bool didInitState = *state != NULL;
 
   const cJSON *fontSize =
       cJSON_GetObjectItemCaseSensitive(commandJson, "fontSize");
   if (cJSON_IsString(fontSize) && fontSize->valuestring != NULL) {
     if (!didInitState) {
       didInitState = true;
-      commandStateInit(state, currentState);
+      commandStateInit(state);
     }
 
     if (strcmp(fontSize->valuestring, "sm") == 0) {
       (*state)->fontSize = FONT_SIZE_SM;
+      commandStateSetFontFlag(*state);
     } else if (strcmp(fontSize->valuestring, "lg") == 0) {
       (*state)->fontSize = FONT_SIZE_LG;
+      commandStateSetFontFlag(*state);
     } else if (strcmp(fontSize->valuestring, "md") == 0) {
       (*state)->fontSize = FONT_SIZE_MD;
+      commandStateSetFontFlag(*state);
     } else {
       invalidPropWarn(type, "fontSize");
     }
@@ -267,10 +228,11 @@ void parseAndAddState(const cJSON *commandJson, char *type,
   if (cJSON_IsNumber(color)) {
     if (!didInitState) {
       didInitState = true;
-      commandStateInit(state, currentState);
+      commandStateInit(state);
     }
 
     (*state)->color = color->valueint;
+    commandStateSetColorFlag(*state);
   }
 
   const cJSON *pos = cJSON_GetObjectItemCaseSensitive(commandJson, "position");
@@ -283,11 +245,12 @@ void parseAndAddState(const cJSON *commandJson, char *type,
     } else {
       if (!didInitState) {
         didInitState = true;
-        commandStateInit(state, currentState);
+        commandStateInit(state);
       }
 
       (*state)->posX = x->valueint;
       (*state)->posY = y->valueint;
+      commandStateSetPositionFlag(*state);
     }
   }
 }
@@ -302,8 +265,8 @@ void parseAndAddConfig(const cJSON *json, CommandListHandle commandList) {
   const cJSON *animationDelay =
       cJSON_GetObjectItemCaseSensitive(config, "animationDelay");
 
-  if (cJSON_IsNumber(animationDelay)) {
-    commandList->config.animationDelay = animationDelay->valueint;
+  if (cJSON_IsNumber(animationDelay) && animationDelay->valueint > 5) {
+    commandList->config.animationDelay = (uint16_t)animationDelay->valueint;
   }
 }
 
@@ -318,11 +281,7 @@ void parseAndAppendString(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_STRING, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "string", &command->value.string->state,
-                   currentState);
+  parseAndAddState(commandJson, "string", &command->value.string->state);
 
   command->value.string->value =
       (char *)malloc((strlen(value->valuestring) + 1) * sizeof(char));
@@ -348,11 +307,7 @@ void parseAndAppendLine(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_LINE, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "line", &command->value.line->state,
-                   currentState);
+  parseAndAddState(commandJson, "line", &command->value.line->state);
 
   command->value.line->toX = toX->valueint;
   command->value.line->toY = toY->valueint;
@@ -377,11 +332,7 @@ void parseAndAppendBitmap(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_BITMAP, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "bitmap", &command->value.bitmap->state,
-                   currentState);
+  parseAndAddState(commandJson, "bitmap", &command->value.bitmap->state);
 
   command->value.bitmap->width = sizeW->valueint;
   command->value.bitmap->height = sizeH->valueint;
@@ -440,13 +391,9 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   command->value.animation->posY = posY->valueint;
   command->value.animation->width = sizeW->valueint;
   command->value.animation->height = sizeH->valueint;
-  command->value.animation->frameSize = command->value.animation->width *
-                                        command->value.animation->height *
-                                        sizeof(uint16_t);
-
-  command->value.animation->frames =
-      (uint16_t *)malloc(command->value.animation->frameCount *
-                         command->value.animation->frameSize);
+  command->value.animation->frames = (uint16_t *)malloc(
+      command->value.animation->frameCount * command->value.animation->width *
+      command->value.animation->height * sizeof(uint16_t));
 
   uint32_t frameLength =
       command->value.animation->width * command->value.animation->height;
@@ -454,7 +401,7 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   // the frame we're iterating
   uint16_t frameI = 0;
   // the value within the frame
-  uint16_t pixelValueI;
+  uint16_t pixelValueI = 0;
   const cJSON *frame = NULL;
   const cJSON *pixelValue = NULL;
 
@@ -466,7 +413,8 @@ void parseAndAppendAnimation(CommandListHandle commandList,
         if (pixelValueI < frameLength) {
           if (cJSON_IsNumber(pixelValue)) {
             command->value.animation
-                ->frames[(frameI * command->value.animation->frameSize) +
+                ->frames[(frameI * command->value.animation->width *
+                          command->value.animation->height) +
                          pixelValueI] = (uint16_t)pixelValue->valueint;
           } else {
             invalidPropWarn("animation", "frames > frame > value");
@@ -492,11 +440,7 @@ void parseAndAppendTime(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_TIME, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "time", &command->value.time->state,
-                   currentState);
+  parseAndAddState(commandJson, "time", &command->value.time->state);
 }
 
 void parseAndAppendDate(CommandListHandle commandList,
@@ -504,11 +448,7 @@ void parseAndAppendDate(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_DATE, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "date", &command->value.date->state,
-                   currentState);
+  parseAndAddState(commandJson, "date", &command->value.date->state);
 }
 
 void parseAndAppendLineFeed(CommandListHandle commandList,
@@ -522,11 +462,7 @@ void parseAndAppendSetState(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_SETSTATE, &command);
 
-  CommandState *currentState;
-  commandListGetLastState(commandList, &currentState);
-
-  parseAndAddState(commandJson, "setState", &command->value.setState->state,
-                   currentState);
+  parseAndAddState(commandJson, "setState", &command->value.setState->state);
 }
 
 esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
