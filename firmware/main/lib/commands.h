@@ -1,8 +1,19 @@
 #pragma once
 
-#include "gfx/displayBuffer.h"
+#include <stdbool.h>
+
+#include "esp_err.h"
+
+#include "gfx/fonts.h"
 
 // -------- Shared across all commands
+
+// 1000MS
+#define COMMAND_CONFIG_ANIMATION_DELAY_DEFAULT 1000
+
+typedef struct {
+  uint16_t animationDelay;
+} CommandConfig;
 
 typedef struct {
   uint16_t color;
@@ -65,6 +76,8 @@ typedef struct {
   uint16_t height;
   uint16_t width;
   uint16_t frameCount;
+  uint64_t frameSize;
+  uint16_t lastShowFrame;
   uint16_t *frames;
 } CommandAnimation;
 
@@ -76,7 +89,7 @@ typedef struct {
   CommandState *state;
 } CommandDate;
 
-// -------- high-level usage structs
+// -------- high-level usage structs/fns
 
 typedef union {
   CommandString *string;
@@ -96,17 +109,25 @@ typedef struct {
 
 typedef Command *CommandHandle;
 
-typedef struct {
+typedef struct CommandListNode {
   CommandHandle command;
-  CommandHandle next;
+  struct CommandListNode *next;
 } CommandListNode;
 
 typedef struct {
+  bool hasAnimation;
+  bool hasShown;
+  CommandConfig config;
   CommandListNode *head;
   CommandListNode *tail;
 } CommandList;
 
 typedef CommandList *CommandListHandle;
 
-esp_err_t parseAndShowCommands(DisplayBufferHandle db, char *data,
-                               size_t length);
+void commandListInit(CommandListHandle *commandListHandle);
+esp_err_t commandListNodeInit(CommandListHandle commandList, CommandType type,
+                              CommandHandle *commandHandle);
+void commandListCleanup(CommandListHandle commandList);
+
+esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
+                        size_t length);

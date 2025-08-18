@@ -8,6 +8,7 @@
 
 #include "drivers/matrix.h"
 #include "gfx/displayBuffer.h"
+#include "lib/commands.h"
 #include "lib/state.h"
 
 typedef struct {
@@ -17,6 +18,7 @@ typedef struct {
   TaskHandle_t mainTaskHandle;
   TaskHandle_t animationTaskHandle;
   char *lastEtag;
+  CommandListHandle commands;
 } Display;
 
 typedef Display *DisplayHandle;
