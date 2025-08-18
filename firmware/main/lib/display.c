@@ -3,23 +3,114 @@
 #include "esp_log.h"
 
 #include "lib/display.h"
+#include "lib/time.h"
 #include "network/request.h"
 #include "util/565_color.h"
-#include "util/commands.h"
 #include "util/error_helpers.h"
 
 static const char *TAG = "DISPLAY";
 static const char *MAIN_TASK_NAME = "DISPLAY:MAIN_TASK";
 static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
 
-esp_err_t displaySend(DisplayHandle display) {
+void setState(DisplayBufferHandle db, CommandState *state) {
+  fontSetSize(db->font, state->fontSize);
+  displayBufferSetColor(db, state->color);
+  displayBufferSetCursor(db, state->posX, state->posY);
+}
+
+esp_err_t displayBuildAndShow(DisplayHandle display) {
+  displayBufferClear(display->displayBuffer);
+
+  CommandListNode *loopNode = display->commands->head;
+  while (loopNode != NULL) {
+    switch (loopNode->command->type) {
+    case COMMAND_TYPE_STRING:
+      setState(display->displayBuffer, loopNode->command->value.string->state);
+      displayBufferDrawString(display->displayBuffer,
+                              loopNode->command->value.string->value);
+      break;
+    case COMMAND_TYPE_LINE:
+      setState(display->displayBuffer, loopNode->command->value.line->state);
+      displayBufferDrawLine(display->displayBuffer,
+                            loopNode->command->value.line->toX,
+                            loopNode->command->value.line->toY);
+      break;
+    case COMMAND_TYPE_BITMAP:
+      setState(display->displayBuffer, loopNode->command->value.bitmap->state);
+      displayBufferDrawBitmap(display->displayBuffer,
+                              loopNode->command->value.bitmap->width,
+                              loopNode->command->value.bitmap->height,
+                              loopNode->command->value.bitmap->data);
+      break;
+    case COMMAND_TYPE_SETSTATE:
+      setState(display->displayBuffer,
+               loopNode->command->value.setState->state);
+      break;
+    case COMMAND_TYPE_LINEFEED:
+      displayBufferLineFeed(display->displayBuffer);
+      break;
+    case COMMAND_TYPE_ANIMATION: {
+      loopNode->command->value.animation->lastShowFrame++;
+      if (loopNode->command->value.animation->lastShowFrame >=
+          loopNode->command->value.animation->frameCount) {
+        loopNode->command->value.animation->lastShowFrame = 0;
+      }
+
+      uint8_t prevX = display->displayBuffer->cursor.x;
+      uint8_t prevY = display->displayBuffer->cursor.y;
+      displayBufferSetCursor(display->displayBuffer,
+                             loopNode->command->value.animation->posX,
+                             loopNode->command->value.animation->posY);
+
+      displayBufferDrawBitmap(
+          display->displayBuffer, loopNode->command->value.animation->width,
+          loopNode->command->value.animation->height,
+          loopNode->command->value.animation->frames +
+              (loopNode->command->value.animation->lastShowFrame *
+               loopNode->command->value.animation->frameSize));
+
+      displayBufferSetCursor(display->displayBuffer, prevX, prevY);
+
+      break;
+    }
+    case COMMAND_TYPE_TIME: {
+      setState(display->displayBuffer, loopNode->command->value.time->state);
+      TimeInfoHandle timeInfo;
+      char timeString[8];
+      time_get(timeInfo);
+      snprintf(timeString, sizeof(timeString), "%u:%u %s", timeInfo->hour12,
+               timeInfo->minute, timeInfo->isPM ? "PM" : "AM");
+
+      displayBufferDrawString(display->displayBuffer, timeString);
+      break;
+    }
+    case COMMAND_TYPE_DATE: {
+      setState(display->displayBuffer, loopNode->command->value.date->state);
+      TimeInfoHandle timeInfo;
+      char timeString[12];
+      time_get(timeInfo);
+      snprintf(timeString, sizeof(timeString), "%s %u, %u",
+               monthNameStrings[timeInfo->month - 1], timeInfo->dayOfMonth,
+               timeInfo->year);
+
+      displayBufferDrawString(display->displayBuffer, timeString);
+      break;
+    }
+    }
+
+    loopNode = loopNode->next;
+  }
+
   displayBufferAddFeedback(
       display->displayBuffer, display->state->remoteStateInvalid,
       display->state->commandsInvalid, display->state->isDevMode);
+
+  display->commands->hasShown = true;
+
   return matrixShow(display->matrix, display->displayBuffer->buffer);
 }
 
-esp_err_t fetchAndDisplayData(DisplayHandle display) {
+esp_err_t fetchCommands(DisplayHandle display) {
   ESP_LOGD(MAIN_TASK_NAME, "FETCHING DATA");
   esp_err_t ret = ESP_OK;
   RequestContextHandle ctx;
@@ -54,31 +145,18 @@ esp_err_t fetchAndDisplayData(DisplayHandle display) {
     requestEtagCopy(display->lastEtag, ctx->response->eTag);
   }
 
-  // stop the animation task to prevent it from updating the display buffer
-  vTaskSuspend(display->animationTaskHandle);
+  CommandListHandle newCommands;
+  ESP_GOTO_ON_ERROR(
+      parseCommands(&newCommands, ctx->response->data, ctx->response->length),
+      displayFetchData_cleanup, MAIN_TASK_NAME,
+      "Invalid JSON response or content length");
 
-  displayBufferClear(display->displayBuffer);
-  displayBufferSetCursor(display->displayBuffer, 0, 0);
-  displayBufferSetColor(display->displayBuffer, 0b1111111111111111);
-
-  ESP_GOTO_ON_ERROR(parseAndShowCommands(display->displayBuffer,
-                                         ctx->response->data,
-                                         ctx->response->length),
-                    displayFetchData_cleanup, MAIN_TASK_NAME,
-                    "Invalid JSON response or content length");
-
-  if (display->displayBuffer->animation != NULL) {
-    ESP_LOGD(MAIN_TASK_NAME, "Animation detected. Starting %s.",
-             ANIMATION_TASK_NAME);
-    vTaskResume(display->animationTaskHandle);
-  } else {
-    ESP_LOGD(MAIN_TASK_NAME, "No animation. Leaving %s suspended.",
-             ANIMATION_TASK_NAME);
-  }
+  // hot-swap commands and cleanup the old one
+  CommandListHandle oldCommands = display->commands;
+  display->commands = newCommands;
+  commandListCleanup(oldCommands);
 
   display->state->commandsInvalid = false;
-  ESP_GOTO_ON_ERROR(displaySend(display), displayFetchData_cleanup,
-                    MAIN_TASK_NAME, "Error setting the new buffer");
 
 displayFetchData_cleanup:
   requestEnd(ctx);
@@ -88,19 +166,26 @@ displayFetchData_cleanup:
 void mainTask(void *pvParameters) {
   DisplayHandle display = (DisplayHandle)pvParameters;
 
-  for (;;) {
+  // the `loopSeconds` could be really long, so instead of using that for
+  // `vTaskDelay`, we use a separate variable to track the delay in increments
+  // of 1s.
+  uint32_t delay = 0;
+  while (true) {
     if (display->state->loopSeconds >= display->state->fetchInterval) {
-      if (fetchAndDisplayData(display) == ESP_OK) {
+      if (fetchCommands(display) == ESP_OK) {
         display->state->loopSeconds = 0;
         display->state->fetchFailureCount = 0;
       } else {
-        // try again in 5 seconds
-        display->state->loopSeconds = display->state->fetchInterval - 5;
+        // try again in 5 seconds if possible, otherwise 1 second
+        if (display->state->fetchInterval >= 5) {
+          display->state->loopSeconds = display->state->fetchInterval - 5;
+        } else {
+          display->state->loopSeconds = display->state->fetchInterval;
+        }
 
         display->state->fetchFailureCount++;
         if (display->state->fetchFailureCount > 5) {
           display->state->commandsInvalid = true;
-          displaySend(display);
         }
       }
     } else {
@@ -114,19 +199,14 @@ void mainTask(void *pvParameters) {
 void animationTask(void *pvParameters) {
   DisplayHandle display = (DisplayHandle)pvParameters;
 
-  for (;;) {
-  animationTask_restart:
-    if (display->displayBuffer->animation == NULL) {
-      ESP_LOGI(ANIMATION_TASK_NAME, "Ran with NULL. Suspending self.");
-      vTaskSuspend(NULL);
-      // use a goto to make sure we always check the state after resuming
-      goto animationTask_restart;
+  while (true) {
+    // We only need to do another "show" if there is an animation that needs to
+    // be updated, or if this is a new command list
+    if (!display->commands->hasShown || display->commands->hasAnimation) {
+      displayBuildAndShow(display);
     }
-
-    displayBufferAnimationShowNext(display->displayBuffer);
-    displaySend(display);
     // max animation speed is limited by the freertos tick...
-    vTaskDelay(display->displayBuffer->animation->delay / portTICK_PERIOD_MS);
+    vTaskDelay(display->commands->config.animationDelay / portTICK_PERIOD_MS);
   }
 }
 
@@ -149,13 +229,21 @@ esp_err_t displayInit(DisplayHandle *displayHandle,
   // setup state
   ESP_ERROR_BUBBLE(stateInit(&display->state));
 
-  // show "starting" text
-  displayBufferSetColor(display->displayBuffer, RGB_TO_565(0, 255, 149));
-  displayBufferSetCursor(display->displayBuffer, 0,
-                         (display->displayBuffer->height / 2) - 8);
-  fontSetSize(display->displayBuffer->font, FONT_SIZE_LG);
-  displayBufferDrawString(display->displayBuffer, "Starting");
-  displaySend(display);
+  // setup commands
+  commandListInit(&display->commands);
+
+  CommandHandle startCommand;
+  ESP_ERROR_BUBBLE(commandListNodeInit(display->commands, COMMAND_TYPE_STRING,
+                                       &startCommand));
+
+  startCommand->value.string->state->color = RGB_TO_565(0, 255, 149);
+  startCommand->value.string->state->posX = 0;
+  startCommand->value.string->state->posY =
+      (display->displayBuffer->height / 2) - 8;
+  startCommand->value.string->state->fontSize = FONT_SIZE_LG;
+  startCommand->value.string->value = "Starting";
+
+  displayBuildAndShow(display);
 
   // pass back the display
   *displayHandle = display;
@@ -168,6 +256,7 @@ void displayEnd(DisplayHandle display) {
   matrixEnd(display->matrix);
   displayBufferEnd(display->displayBuffer);
   stateEnd(display->state);
+  commandListCleanup(display->commands);
 
   TaskHandle_t taskHandle;
   taskHandle = xTaskGetHandle(MAIN_TASK_NAME);
@@ -199,24 +288,22 @@ esp_err_t displayStart(DisplayHandle display) {
   ESP_LOGI(TAG, "Pointing to \"%s\"", display->state->commandEndpoint);
   ESP_LOGI(TAG, "Fetch interval \"%u\"", display->state->fetchInterval);
 
-  displaySend(display);
-
   BaseType_t taskCreate;
-  taskCreate = xTaskCreatePinnedToCore(mainTask, MAIN_TASK_NAME, 4096, display,
-                                       tskIDLE_PRIORITY + 1,
-                                       &display->mainTaskHandle, 1);
-
-  if (taskCreate != pdPASS || display->mainTaskHandle == NULL) {
-    ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);
-    return ESP_ERR_INVALID_STATE;
-  }
-
   taskCreate = xTaskCreatePinnedToCore(animationTask, ANIMATION_TASK_NAME, 4096,
                                        display, tskIDLE_PRIORITY + 2,
                                        &display->animationTaskHandle, 1);
 
   if (taskCreate != pdPASS || display->animationTaskHandle == NULL) {
     ESP_LOGE(TAG, "Failed to create task '%s'", ANIMATION_TASK_NAME);
+    return ESP_ERR_INVALID_STATE;
+  }
+
+  taskCreate = xTaskCreatePinnedToCore(mainTask, MAIN_TASK_NAME, 4096, display,
+                                       tskIDLE_PRIORITY + 1,
+                                       &display->mainTaskHandle, 1);
+
+  if (taskCreate != pdPASS || display->mainTaskHandle == NULL) {
+    ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);
     return ESP_ERR_INVALID_STATE;
   }
 

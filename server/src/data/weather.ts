@@ -222,15 +222,11 @@ export const generateWeatherGraphBitmaps = (
 
     return drawCommands({
       bitmap: createBitmap(width, height),
-      commands: [
-        {
-          type: "fill-square",
-          position: { x: 0, y: 0 },
-          size: { width: width, height },
-          color: rgbTo565(40, 40, 40),
-        },
-        ...graphCommands,
-      ],
+      commands: graphCommands,
+      config: {
+        animationDelay: 1000,
+      },
+      allAnimationStates: [],
     })
   }
 

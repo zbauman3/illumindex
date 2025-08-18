@@ -8,6 +8,7 @@
 
 #include "lib/display.h"
 #include "lib/state.h"
+#include "lib/time.h"
 #include "network/wifi.h"
 #include "util/error_helpers.h"
 
@@ -51,6 +52,8 @@ esp_err_t appInit() {
   ESP_ERROR_BUBBLE(displayInit(&display, &matrixConfig));
 
   ESP_ERROR_BUBBLE(wifi_init());
+
+  ESP_ERROR_BUBBLE(time_init());
 
   ESP_ERROR_BUBBLE(displayStart(display));
 

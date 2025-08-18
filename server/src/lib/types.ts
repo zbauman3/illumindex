@@ -54,7 +54,7 @@ export type CommandSetState = State & {
   type: "set-state"
 }
 
-export type CommandNewLine = {
+export type CommandLineFeed = {
   type: "line-feed"
 }
 
@@ -62,13 +62,20 @@ export type CommandAnimation = {
   type: "animation"
   position: Point
   size: Size
-  delay: number
   frames: number[][]
 }
 
-export type CommandFillSquare = State & {
-  type: "fill-square"
-  size: Size
+export type AnimationState = {
+  frameCount: number
+  lastShowFrame: number
+}
+
+export type CommandTime = State & {
+  type: "time"
+}
+
+export type CommandDate = State & {
+  type: "date"
 }
 
 export type Command =
@@ -76,9 +83,10 @@ export type Command =
   | CommandLine
   | CommandBitmap
   | CommandSetState
-  | CommandNewLine
+  | CommandLineFeed
   | CommandAnimation
-  | CommandFillSquare
+  | CommandTime
+  | CommandDate
 
 export type Bitmap = Pick<CommandBitmap, "size" | "data">
 
@@ -86,4 +94,13 @@ export type DrawingState = {
   cursor: Point
   color: number
   font: FontSizeDetails
+}
+
+type CommandsConfig = {
+  animationDelay: number
+}
+
+export type CommandApiResponse = {
+  config: CommandsConfig
+  commands: Command[]
 }

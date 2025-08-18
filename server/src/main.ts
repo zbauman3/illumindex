@@ -4,6 +4,7 @@ import {
   fontSizeDetailsMap,
   rgbTo565,
   type Command,
+  type CommandApiResponse,
 } from "@/lib"
 import {
   getWeatherData,
@@ -11,19 +12,13 @@ import {
   weatherCodeToBitmap,
 } from "./data/weather"
 import { SCREEN } from "@/data/constants"
-import { generateDateTimeBitmap } from "./data/dateTime"
 
-export const main = async ({
-  timezone,
-}: {
-  timezone?: string
-}): Promise<Command[]> => {
+export const main = async (): Promise<CommandApiResponse> => {
   const commands: Command[] = []
 
   try {
     const weather = await getWeatherData()
     const weatherGraphBitmaps = generateWeatherGraphBitmaps(weather)
-    const dateTimeBitmap = generateDateTimeBitmap({ timezone })
 
     const tempMax = Math.max(...weather.hourly.temperature_2m)
     const tempMin = Math.min(...weather.hourly.temperature_2m)
@@ -37,7 +32,6 @@ export const main = async ({
 
     commands.push({
       type: "animation",
-      delay: 3000,
       position: {
         x: 0,
         y: 0,
@@ -50,12 +44,11 @@ export const main = async ({
         ([name, graph]) =>
           drawCommands({
             bitmap: createBitmap(SCREEN.width, SCREEN.height),
+            config: {
+              animationDelay: 1000,
+            },
+            allAnimationStates: [],
             commands: [
-              {
-                type: "bitmap",
-                position: { x: 0, y: 0 },
-                ...dateTimeBitmap.bitmap,
-              },
               {
                 type: "string",
                 value: bitmapNameToText[name],
@@ -92,9 +85,30 @@ export const main = async ({
           }).data
       ),
     })
+
+    commands.push(
+      {
+        type: "time",
+        position: { x: 0, y: 0 },
+        fontSize: "lg",
+        color: rgbTo565(255, 255, 255),
+      },
+      {
+        type: "line-feed",
+      },
+      {
+        type: "date",
+        fontSize: "sm",
+      }
+    )
   } catch (e) {
     console.error("Unable to generate weather data", e)
   }
 
-  return commands
+  return {
+    config: {
+      animationDelay: 3000,
+    },
+    commands,
+  }
 }
