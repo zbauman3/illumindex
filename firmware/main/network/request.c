@@ -22,9 +22,6 @@ void requestEtagEnd(char **eTag) {
 }
 
 static esp_err_t eventHandler(esp_http_client_event_t *evt) {
-  // Stores number of bytes read
-  static int outputLen = 0;
-
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR: {
     ESP_LOGW(TAG, "HTTP_EVENT_ERROR");
@@ -35,31 +32,30 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
 
     RequestContextHandle ctx = evt->user_data;
 
-    // Clean the buffer in case of a new request
-    if (outputLen == 0) {
-      memset(ctx->response->data, 0, ctx->response->length);
+    if (ctx->response->data == NULL) {
+      ctx->response->data = (char *)malloc(evt->data_len + 1);
+      ctx->response->length = evt->data_len + 1;
+    } else {
+      // no need to add `+1`, it was added on the first allocation
+      ctx->response->data = (char *)realloc(
+          ctx->response->data, ctx->response->length + evt->data_len);
+      ctx->response->length += evt->data_len;
     }
 
-    // The last byte in ctx->data is kept for the NULL character in case
-    // of out-of-bound access.
-    int copyLen =
-        MIN(evt->data_len, MAX((ctx->response->length - outputLen), 0));
-    if (copyLen) {
-      memcpy(ctx->response->data + outputLen, evt->data, copyLen);
-    }
+    // set the last byte to NULL so we can treat the data as a string
+    // if we have already set the last byte to NULL in a previous allocation,
+    // we are offsetting by -1 below, which means we will copy the new data
+    // on top of it and correctly remove the previous one.
+    ctx->response->data[ctx->response->length - 1] = '\0';
 
-    outputLen += copyLen;
+    // add the new data.
+    memcpy(ctx->response->data + (ctx->response->length - evt->data_len - 1),
+           evt->data, evt->data_len);
 
     break;
   }
   case HTTP_EVENT_ON_FINISH: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
-
-    // Now that we're done, update the length to represent the data's size
-    RequestContextHandle ctx = evt->user_data;
-    ctx->response->length = outputLen;
-
-    outputLen = 0;
     break;
   }
   case HTTP_EVENT_ON_HEADER: {
@@ -85,7 +81,6 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
       ESP_LOGW(TAG, "HTTP_EVENT_DISCONNECTED - err: 0x%x - mbedtls: 0x%x", err,
                mbedtlsErr);
     }
-    outputLen = 0;
     break;
   }
   default: {
@@ -100,8 +95,8 @@ esp_err_t requestInit(RequestContextHandle *ctxHandle) {
   RequestContextHandle ctx =
       (RequestContextHandle)malloc(sizeof(RequestContext));
   ctx->response = (ResponseData *)malloc(sizeof(ResponseData));
-  ctx->response->data = (char *)malloc(REQUEST_MAX_OUTPUT_BUFFER);
-  ctx->response->length = REQUEST_MAX_OUTPUT_BUFFER;
+  ctx->response->data = NULL;
+  ctx->response->length = 0;
   ctx->response->eTag = NULL;
   ctx->eTag = NULL;
 

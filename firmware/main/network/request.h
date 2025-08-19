@@ -2,8 +2,6 @@
 
 #include "esp_http_client.h"
 
-// 200 KB should be roughly enough?
-#define REQUEST_MAX_OUTPUT_BUFFER (1024 * 200)
 // MD5 as base64, plus null terminator
 #define ETAG_LENGTH 33
 
