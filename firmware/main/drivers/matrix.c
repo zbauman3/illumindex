@@ -278,7 +278,7 @@ esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
   uint8_t bitNum;
 
   for (bitNum = 0; bitNum < MATRIX_BIT_DEPTH; bitNum++) {
-    for (row = 0; row < matrix->height; row++) {
+    for (row = 0; row < matrix->halfHeight; row++) {
       rowOffset = (row * matrix->width);
       rowAndBitOffset = rowOffset + (bitNum * matrix->width * matrix->height);
       for (col = 0; col < matrix->width; col++) {

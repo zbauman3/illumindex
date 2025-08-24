@@ -42,7 +42,7 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
       ctx->response->length += evt->data_len;
     }
 
-    // set the last byte to NULL so we can treat the data as a string
+    // set the last byte to NULL so we can treat the data as a string.
     // if we have already set the last byte to NULL in a previous allocation,
     // we are offsetting by -1 below, which means we will copy the new data
     // on top of it and correctly remove the previous one.

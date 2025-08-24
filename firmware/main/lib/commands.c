@@ -1,5 +1,3 @@
-#include "lib/commands.h"
-
 #include "esp_check.h"
 #include "esp_err.h"
 #include "esp_log.h"
@@ -7,6 +5,7 @@
 #include <string.h>
 
 #include "gfx/displayBuffer.h"
+#include "lib/commands.h"
 #include "lib/time.h"
 
 static const char *TAG = "COMMANDS";
