@@ -41,9 +41,11 @@ typedef struct {
 
 typedef struct {
   uint8_t flags;
-  uint16_t color;
-  uint16_t posX;
-  uint16_t posY;
+  uint8_t colorRed;
+  uint8_t colorGreen;
+  uint8_t colorBlue;
+  uint8_t posX;
+  uint8_t posY;
   FontSize fontSize;
 } CommandState;
 
@@ -76,15 +78,17 @@ typedef struct {
 
 typedef struct {
   CommandState *state;
-  uint16_t toX;
-  uint16_t toY;
+  uint8_t toX;
+  uint8_t toY;
 } CommandLine;
 
 typedef struct {
   CommandState *state;
-  uint16_t height;
-  uint16_t width;
-  uint16_t *data;
+  uint8_t height;
+  uint8_t width;
+  uint8_t *dataRed;
+  uint8_t *dataGreen;
+  uint8_t *dataBlue;
 } CommandBitmap;
 
 typedef struct {
@@ -96,13 +100,15 @@ typedef struct {
 } CommandLineFeed;
 
 typedef struct {
-  uint16_t posX;
-  uint16_t posY;
-  uint16_t height;
-  uint16_t width;
+  uint8_t posX;
+  uint8_t posY;
+  uint8_t height;
+  uint8_t width;
   uint16_t frameCount;
   uint16_t lastShowFrame;
-  uint16_t *frames;
+  uint8_t *framesRed;
+  uint8_t *framesGreen;
+  uint8_t *framesBlue;
 } CommandAnimation;
 
 typedef struct {

@@ -25,7 +25,9 @@ static const char *TAG = "COMMANDS";
 void commandStateInit(CommandState **stateHandle) {
   CommandState *state = (CommandState *)malloc(sizeof(CommandState));
 
-  state->color = 65535;
+  state->colorRed = 255;
+  state->colorGreen = 255;
+  state->colorBlue = 255;
   state->fontSize = FONT_SIZE_MD;
   state->posX = 0;
   state->posY = 0;
@@ -56,7 +58,9 @@ esp_err_t commandInit(CommandHandle *commandHandle, CommandType type) {
   case COMMAND_TYPE_BITMAP:
     command->value.bitmap = (CommandBitmap *)malloc(sizeof(CommandBitmap));
     command->value.bitmap->state = NULL;
-    command->value.bitmap->data = NULL;
+    command->value.bitmap->dataRed = NULL;
+    command->value.bitmap->dataGreen = NULL;
+    command->value.bitmap->dataBlue = NULL;
     break;
   case COMMAND_TYPE_SETSTATE:
     command->value.setState =
@@ -70,7 +74,9 @@ esp_err_t commandInit(CommandHandle *commandHandle, CommandType type) {
   case COMMAND_TYPE_ANIMATION:
     command->value.animation =
         (CommandAnimation *)malloc(sizeof(CommandAnimation));
-    command->value.animation->frames = NULL;
+    command->value.animation->framesRed = NULL;
+    command->value.animation->framesGreen = NULL;
+    command->value.animation->framesBlue = NULL;
     command->value.animation->frameCount = 0;
     break;
   case COMMAND_TYPE_TIME:
@@ -104,7 +110,9 @@ void commandCleanup(CommandHandle command) {
     break;
   case COMMAND_TYPE_BITMAP:
     commandStateCleanup(command->value.bitmap->state);
-    free(command->value.bitmap->data);
+    free(command->value.bitmap->dataRed);
+    free(command->value.bitmap->dataGreen);
+    free(command->value.bitmap->dataBlue);
     free(command->value.bitmap);
     break;
   case COMMAND_TYPE_SETSTATE:
@@ -115,7 +123,9 @@ void commandCleanup(CommandHandle command) {
     free(command->value.lineFeed);
     break;
   case COMMAND_TYPE_ANIMATION:
-    free(command->value.animation->frames);
+    free(command->value.animation->framesRed);
+    free(command->value.animation->framesGreen);
+    free(command->value.animation->framesBlue);
     free(command->value.animation);
     break;
   case COMMAND_TYPE_TIME:
@@ -224,14 +234,25 @@ void parseAndAddState(const cJSON *commandJson, char *type,
   }
 
   const cJSON *color = cJSON_GetObjectItemCaseSensitive(commandJson, "color");
-  if (cJSON_IsNumber(color)) {
-    if (!didInitState) {
-      didInitState = true;
-      commandStateInit(state);
-    }
+  if (cJSON_IsObject(color)) {
+    const cJSON *red = cJSON_GetObjectItemCaseSensitive(color, "red");
+    const cJSON *green = cJSON_GetObjectItemCaseSensitive(color, "green");
+    const cJSON *blue = cJSON_GetObjectItemCaseSensitive(color, "blue");
+    if (cJSON_IsNumber(red) && cJSON_IsNumber(green) && cJSON_IsNumber(blue)) {
+      if (!didInitState) {
+        didInitState = true;
+        commandStateInit(state);
+      }
 
-    (*state)->color = color->valueint;
-    commandStateSetColorFlag(*state);
+      (*state)->colorRed = (uint8_t)red->valueint;
+      (*state)->colorGreen = (uint8_t)green->valueint;
+      (*state)->colorBlue = (uint8_t)blue->valueint;
+      commandStateSetColorFlag(*state);
+    } else {
+      invalidPropWarn(type, "color");
+    }
+  } else {
+    invalidPropWarn(type, "color");
   }
 
   const cJSON *pos = cJSON_GetObjectItemCaseSensitive(commandJson, "position");
@@ -314,10 +335,20 @@ void parseAndAppendLine(CommandListHandle commandList,
 
 void parseAndAppendBitmap(CommandListHandle commandList,
                           const cJSON *commandJson) {
-  const cJSON *data = cJSON_GetObjectItemCaseSensitive(commandJson, "data");
+  const cJSON *dataObj = cJSON_GetObjectItemCaseSensitive(commandJson, "data");
   const cJSON *size = cJSON_GetObjectItemCaseSensitive(commandJson, "size");
-  if (!cJSON_IsArray(data) || !cJSON_IsObject(size)) {
+  if (!cJSON_IsObject(dataObj) || cJSON_IsNull(dataObj) ||
+      !cJSON_IsObject(size)) {
     invalidShapeWarn("bitmap");
+    return;
+  }
+
+  const cJSON *dataRed = cJSON_GetObjectItemCaseSensitive(dataObj, "red");
+  const cJSON *dataGreen = cJSON_GetObjectItemCaseSensitive(dataObj, "green");
+  const cJSON *dataBlue = cJSON_GetObjectItemCaseSensitive(dataObj, "blue");
+  if (!cJSON_IsArray(dataRed) || !cJSON_IsArray(dataGreen) ||
+      !cJSON_IsArray(dataBlue)) {
+    invalidPropWarn("bitmap", "data");
     return;
   }
 
@@ -335,19 +366,35 @@ void parseAndAppendBitmap(CommandListHandle commandList,
 
   command->value.bitmap->width = sizeW->valueint;
   command->value.bitmap->height = sizeH->valueint;
-  command->value.bitmap->data =
-      (uint16_t *)malloc(cJSON_GetArraySize(data) * sizeof(uint16_t));
+  command->value.bitmap->dataRed =
+      (uint8_t *)malloc(cJSON_GetArraySize(dataRed) * sizeof(uint8_t));
+  command->value.bitmap->dataGreen =
+      (uint8_t *)malloc(cJSON_GetArraySize(dataGreen) * sizeof(uint8_t));
+  command->value.bitmap->dataBlue =
+      (uint8_t *)malloc(cJSON_GetArraySize(dataBlue) * sizeof(uint8_t));
 
   // we cannot access the array directly, so we have to loop and put the values
   // into a buffer that we can use with the display buffer
-  const cJSON *pixelValue = NULL;
+  const cJSON *pixelValueRed = NULL;
+  const cJSON *pixelValueGreen = NULL;
+  const cJSON *pixelValueBlue = NULL;
   uint16_t bufIndex = 0;
-  cJSON_ArrayForEach(pixelValue, data) {
-    if (cJSON_IsNumber(pixelValue)) {
-      command->value.bitmap->data[bufIndex] = (uint16_t)pixelValue->valueint;
+  cJSON_ArrayForEach(pixelValueRed, dataRed) {
+    pixelValueGreen = cJSON_GetArrayItem(dataGreen, bufIndex);
+    pixelValueBlue = cJSON_GetArrayItem(dataBlue, bufIndex);
+    if (cJSON_IsNumber(pixelValueRed) && cJSON_IsNumber(pixelValueGreen) &&
+        cJSON_IsNumber(pixelValueBlue)) {
+      command->value.bitmap->dataRed[bufIndex] =
+          (uint8_t)pixelValueRed->valueint;
+      command->value.bitmap->dataGreen[bufIndex] =
+          (uint8_t)pixelValueGreen->valueint;
+      command->value.bitmap->dataBlue[bufIndex] =
+          (uint8_t)pixelValueBlue->valueint;
     } else {
       invalidPropWarn("bitmap", "pixel value");
-      command->value.bitmap->data[bufIndex] = (uint16_t)0;
+      command->value.bitmap->dataRed[bufIndex] = 0;
+      command->value.bitmap->dataGreen[bufIndex] = 0;
+      command->value.bitmap->dataBlue[bufIndex] = 0;
     }
     bufIndex++;
   }
@@ -358,10 +405,21 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   const cJSON *position =
       cJSON_GetObjectItemCaseSensitive(commandJson, "position");
   const cJSON *size = cJSON_GetObjectItemCaseSensitive(commandJson, "size");
-  const cJSON *frames = cJSON_GetObjectItemCaseSensitive(commandJson, "frames");
+  const cJSON *framesObj =
+      cJSON_GetObjectItemCaseSensitive(commandJson, "frames");
   if (!cJSON_IsObject(position) || !cJSON_IsObject(size) ||
-      !cJSON_IsArray(frames)) {
+      !cJSON_IsObject(framesObj) || cJSON_IsNull(framesObj)) {
     invalidShapeWarn("animation");
+    return;
+  }
+
+  const cJSON *framesRed = cJSON_GetObjectItemCaseSensitive(framesObj, "red");
+  const cJSON *framesGreen =
+      cJSON_GetObjectItemCaseSensitive(framesObj, "green");
+  const cJSON *framesBlue = cJSON_GetObjectItemCaseSensitive(framesObj, "blue");
+  if (!cJSON_IsArray(framesRed) || !cJSON_IsArray(framesGreen) ||
+      !cJSON_IsArray(framesBlue)) {
+    invalidPropWarn("animation", "frames");
     return;
   }
 
@@ -382,7 +440,7 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_ANIMATION, &command);
 
-  command->value.animation->frameCount = cJSON_GetArraySize(frames);
+  command->value.animation->frameCount = cJSON_GetArraySize(framesRed);
   // init the as the "last frame", so that we always start in the first
   command->value.animation->lastShowFrame =
       command->value.animation->frameCount - 1;
@@ -390,9 +448,15 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   command->value.animation->posY = posY->valueint;
   command->value.animation->width = sizeW->valueint;
   command->value.animation->height = sizeH->valueint;
-  command->value.animation->frames = (uint16_t *)malloc(
+  command->value.animation->framesRed = (uint8_t *)malloc(
       command->value.animation->frameCount * command->value.animation->width *
-      command->value.animation->height * sizeof(uint16_t));
+      command->value.animation->height * sizeof(uint8_t));
+  command->value.animation->framesGreen = (uint8_t *)malloc(
+      command->value.animation->frameCount * command->value.animation->width *
+      command->value.animation->height * sizeof(uint8_t));
+  command->value.animation->framesBlue = (uint8_t *)malloc(
+      command->value.animation->frameCount * command->value.animation->width *
+      command->value.animation->height * sizeof(uint8_t));
 
   uint32_t frameLength =
       command->value.animation->width * command->value.animation->height;
@@ -401,20 +465,39 @@ void parseAndAppendAnimation(CommandListHandle commandList,
   uint16_t frameI = 0;
   // the value within the frame
   uint16_t pixelValueI = 0;
-  const cJSON *frame = NULL;
-  const cJSON *pixelValue = NULL;
+  const cJSON *frameRed = NULL;
+  const cJSON *frameGreen = NULL;
+  const cJSON *frameBlue = NULL;
+  const cJSON *pixelValueRed = NULL;
+  const cJSON *pixelValueGreen = NULL;
+  const cJSON *pixelValueBlue = NULL;
 
   // now loop all frames and extract their values
-  cJSON_ArrayForEach(frame, frames) {
-    if (cJSON_IsArray(frame)) {
+  cJSON_ArrayForEach(frameRed, framesRed) {
+    frameGreen = cJSON_GetArrayItem(framesGreen, frameI);
+    frameBlue = cJSON_GetArrayItem(framesBlue, frameI);
+    if (cJSON_IsArray(frameRed) && cJSON_IsArray(frameGreen) &&
+        cJSON_IsArray(frameBlue)) {
       pixelValueI = 0;
-      cJSON_ArrayForEach(pixelValue, frame) {
+      cJSON_ArrayForEach(pixelValueRed, frameRed) {
+        pixelValueGreen = cJSON_GetArrayItem(frameGreen, pixelValueI);
+        pixelValueBlue = cJSON_GetArrayItem(frameBlue, pixelValueI);
         if (pixelValueI < frameLength) {
-          if (cJSON_IsNumber(pixelValue)) {
+          if (cJSON_IsNumber(pixelValueRed) &&
+              cJSON_IsNumber(pixelValueGreen) &&
+              cJSON_IsNumber(pixelValueBlue)) {
             command->value.animation
-                ->frames[(frameI * command->value.animation->width *
-                          command->value.animation->height) +
-                         pixelValueI] = (uint16_t)pixelValue->valueint;
+                ->framesRed[(frameI * command->value.animation->width *
+                             command->value.animation->height) +
+                            pixelValueI] = (uint8_t)pixelValueRed->valueint;
+            command->value.animation
+                ->framesGreen[(frameI * command->value.animation->width *
+                               command->value.animation->height) +
+                              pixelValueI] = (uint8_t)pixelValueGreen->valueint;
+            command->value.animation
+                ->framesBlue[(frameI * command->value.animation->width *
+                              command->value.animation->height) +
+                             pixelValueI] = (uint8_t)pixelValueBlue->valueint;
           } else {
             invalidPropWarn("animation", "frames > frame > value");
           }

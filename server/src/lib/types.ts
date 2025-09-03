@@ -15,8 +15,14 @@ export type FontSizeDetails = {
   name: FontSize
 }
 
+export type ColorRGB = {
+  red: number
+  green: number
+  blue: number
+}
+
 export type State = {
-  color?: number
+  color?: ColorRGB
   fontSize?: FontSize
   position?: {
     x: number
@@ -46,7 +52,11 @@ export type CommandLine = State & {
 
 export type CommandBitmap = State & {
   type: "bitmap"
-  data: number[]
+  data: {
+    red: number[]
+    green: number[]
+    blue: number[]
+  }
   size: Size
 }
 
@@ -62,7 +72,11 @@ export type CommandAnimation = {
   type: "animation"
   position: Point
   size: Size
-  frames: number[][]
+  frames: {
+    red: number[][]
+    green: number[][]
+    blue: number[][]
+  }
 }
 
 export type AnimationState = {
@@ -92,7 +106,7 @@ export type Bitmap = Pick<CommandBitmap, "size" | "data">
 
 export type DrawingState = {
   cursor: Point
-  color: number
+  color: ColorRGB
   font: FontSizeDetails
 }
 

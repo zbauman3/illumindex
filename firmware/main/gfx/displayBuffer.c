@@ -5,7 +5,7 @@
 
 #include "gfx/displayBuffer.h"
 #include "gfx/fonts.h"
-#include "util/565_color.h"
+#include "util/colors.h"
 #include "util/helpers.h"
 
 const static char *TAG = "DISPLAY_BUFFER";
@@ -15,12 +15,15 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
                             uint8_t width, uint8_t height) {
   DisplayBufferHandle db = (DisplayBufferHandle)malloc(sizeof(DisplayBuffer));
 
-  displayBufferSetColor(db, 0b1111100000000000);
+  displayBufferSetColor(db, 255, 255, 255);
   displayBufferSetCursor(db, 0, 0);
   db->width = width;
   db->height = height;
+  db->length = db->width * db->height;
 
-  db->buffer = (uint16_t *)malloc(sizeof(uint16_t) * db->width * db->height);
+  db->bufferRed = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+  db->bufferGreen = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+  db->bufferBlue = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   displayBufferClear(db);
 
   fontInit(&db->font);
@@ -32,13 +35,17 @@ esp_err_t displayBufferInit(DisplayBufferHandle *displayBufferHandle,
 
 // resets all values in the buffer to `0`
 void displayBufferClear(DisplayBufferHandle db) {
-  memset(db->buffer, 0, sizeof(uint16_t) * db->width * db->height);
+  memset(db->bufferRed, 0, sizeof(uint8_t) * db->length);
+  memset(db->bufferGreen, 0, sizeof(uint8_t) * db->length);
+  memset(db->bufferBlue, 0, sizeof(uint8_t) * db->length);
 }
 
 // cleans up all memory associated with the buffer
 void displayBufferEnd(DisplayBufferHandle db) {
   fontEnd(db->font);
-  free(db->buffer);
+  free(db->bufferRed);
+  free(db->bufferGreen);
+  free(db->bufferBlue);
   free(db);
 }
 
@@ -86,11 +93,12 @@ void displayBufferDrawString(DisplayBufferHandle db, char *string) {
       for (chunkBitN = 1; chunkBitN <= db->font->bitsPerChunk; chunkBitN++) {
         // mask the chunk bit, then AND it to the chunk value. Use the result as
         // a boolean to check if we should set the value to the color or blank
-        safeSetBufferValue(
-            db, bufferStartIdx + bitmapRowIdx,
-            (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN))
-                ? db->color
-                : 0);
+        if (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN)) {
+          safeSetBufferValue(db, bufferStartIdx + bitmapRowIdx, db->colorRed,
+                             db->colorGreen, db->colorBlue);
+        } else {
+          safeSetBufferValue(db, bufferStartIdx + bitmapRowIdx, 0, 0, 0);
+        }
 
         // increase the rows index. Move down a line if at the end
         bitmapRowIdx++;
@@ -113,7 +121,7 @@ void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
-            db->color);
+            db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.y--;
@@ -123,7 +131,7 @@ void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
-            db->color);
+            db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.y++;
@@ -140,7 +148,7 @@ void displayBufferDrawFastHorizonLine(DisplayBufferHandle db, uint8_t to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
-            db->color);
+            db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.x--;
@@ -150,7 +158,7 @@ void displayBufferDrawFastHorizonLine(DisplayBufferHandle db, uint8_t to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
-            db->color);
+            db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.x++;
@@ -174,7 +182,7 @@ void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
         safeSetBufferValue(db,
                            displayBufferPointToIndex(
                                db, db->cursor.x, (uint8_t)round(unroundedY)),
-                           db->color);
+                           db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.x++;
@@ -187,7 +195,7 @@ void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
         safeSetBufferValue(db,
                            displayBufferPointToIndex(
                                db, db->cursor.x, (uint8_t)round(unroundedY)),
-                           db->color);
+                           db->colorRed, db->colorGreen, db->colorBlue);
       }
 
       db->cursor.x--;
@@ -211,16 +219,15 @@ void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY) {
 }
 
 void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
-                             uint8_t height, uint16_t *buffer) {
+                             uint8_t height, uint8_t *bufferRed,
+                             uint8_t *bufferGreen, uint8_t *bufferBlue) {
   for (uint8_t row = 0; row < height; row++) {
     for (uint8_t col = 0; col < width; col++) {
-      if (displayBufferPointIsVisible(db, db->cursor.x + col,
-                                      db->cursor.y + row)) {
-        safeSetBufferValue(db,
-                           displayBufferPointToIndex(db, db->cursor.x + col,
-                                                     db->cursor.y + row),
-                           buffer[(row * width) + col]);
-      }
+      safeSetBufferValue(
+          db,
+          displayBufferPointToIndex(db, db->cursor.x + col, db->cursor.y + row),
+          bufferRed[(row * width) + col], bufferGreen[(row * width) + col],
+          bufferBlue[(row * width) + col]);
     }
   }
 }
@@ -228,14 +235,14 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
 void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
                               bool commandsInvalid, bool isDevMode) {
   if (isDevMode) {
-    db->buffer[0] = 0b0000000000011111;
+    safeSetBufferValue(db, 0, 0, 0, 255);
   }
 
   if (remoteStateInvalid) {
-    db->buffer[2] = 0b1111111111100000;
+    safeSetBufferValue(db, 2, 255, 255, 0);
   }
 
   if (commandsInvalid) {
-    db->buffer[4] = 0b1111100000000000;
+    safeSetBufferValue(db, 4, 255, 0, 0);
   }
 }

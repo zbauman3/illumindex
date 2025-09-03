@@ -1,15 +1,15 @@
 import {
+  CommandAnimation,
   createBitmap,
   drawCommands,
   fontSizeDetailsMap,
-  rgbTo565,
   type Command,
   type CommandApiResponse,
 } from "@/lib"
 import {
   getWeatherData,
   generateWeatherGraphBitmaps,
-  weatherCodeToBitmap,
+  // weatherCodeToBitmap,
 } from "./data/weather"
 import { SCREEN } from "@/data/constants"
 
@@ -40,50 +40,68 @@ export const main = async (): Promise<CommandApiResponse> => {
         width: SCREEN.width,
         height: SCREEN.height,
       },
-      frames: Object.entries(weatherGraphBitmaps.bitmaps).map(
-        ([name, graph]) =>
-          drawCommands({
-            bitmap: createBitmap(SCREEN.width, SCREEN.height),
-            config: {
-              animationDelay: 1000,
-            },
-            allAnimationStates: [],
-            commands: [
-              {
-                type: "string",
-                value: bitmapNameToText[name],
-                position: {
-                  x: 0,
-                  y:
-                    SCREEN.height -
-                    weatherGraphBitmaps.height -
-                    fontSizeDetailsMap.sm.height,
-                },
-                fontSize: "sm",
-                color: rgbTo565(255, 255, 255),
+      frames: Object.entries(weatherGraphBitmaps.bitmaps)
+        .map(
+          ([name, graph]) =>
+            drawCommands({
+              bitmap: createBitmap(SCREEN.width, SCREEN.height),
+              config: {
+                animationDelay: 1000,
               },
-              {
-                type: "bitmap",
-                position: {
-                  x: 0,
-                  y: SCREEN.height - weatherGraphBitmaps.height,
+              allAnimationStates: [],
+              commands: [
+                {
+                  type: "string",
+                  value: bitmapNameToText[name],
+                  position: {
+                    x: 0,
+                    y:
+                      SCREEN.height -
+                      weatherGraphBitmaps.height -
+                      fontSizeDetailsMap.sm.height,
+                  },
+                  fontSize: "sm",
+                  color: {
+                    red: 255,
+                    green: 255,
+                    blue: 255,
+                  },
                 },
-                ...graph.bitmap,
-              },
-              {
-                type: "bitmap",
-                position: {
-                  x: 33,
-                  y: SCREEN.height - weatherGraphBitmaps.height - 30,
+                {
+                  type: "bitmap",
+                  position: {
+                    x: 0,
+                    y: SCREEN.height - weatherGraphBitmaps.height,
+                  },
+                  ...graph.bitmap,
                 },
-                ...weatherCodeToBitmap({
-                  code: weather.current.weather_code,
-                  isDayTime: weather.current.is_day,
-                }),
-              },
-            ],
-          }).data
-      ),
+                // {
+                //   type: "bitmap",
+                //   position: {
+                //     x: 33,
+                //     y: SCREEN.height - weatherGraphBitmaps.height - 30,
+                //   },
+                //   ...weatherCodeToBitmap({
+                //     code: weather.current.weather_code,
+                //     isDayTime: weather.current.is_day,
+                //   }),
+                // },
+              ],
+            }).data
+        )
+        .reduce(
+          (acc, loopFrame) => {
+            acc.red.push(loopFrame.red)
+            acc.green.push(loopFrame.green)
+            acc.blue.push(loopFrame.blue)
+            return acc
+          },
+          {
+            red: [],
+            green: [],
+            blue: [],
+          } as CommandAnimation["frames"]
+        ),
     })
 
     commands.push(
@@ -91,7 +109,11 @@ export const main = async (): Promise<CommandApiResponse> => {
         type: "time",
         position: { x: 0, y: 0 },
         fontSize: "lg",
-        color: rgbTo565(255, 255, 255),
+        color: {
+          red: 255,
+          green: 255,
+          blue: 255,
+        },
       },
       {
         type: "line-feed",

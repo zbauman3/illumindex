@@ -7,10 +7,12 @@
 #include "gfx/fonts.h"
 
 // validates that setting an index in the buffer is not an overflow
-#define safeSetBufferValue(db, index, value)                                   \
+#define safeSetBufferValue(db, index, red, green, blue)                        \
   ({                                                                           \
-    if ((index) < db->width * db->height) {                                    \
-      db->buffer[(index)] = (value);                                           \
+    if ((index) < db->length) {                                                \
+      db->bufferRed[(index)] = (red);                                          \
+      db->bufferGreen[(index)] = (green);                                      \
+      db->bufferBlue[(index)] = (blue);                                        \
     }                                                                          \
   })
 
@@ -43,7 +45,12 @@
     db->cursor.y = (sy);                                                       \
   })
 
-#define displayBufferSetColor(db, scolor) ({ db->color = (scolor); })
+#define displayBufferSetColor(db, red, green, blue)                            \
+  ({                                                                           \
+    db->colorRed = (red);                                                      \
+    db->colorGreen = (green);                                                  \
+    db->colorBlue = (blue);                                                    \
+  })
 
 #define displayBufferLineFeed(db)                                              \
   ({                                                                           \
@@ -52,11 +59,16 @@
   })
 
 typedef struct {
-  uint16_t *buffer;
+  uint8_t *bufferRed;
+  uint8_t *bufferGreen;
+  uint8_t *bufferBlue;
   uint8_t width;
   uint8_t height;
+  uint16_t length;
   FontHandle font;
-  uint16_t color;
+  uint8_t colorRed;
+  uint8_t colorGreen;
+  uint8_t colorBlue;
   struct {
     uint8_t x;
     uint8_t y;
@@ -76,6 +88,7 @@ void displayBufferDrawFastDiagLine(DisplayBufferHandle db, uint8_t toX,
                                    uint8_t toY);
 void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY);
 void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
-                             uint8_t height, uint16_t *buffer);
+                             uint8_t height, uint8_t *bufferRed,
+                             uint8_t *bufferGreen, uint8_t *bufferBlue);
 void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
                               bool commandsInvalid, bool isDevMode);

@@ -1,11 +1,11 @@
 import { ComponentProps } from "react"
-import { type Bitmap, uint16_tTo255RGB } from "@/lib"
+import { type Bitmap, type ColorRGB } from "@/lib"
 
 const bitmapSpace = 1
 const dotSize = 16
 
-const BitmapDot = ({ color, index }: { index: number; color: number }) => {
-  const { red, blue, green } = uint16_tTo255RGB(color)
+const BitmapDot = ({ color, index }: { index: number; color: ColorRGB }) => {
+  const { red, blue, green } = color
   return (
     <div
       style={{
@@ -30,7 +30,7 @@ const BitmapDot = ({ color, index }: { index: number; color: number }) => {
   )
 }
 
-const BitmapRow = ({ rowNum, row }: { rowNum: number; row: number[] }) => {
+const BitmapRow = ({ rowNum, row }: { rowNum: number; row: ColorRGB[] }) => {
   const indexBase = rowNum * row.length
   return (
     <div
@@ -54,14 +54,24 @@ export const BitmapComponent = ({
   bitmap,
   ...rest
 }: { bitmap: Bitmap } & ComponentProps<"div">) => {
-  const matrix = bitmap.data.reduce((rows, val, index) => {
+  const matrix = bitmap.data.red.reduce((rows, val, index) => {
     if (index % bitmap.size.width == 0) {
-      rows.push([val])
+      rows.push([
+        {
+          red: val,
+          green: bitmap.data.green[index],
+          blue: bitmap.data.blue[index],
+        },
+      ])
     } else {
-      rows[rows.length - 1].push(val)
+      rows[rows.length - 1].push({
+        red: val,
+        green: bitmap.data.green[index],
+        blue: bitmap.data.blue[index],
+      })
     }
     return rows
-  }, [] as number[][])
+  }, [] as ColorRGB[][])
 
   return (
     <div

@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react"
-import { rgbTo565 } from "@/lib"
 import { BitmapComponent } from "@/components/Bitmap"
 import { type Bitmap, createBitmap, mergeBitmaps } from "@/lib"
 

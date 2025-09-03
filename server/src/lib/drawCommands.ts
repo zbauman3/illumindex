@@ -7,6 +7,7 @@ import type {
   Point,
   DrawingState,
   AnimationState,
+  ColorRGB,
 } from "./types"
 
 const parseAndSetState = (state: DrawingState, command: Command): void => {
@@ -29,7 +30,7 @@ const setMatrixValue = ({
   bitmap,
 }: {
   point: Point
-  color: number
+  color: ColorRGB
   bitmap: Bitmap
 }) => {
   if (point.x >= bitmap.size.width || point.y >= bitmap.size.height) {
@@ -37,7 +38,9 @@ const setMatrixValue = ({
     return
   }
 
-  bitmap.data[point.y * bitmap.size.width + point.x] = color
+  bitmap.data.red[point.y * bitmap.size.width + point.x] = color.red
+  bitmap.data.green[point.y * bitmap.size.width + point.x] = color.green
+  bitmap.data.blue[point.y * bitmap.size.width + point.x] = color.blue
 }
 
 const fastVerticalLine = ({
@@ -48,7 +51,7 @@ const fastVerticalLine = ({
 }: {
   point: Point
   to: number
-  color: number
+  color: ColorRGB
   bitmap: Bitmap
 }): void => {
   const newPoint = { ...point }
@@ -72,7 +75,7 @@ const fastHorizontalLine = ({
 }: {
   point: Point
   to: number
-  color: number
+  color: ColorRGB
   bitmap: Bitmap
 }): void => {
   const newPoint = { ...point }
@@ -96,7 +99,7 @@ const drawLine = ({
 }: {
   from: Point
   to: Point
-  color: number
+  color: ColorRGB
   bitmap: Bitmap
 }): void => {
   if (from.x === to.x) {
@@ -193,9 +196,11 @@ const drawString = ({
         const setValue =
           (chunkVal & (1 << (state.font.bitsPerChunk - chunkBitN))) != 0
             ? state.color
-            : 0
-        if (setIndex < bitmap.data.length) {
-          bitmap.data[setIndex] = setValue
+            : { red: 0, green: 0, blue: 0 }
+        if (setIndex < bitmap.data.red.length) {
+          bitmap.data.red[setIndex] = setValue.red
+          bitmap.data.green[setIndex] = setValue.green
+          bitmap.data.blue[setIndex] = setValue.blue
         }
 
         // increase the rows index. Move down a line if at the end
@@ -233,7 +238,7 @@ export const drawCommands = ({
 } & CommandApiResponse): Bitmap => {
   const state: DrawingState = {
     cursor: { x: 0, y: 0 },
-    color: 0b0000011111111111,
+    color: { red: 255, green: 255, blue: 255 },
     font: {
       ...fontSizeDetailsMap.md,
     },
@@ -269,7 +274,11 @@ export const drawCommands = ({
           base: loopBitmap,
           overlays: [
             {
-              data: command.frames[animationState.lastShowFrame],
+              data: {
+                red: command.frames.red[animationState.lastShowFrame],
+                green: command.frames.green[animationState.lastShowFrame],
+                blue: command.frames.blue[animationState.lastShowFrame],
+              },
               size: command.size,
             },
           ],

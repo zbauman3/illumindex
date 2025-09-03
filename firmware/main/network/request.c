@@ -31,31 +31,33 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
 
     RequestContextHandle ctx = evt->user_data;
-
     if (ctx->response->data == NULL) {
-      ctx->response->data = (char *)malloc(evt->data_len + 1);
-      ctx->response->length = evt->data_len + 1;
+      ctx->response->data = (char *)malloc(evt->data_len);
     } else {
-      // no need to add `+1`, it was added on the first allocation
       ctx->response->data = (char *)realloc(
           ctx->response->data, ctx->response->length + evt->data_len);
-      ctx->response->length += evt->data_len;
     }
 
-    // set the last byte to NULL so we can treat the data as a string.
-    // if we have already set the last byte to NULL in a previous allocation,
-    // we are offsetting by -1 below, which means we will copy the new data
-    // on top of it and correctly remove the previous one.
-    ctx->response->data[ctx->response->length - 1] = '\0';
-
     // add the new data.
-    memcpy(ctx->response->data + (ctx->response->length - evt->data_len - 1),
-           evt->data, evt->data_len);
+    memcpy(ctx->response->data + ctx->response->length, evt->data,
+           evt->data_len);
+
+    // update the length
+    ctx->response->length += evt->data_len;
 
     break;
   }
   case HTTP_EVENT_ON_FINISH: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
+
+    RequestContextHandle ctx = evt->user_data;
+    // if there is data, append the null terminator
+    if (ctx->response->data != NULL) {
+      ctx->response->length += 1;
+      ctx->response->data =
+          (char *)realloc(ctx->response->data, ctx->response->length);
+      ctx->response->data[ctx->response->length - 1] = '\0';
+    }
     break;
   }
   case HTTP_EVENT_ON_HEADER: {

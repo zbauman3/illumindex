@@ -4,14 +4,14 @@ import {
   createBitmap,
   drawCommands,
   generateGraphValues,
-  rgbTo565,
   Size,
-  mergeBitmaps,
+  ColorRGB,
+  // mergeBitmaps,
 } from "@/lib"
 import { scaleUpGraphValues, smoothGraphValues } from "@/lib/graphing"
 import z from "zod"
 import { SCREEN } from "./constants"
-import * as bitmaps from "./bitmaps"
+// import * as bitmaps from "./bitmaps"
 
 // https://open-meteo.com/en/docs?latitude=41.94235335717608&longitude=-87.6400647248335&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,precipitation_probability,cloud_cover,wind_speed_10m,precipitation,wind_gusts_10m,is_day&current=temperature_2m,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&timezone=America%2FChicago&forecast_days=3&timeformat=unixtime&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&forecast_hours=24
 // https://api.open-meteo.com/v1/forecast?latitude=41.94235335717608&longitude=-87.6400647248335&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,precipitation_probability,cloud_cover,wind_speed_10m,precipitation,wind_gusts_10m,is_day&current=temperature_2m,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&timezone=America%2FChicago&forecast_days=3&timeformat=unixtime&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&forecast_hours=24
@@ -36,20 +36,21 @@ export const weatherCodeToBitmap = ({
 }: {
   code: number
   isDayTime: boolean
-}) => {
+}): Bitmap => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const overlays: Bitmap[] = []
   switch (code) {
     case 0: // "clear"
     case 1: // "mainly_clear"
       if (isDayTime) {
-        overlays.push(bitmaps.sunRays)
+        // overlays.push(bitmaps.sunRays)
       }
       break
     case 2: // "partly_cloudy"
     case 3: // "overcast"
     case 45: // "fog"
     case 48: // "fog"
-      overlays.push(bitmaps.cloud)
+      // overlays.push(bitmaps.cloud)
       break
     case 51: // "drizzle_light"
     case 53: // "drizzle_moderate"
@@ -60,8 +61,8 @@ export const weatherCodeToBitmap = ({
     case 80: // "rain_showers_slight"
     case 81: // "rain_showers_moderate"
     case 82: // "rain_showers_violent"
-      overlays.push(bitmaps.cloud)
-      overlays.push(bitmaps.rain)
+      // overlays.push(bitmaps.cloud)
+      // overlays.push(bitmaps.rain)
       break
     case 56: // "freezing_drizzle_light"
     case 57: // "freezing_drizzle_dense"
@@ -73,24 +74,36 @@ export const weatherCodeToBitmap = ({
     case 77: // "snow_grains"
     case 85: // "snow_showers_slight"
     case 86: // "snow_showers_heavy"
-      overlays.push(bitmaps.cloud)
-      overlays.push(bitmaps.snow)
+      // overlays.push(bitmaps.cloud)
+      // overlays.push(bitmaps.snow)
       break
     case 95: // "thunderstorm"
     case 96: // "thunderstorm_slight_hail"
     case 99: // "thunderstorm_heavy_hail"
-      overlays.push(bitmaps.cloud)
-      overlays.push(bitmaps.rain)
-      overlays.push(bitmaps.lightning)
+      // overlays.push(bitmaps.cloud)
+      // overlays.push(bitmaps.rain)
+      // overlays.push(bitmaps.lightning)
       break
   }
 
-  return mergeBitmaps({
-    base: isDayTime ? bitmaps.sun : bitmaps.moon,
-    overlays,
-    offsetX: 0,
-    offsetY: 0,
-  })
+  // return mergeBitmaps({
+  //   base: isDayTime ? bitmaps.sun : bitmaps.moon,
+  //   overlays,
+  //   offsetX: 0,
+  //   offsetY: 0,
+  // })
+
+  return {
+    size: {
+      height: 30,
+      width: 30,
+    },
+    data: {
+      red: [],
+      green: [],
+      blue: [],
+    },
+  }
 }
 
 const weatherApiSchema = z.object({
@@ -206,7 +219,7 @@ export const generateWeatherGraphBitmaps = (
   const height = 16
   const width = SCREEN.width
 
-  const graphDataToBitmap = (graphData: number[], color: number) => {
+  const graphDataToBitmap = (graphData: number[], color: ColorRGB) => {
     const graphCommands = graphData.map<Command>((val, i) => ({
       type: "line",
       color,
@@ -269,7 +282,11 @@ export const generateWeatherGraphBitmaps = (
       width: width,
     }),
     // dark gray for cloud cover
-    rgbTo565(120, 120, 120)
+    {
+      red: 120,
+      green: 120,
+      blue: 120,
+    }
   )
 
   const windBitmap = graphDataToBitmap(
@@ -280,7 +297,11 @@ export const generateWeatherGraphBitmaps = (
       })
     ),
     // light gray for wind speed
-    rgbTo565(255, 250, 190)
+    {
+      red: 255,
+      green: 250,
+      blue: 190,
+    }
   )
 
   const precipitationBitmap = graphDataToBitmap(
@@ -289,7 +310,11 @@ export const generateWeatherGraphBitmaps = (
       width: width,
     }),
     // light blue for precipitation probability
-    rgbTo565(80, 100, 255)
+    {
+      red: 80,
+      green: 100,
+      blue: 255,
+    }
   )
 
   const temperatureBitmap = graphDataToBitmap(
@@ -300,7 +325,11 @@ export const generateWeatherGraphBitmaps = (
       })
     ),
     // orange for temperature
-    rgbTo565(255, 150, 50)
+    {
+      red: 255,
+      green: 150,
+      blue: 50,
+    }
   )
 
   return {

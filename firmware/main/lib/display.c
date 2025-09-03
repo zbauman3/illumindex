@@ -5,7 +5,7 @@
 #include "lib/display.h"
 #include "lib/time.h"
 #include "network/request.h"
-#include "util/565_color.h"
+#include "util/colors.h"
 #include "util/error_helpers.h"
 
 static const char *TAG = "DISPLAY";
@@ -22,7 +22,8 @@ void setState(DisplayBufferHandle db, CommandState *state) {
   }
 
   if (commandStateHasColor(state)) {
-    displayBufferSetColor(db, state->color);
+    displayBufferSetColor(db, state->colorRed, state->colorGreen,
+                          state->colorBlue);
   }
 
   if (commandStateHasFont(state)) {
@@ -56,7 +57,9 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       displayBufferDrawBitmap(display->displayBuffer,
                               loopNode->command->value.bitmap->width,
                               loopNode->command->value.bitmap->height,
-                              loopNode->command->value.bitmap->data);
+                              loopNode->command->value.bitmap->dataRed,
+                              loopNode->command->value.bitmap->dataGreen,
+                              loopNode->command->value.bitmap->dataBlue);
       break;
     case COMMAND_TYPE_SETSTATE:
       setState(display->displayBuffer,
@@ -81,7 +84,15 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       displayBufferDrawBitmap(
           display->displayBuffer, loopNode->command->value.animation->width,
           loopNode->command->value.animation->height,
-          loopNode->command->value.animation->frames +
+          loopNode->command->value.animation->framesRed +
+              (loopNode->command->value.animation->lastShowFrame *
+               loopNode->command->value.animation->width *
+               loopNode->command->value.animation->height),
+          loopNode->command->value.animation->framesGreen +
+              (loopNode->command->value.animation->lastShowFrame *
+               loopNode->command->value.animation->width *
+               loopNode->command->value.animation->height),
+          loopNode->command->value.animation->framesBlue +
               (loopNode->command->value.animation->lastShowFrame *
                loopNode->command->value.animation->width *
                loopNode->command->value.animation->height));
@@ -126,7 +137,9 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
 
   display->commands->hasShown = true;
 
-  return matrixShow(display->matrix, display->displayBuffer->buffer);
+  return matrixShow(display->matrix, display->displayBuffer->bufferRed,
+                    display->displayBuffer->bufferGreen,
+                    display->displayBuffer->bufferBlue);
 }
 
 esp_err_t fetchCommands(DisplayHandle display) {
@@ -259,7 +272,9 @@ esp_err_t displayInit(DisplayHandle *displayHandle,
 
   commandStateInit(&startCommand->value.string->state);
 
-  startCommand->value.string->state->color = RGB_TO_565(0, 255, 149);
+  startCommand->value.string->state->colorRed = 0;
+  startCommand->value.string->state->colorGreen = 255;
+  startCommand->value.string->state->colorBlue = 149;
   commandStateSetColorFlag(startCommand->value.string->state);
 
   startCommand->value.string->state->posX = 0;
@@ -321,7 +336,7 @@ esp_err_t displayStart(DisplayHandle display) {
   BaseType_t taskCreate;
   taskCreate = xTaskCreatePinnedToCore(animationTask, ANIMATION_TASK_NAME, 4096,
                                        display, tskIDLE_PRIORITY + 2,
-                                       &display->animationTaskHandle, 1);
+                                       &display->animationTaskHandle, 0);
 
   if (taskCreate != pdPASS || display->animationTaskHandle == NULL) {
     ESP_LOGE(TAG, "Failed to create task '%s'", ANIMATION_TASK_NAME);
@@ -330,7 +345,7 @@ esp_err_t displayStart(DisplayHandle display) {
 
   taskCreate = xTaskCreatePinnedToCore(mainTask, MAIN_TASK_NAME, 4096, display,
                                        tskIDLE_PRIORITY + 1,
-                                       &display->mainTaskHandle, 1);
+                                       &display->mainTaskHandle, 0);
 
   if (taskCreate != pdPASS || display->mainTaskHandle == NULL) {
     ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);

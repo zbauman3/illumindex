@@ -4,13 +4,14 @@
 #include "esp_attr.h"
 #include "esp_check.h"
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #include "esp_log.h"
 #include "hal/dedic_gpio_cpu_ll.h"
 #include "hal/gpio_ll.h"
 #include <string.h>
 
 #include "drivers/matrix.h"
-#include "util/565_color.h"
+#include "util/colors.h"
 #include "util/helpers.h"
 
 static const char *TAG = "MATRIX_DRIVER";
@@ -18,9 +19,8 @@ static const char *TAG = "MATRIX_DRIVER";
 #define shiftOutVal(_val)                                                      \
   ({                                                                           \
     dedic_gpio_cpu_ll_write_mask(0b01111111, (_val));                          \
-    asm volatile("nop");                                                       \
+    asm volatile("nop"); /* delay so the ICN2037 can keep up */                \
     dedic_gpio_cpu_ll_write_mask(0b01111111, (_val) | 0b01000000);             \
-    asm volatile("nop");                                                       \
   })
 
 #define shiftOutRow(_b, _o)                                                    \
@@ -91,74 +91,73 @@ static const char *TAG = "MATRIX_DRIVER";
     shiftOutVal(_b[(_o) + 63]);                                                \
   })
 
+// used for quick access to the timer count values
+static DRAM_ATTR uint16_t matrixTimerCountValues[8] = {
+    MATRIX_TIMER_ALARM_0, MATRIX_TIMER_ALARM_1, MATRIX_TIMER_ALARM_2,
+    MATRIX_TIMER_ALARM_3, MATRIX_TIMER_ALARM_4, MATRIX_TIMER_ALARM_5,
+    MATRIX_TIMER_ALARM_6, MATRIX_TIMER_ALARM_7};
+
 static bool IRAM_ATTR
 matrixTimerCallback(gptimer_handle_t timer,
                     const gptimer_alarm_event_data_t *edata, void *userData) {
   static MatrixHandle matrix;
   matrix = (MatrixHandle)userData;
 
-  matrix->bitNumInc++;
-  if (matrix->bitNumInc == 65) {
-    matrix->bitNumInc = 0;
-    // never running on a `0`, to skip
-    return false;
+  gptimer_stop(matrix->timer);
+
+  matrix->bitNum++;
+  if (matrix->bitNum >= MATRIX_BIT_DEPTH) {
+    matrix->bitNum = 0;
+    matrix->rowNum++;
+    if (matrix->rowNum >= matrix->halfHeight) {
+      matrix->rowNum = 0;
+    }
   }
 
-  if (matrix->bitNumInc == 1 || matrix->bitNumInc == 2 ||
-      matrix->bitNumInc == 4 || matrix->bitNumInc == 8 ||
-      matrix->bitNumInc == 16 || matrix->bitNumInc == 32) {
+  matrix->currentBufferOffset =
+      (matrix->rowNum * matrix->width) +
+      (matrix->bitNum * matrix->width * matrix->height);
 
-    matrix->bitNum++;
-    if (matrix->bitNum == MATRIX_BIT_DEPTH) {
-      matrix->bitNum = 0;
-      matrix->rowNum++;
-      if (matrix->rowNum == matrix->halfHeight) {
-        matrix->rowNum = 0;
-      }
+  shiftOutRow(matrix->displayBuffer, matrix->currentBufferOffset);
+
+  // blank screen
+  gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
+
+  // saves some cycles
+  if (matrix->bitNum == 0) {
+    // set new address.
+    gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
+    gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
+    gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
+    gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
+    if (matrix->fiveBitAddress) {
+      gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
     }
-
-    matrix->currentBufferOffset =
-        (matrix->rowNum * matrix->width) +
-        (matrix->bitNum * matrix->width * matrix->height);
-
-    shiftOutRow(matrix->displayBuffer, matrix->currentBufferOffset);
-
-    // blank screen
-    gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
-
-    // saves some cycles
-    if (matrix->bitNum == 0) {
-      // set new address.
-      gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
-      gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
-      gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
-      gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
-      if (matrix->fiveBitAddress) {
-        gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
-      }
-    }
-
-    // latch, then reset all bundle outputs
-    dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
-    // delay so the ICN2037 can keep up
-    asm volatile("nop");
-    dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
-    // show new row
-    gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
   }
+
+  // latch, then reset all bundle outputs
+  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b00000000);
+  asm volatile("nop"); // delay so the ICN2037 can keep up
+  dedic_gpio_cpu_ll_write_mask(0b10000000, 0b10000000);
+
+  // show new row
+  gpio_ll_set_level(&GPIO, matrix->pins->oe, 0);
+
+  gptimer_set_raw_count(matrix->timer, matrixTimerCountValues[matrix->bitNum]);
+  gptimer_start(matrix->timer);
 
   return false;
 }
 
 // Allocates the resources for a matrix and masses back a handle
 esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
-  // allocate the the state
-  MatrixHandle matrix = (MatrixHandle)malloc(sizeof(MatrixState));
+  // allocate the the state. Must be in IRAM for the interrupt handler
+  MatrixHandle matrix =
+      (MatrixHandle)heap_caps_malloc(sizeof(MatrixState), MALLOC_CAP_INTERNAL);
 
   // misc setup
   matrix->rowNum = 0;
   matrix->bitNum = 0;
-  matrix->bitNumInc = 0;
   matrix->width = config->width;
   matrix->height = config->height;
   matrix->halfHeight = matrix->height / 2;
@@ -166,14 +165,16 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   matrix->splitOffset = (matrix->height / 2) * matrix->width;
   matrix->fiveBitAddress = matrix->height > 32;
 
-  // allocate and clear the frame buffer
-  matrix->displayBuffer = (uint8_t *)malloc(sizeof(uint8_t) * matrix->width *
-                                            matrix->height * MATRIX_BIT_DEPTH);
+  // allocate/clear the frame buffer. Must be in IRAM for the interrupt handler
+  matrix->displayBuffer = (uint8_t *)heap_caps_malloc(
+      sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH,
+      MALLOC_CAP_INTERNAL);
   memset(matrix->displayBuffer, 0,
          sizeof(uint8_t) * matrix->width * matrix->height * MATRIX_BIT_DEPTH);
 
-  // allocate and copy pins
-  matrix->pins = (MatrixPins *)malloc(sizeof(MatrixPins));
+  // allocate and copy pins. Must be in IRAM for the interrupt handler
+  matrix->pins =
+      (MatrixPins *)heap_caps_malloc(sizeof(MatrixPins), MALLOC_CAP_INTERNAL);
   memcpy(matrix->pins, &config->pins, sizeof(MatrixPins));
 
   // setup GPIO pins
@@ -211,7 +212,7 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
   // setup the timer
   gptimer_config_t timer_config = {
       .clk_src = GPTIMER_CLK_SRC_DEFAULT,
-      .direction = GPTIMER_COUNT_UP,
+      .direction = GPTIMER_COUNT_DOWN,
       .resolution_hz = MATRIX_TIMER_RESOLUTION,
       .intr_priority = 3,
   };
@@ -230,12 +231,16 @@ esp_err_t matrixInit(MatrixHandle *matrixHandle, MatrixInitConfig *config) {
 
   // timer alarm
   gptimer_alarm_config_t alarm_config = {
-      .alarm_count = MATRIX_TIMER_ALARM,
-      .reload_count = 0,
-      .flags.auto_reload_on_alarm = true,
+      // counting down, so we set a value and count to 0
+      .alarm_count = 0,
+      .reload_count = MATRIX_TIMER_ALARM,
+      .flags.auto_reload_on_alarm = false,
   };
   ESP_RETURN_ON_ERROR(gptimer_set_alarm_action(matrix->timer, &alarm_config),
                       TAG, "Failed to create timer alarm");
+
+  ESP_RETURN_ON_ERROR(gptimer_set_raw_count(matrix->timer, MATRIX_TIMER_ALARM),
+                      TAG, "Failed to set timer raw count");
 
   // pass back the config
   *matrixHandle = matrix;
@@ -270,7 +275,8 @@ esp_err_t matrixEnd(MatrixHandle matrix) {
 }
 
 // Shows a `buffer` in the `matrix`
-esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
+esp_err_t matrixShow(MatrixHandle matrix, uint8_t *bufferRed,
+                     uint8_t *bufferGreen, uint8_t *bufferBlue) {
   uint16_t rowAndBitOffset;
   uint16_t rowOffset;
   uint8_t row;
@@ -282,13 +288,19 @@ esp_err_t matrixShow(MatrixHandle matrix, uint16_t *buffer) {
       rowOffset = (row * matrix->width);
       rowAndBitOffset = rowOffset + (bitNum * matrix->width * matrix->height);
       for (col = 0; col < matrix->width; col++) {
-        SET_565_MATRIX_BYTE(
+        SET_MATRIX_BYTE(
             // put the value into the variable
             matrix->displayBuffer[rowAndBitOffset + col],
-            // pull the "top" row from the frame buffer
-            buffer[rowOffset + col],
-            // pull the "bottom" row ...
-            buffer[matrix->splitOffset + rowOffset + col],
+            // pull the "top" red from the frame buffer
+            bufferRed[rowOffset + col],
+            // pull the "top" green from the frame buffer
+            bufferGreen[rowOffset + col],
+            // pull the "top" blue from the frame buffer
+            bufferBlue[rowOffset + col],
+            // pull the "bottom" ...
+            bufferRed[matrix->splitOffset + rowOffset + col],
+            bufferGreen[matrix->splitOffset + rowOffset + col],
+            bufferBlue[matrix->splitOffset + rowOffset + col],
             // just this loop's bit
             bitNum);
       }
