@@ -26,7 +26,7 @@ const getTargetIndex = ({ target }: { target?: EventTarget }) => {
 }
 
 const bitmapToTextfieldData = (bitmap: Bitmap) => {
-  return JSON.stringify(bitmap.data).replace(/\[|\]|,$|/g, "")
+  return JSON.stringify(bitmap.data)
 }
 
 const DrawingBitmap = ({
@@ -53,13 +53,15 @@ const DrawingBitmap = ({
     (index: number) => {
       setBitmap((prev) => {
         const newBitmap = { ...prev }
-        newBitmap.data[index] = clearMode
-          ? 0
-          : rgbTo565(
-              parseInt(red || "0"),
-              parseInt(green || "0"),
-              parseInt(blue || "0")
-            )
+        if (clearMode) {
+          newBitmap.data.red[index] = 0
+          newBitmap.data.green[index] = 0
+          newBitmap.data.blue[index] = 0
+        } else {
+          newBitmap.data.red[index] = parseInt(red || "0")
+          newBitmap.data.green[index] = parseInt(green || "0")
+          newBitmap.data.blue[index] = parseInt(blue || "0")
+        }
         return newBitmap
       })
     },
@@ -127,12 +129,23 @@ const DrawingBitmap = ({
 
   const hydrateFromTextarea = useCallback(() => {
     try {
-      const data = JSON.parse(`[${textAreaValue}]`)
+      const data = JSON.parse(textAreaValue)
       if (
-        !Array.isArray(data) ||
-        data.length !== bitmap.size.width * bitmap.size.height
+        !data ||
+        typeof data !== "object" ||
+        !("red" in data) ||
+        !("green" in data) ||
+        !("blue" in data) ||
+        !Array.isArray(data.red) ||
+        !Array.isArray(data.green) ||
+        !Array.isArray(data.blue) ||
+        data.red.length !== bitmap.size.width * bitmap.size.height ||
+        data.green.length !== bitmap.size.width * bitmap.size.height ||
+        data.blue.length !== bitmap.size.width * bitmap.size.height
       ) {
-        alert("The value must be an array of the correct length.")
+        alert(
+          "The value must be `{ red: [], green: [], blue: [] }` where each array is the correct length."
+        )
         return
       }
       setBitmap({
@@ -312,7 +325,11 @@ const SavedBitmap = ({
     }
     const bitmap = {
       ...drawingBitmapRef.current,
-      data: [...drawingBitmapRef.current.data],
+      data: {
+        red: [...drawingBitmapRef.current.data.red],
+        green: [...drawingBitmapRef.current.data.green],
+        blue: [...drawingBitmapRef.current.data.blue],
+      },
     }
 
     setPrevBitmaps((c) => (currentBitmap ? [...c, currentBitmap] : c))
@@ -392,7 +409,8 @@ const SavedBitmap = ({
           Data:
           <br />
           <textarea
-            value={JSON.stringify(currentBitmap.data).replace(/\[|\]|,$|/g, "")}
+            value={bitmapToTextfieldData(currentBitmap)}
+            onChange={() => {}}
           />
         </div>
       )}
