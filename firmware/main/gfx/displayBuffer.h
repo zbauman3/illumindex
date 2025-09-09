@@ -90,5 +90,7 @@ void displayBufferDrawLine(DisplayBufferHandle db, uint8_t toX, uint8_t toY);
 void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
                              uint8_t height, uint8_t *bufferRed,
                              uint8_t *bufferGreen, uint8_t *bufferBlue);
+void displayBufferDrawGraph(DisplayBufferHandle db, uint8_t width,
+                            uint8_t height, uint8_t *values);
 void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
                               bool commandsInvalid, bool isDevMode);

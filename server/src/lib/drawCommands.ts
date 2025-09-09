@@ -8,6 +8,7 @@ import type {
   DrawingState,
   AnimationState,
   ColorRGB,
+  Size,
 } from "./types"
 
 const parseAndSetState = (state: DrawingState, command: Command): void => {
@@ -224,6 +225,44 @@ const drawString = ({
   }
 }
 
+const drawGraph = ({
+  state,
+  size,
+  values,
+  bitmap,
+}: {
+  state: DrawingState
+  size: Size
+  values: number[]
+  bitmap: Bitmap
+}) => {
+  if (values.length < size.width) {
+    throw new Error("Not enough values to fill graph width")
+  }
+
+  const maxValue = Math.max(...values)
+  const minValue = Math.min(...values)
+  if (maxValue > size.height) {
+    throw new Error("Max value exceeds graph height")
+  }
+  if (minValue < 0) {
+    throw new Error("Min value is below zero")
+  }
+
+  values.forEach((value, x) => {
+    const parsedValue = Math.min(Math.max(value, 0), size.height)
+    drawLine({
+      from: { x: state.cursor.x + x, y: state.cursor.y + size.height - 1 },
+      to: {
+        x: state.cursor.x + x,
+        y: state.cursor.y + size.height - parsedValue,
+      },
+      color: state.color,
+      bitmap,
+    })
+  })
+}
+
 /**
  * This function takes a bitmap and a list of commands, and draws the
  * commands onto the bitmap.
@@ -334,6 +373,14 @@ export const drawCommands = ({
         drawString({
           state,
           value: dateStr,
+          bitmap: loopBitmap,
+        })
+        break
+      case "graph":
+        drawGraph({
+          state,
+          size: command.size,
+          values: command.values,
           bitmap: loopBitmap,
         })
         break

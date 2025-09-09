@@ -87,6 +87,13 @@ esp_err_t commandInit(CommandHandle *commandHandle, CommandType type) {
     command->value.date = (CommandDate *)malloc(sizeof(CommandDate));
     command->value.date->state = NULL;
     break;
+  case COMMAND_TYPE_GRAPH:
+    command->value.graph = (CommandGraph *)malloc(sizeof(CommandGraph));
+    command->value.graph->state = NULL;
+    command->value.graph->height = 0;
+    command->value.graph->width = 0;
+    command->value.graph->values = NULL;
+    break;
   default:
     free(command);
     return ESP_ERR_INVALID_ARG;
@@ -135,6 +142,11 @@ void commandCleanup(CommandHandle command) {
   case COMMAND_TYPE_DATE:
     commandStateCleanup(command->value.date->state);
     free(command->value.date);
+    break;
+  case COMMAND_TYPE_GRAPH:
+    commandStateCleanup(command->value.graph->state);
+    free(command->value.graph->values);
+    free(command->value.graph);
     break;
   }
 
@@ -547,6 +559,45 @@ void parseAndAppendSetState(CommandListHandle commandList,
   parseAndAddState(commandJson, "setState", &command->value.setState->state);
 }
 
+void parseAndAppendGraph(CommandListHandle commandList,
+                         const cJSON *commandJson) {
+  const cJSON *size = cJSON_GetObjectItemCaseSensitive(commandJson, "size");
+  const cJSON *values = cJSON_GetObjectItemCaseSensitive(commandJson, "values");
+  if (!cJSON_IsObject(size) || !cJSON_IsArray(values)) {
+    invalidShapeWarn("graph");
+    return;
+  }
+
+  const cJSON *sizeW = cJSON_GetObjectItemCaseSensitive(size, "width");
+  const cJSON *sizeH = cJSON_GetObjectItemCaseSensitive(size, "height");
+  if (!cJSON_IsNumber(sizeW) || !cJSON_IsNumber(sizeH)) {
+    invalidPropWarn("graph", "size");
+    return;
+  }
+
+  CommandHandle command;
+  commandListNodeInit(commandList, COMMAND_TYPE_GRAPH, &command);
+
+  parseAndAddState(commandJson, "graph", &command->value.graph->state);
+
+  command->value.graph->width = sizeW->valueint;
+  command->value.graph->height = sizeH->valueint;
+  command->value.graph->values =
+      (uint8_t *)malloc(cJSON_GetArraySize(values) * sizeof(uint8_t));
+
+  const cJSON *value = NULL;
+  uint16_t valIndex = 0;
+  cJSON_ArrayForEach(value, values) {
+    if (cJSON_IsNumber(value)) {
+      command->value.graph->values[valIndex] = (uint8_t)value->valueint;
+    } else {
+      invalidPropWarn("graph", "value");
+      command->value.graph->values[valIndex] = 0;
+    }
+    valIndex++;
+  }
+}
+
 esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
                         size_t length) {
   esp_err_t ret = ESP_OK;
@@ -594,6 +645,8 @@ esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
           parseAndAppendTime(*commandListHandle, commandJson);
         } else if (strcmp(type->valuestring, "date") == 0) {
           parseAndAppendDate(*commandListHandle, commandJson);
+        } else if (strcmp(type->valuestring, "graph") == 0) {
+          parseAndAppendGraph(*commandListHandle, commandJson);
         } else {
           ESP_LOGW(TAG, "Command %u does not have a valid 'type'",
                    commandIndex);

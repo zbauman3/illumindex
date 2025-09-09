@@ -232,6 +232,15 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
   }
 }
 
+void displayBufferDrawGraph(DisplayBufferHandle db, uint8_t width,
+                            uint8_t height, uint8_t *values) {
+  for (uint8_t x = 0; x < width; x++) {
+    uint8_t value = MAX(MIN(values[x], height), 0);
+    displayBufferSetCursor(db, db->cursor.x + x, db->cursor.y + height - 1);
+    displayBufferDrawFastVertLine(db, db->cursor.y + height - value);
+  }
+}
+
 void displayBufferAddFeedback(DisplayBufferHandle db, bool remoteStateInvalid,
                               bool commandsInvalid, bool isDevMode) {
   if (isDevMode) {

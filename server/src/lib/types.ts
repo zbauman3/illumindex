@@ -92,6 +92,12 @@ export type CommandDate = State & {
   type: "date"
 }
 
+export type CommandGraph = State & {
+  type: "graph"
+  size: Size
+  values: number[]
+}
+
 export type Command =
   | CommandString
   | CommandLine
@@ -101,6 +107,7 @@ export type Command =
   | CommandAnimation
   | CommandTime
   | CommandDate
+  | CommandGraph
 
 export type Bitmap = Pick<CommandBitmap, "size" | "data">
 

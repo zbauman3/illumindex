@@ -123,6 +123,23 @@ export const main = async (): Promise<CommandApiResponse> => {
         fontSize: "sm",
       }
     )
+
+    commands.splice(0, commands.length - 1)
+
+    commands.push({
+      type: "graph",
+      position: {
+        x: 1,
+        y: SCREEN.height - 21,
+      },
+      size: {
+        width: 20,
+        height: 20,
+      },
+      values: [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+      ],
+    })
   } catch (e) {
     console.error("Unable to generate weather data", e)
   }

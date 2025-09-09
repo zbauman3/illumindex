@@ -57,6 +57,7 @@ typedef struct {
 #define COMMAND_TYPE_ANIMATION 5
 #define COMMAND_TYPE_TIME 6
 #define COMMAND_TYPE_DATE 7
+#define COMMAND_TYPE_GRAPH 8
 
 typedef enum {
   typeString = COMMAND_TYPE_STRING,
@@ -67,6 +68,7 @@ typedef enum {
   typeAnimation = COMMAND_TYPE_ANIMATION,
   typeTime = COMMAND_TYPE_TIME,
   typeDate = COMMAND_TYPE_DATE,
+  typeGraph = COMMAND_TYPE_GRAPH,
 } CommandType;
 
 // -------- Individual Commands
@@ -119,6 +121,13 @@ typedef struct {
   CommandState *state;
 } CommandDate;
 
+typedef struct {
+  CommandState *state;
+  uint8_t height;
+  uint8_t width;
+  uint8_t *values;
+} CommandGraph;
+
 // -------- high-level usage structs/fns
 
 typedef union {
@@ -130,6 +139,7 @@ typedef union {
   CommandAnimation *animation;
   CommandTime *time;
   CommandDate *date;
+  CommandGraph *graph;
 } CommandValueUnion;
 
 typedef struct {

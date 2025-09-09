@@ -126,6 +126,13 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       displayBufferDrawString(display->displayBuffer, timeString);
       break;
     }
+    case COMMAND_TYPE_GRAPH:
+      setState(display->displayBuffer, loopNode->command->value.graph->state);
+      displayBufferDrawGraph(display->displayBuffer,
+                             loopNode->command->value.graph->width,
+                             loopNode->command->value.graph->height,
+                             loopNode->command->value.graph->values);
+      break;
     }
 
     loopNode = loopNode->next;
