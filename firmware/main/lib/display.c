@@ -314,9 +314,7 @@ void displayEnd(DisplayHandle display) {
     vTaskDelete(display->animationTaskHandle);
   }
 
-  if (display->lastEtag != NULL) {
-    free(display->lastEtag);
-  }
+  free(display->lastEtag);
   free(display);
 }
 

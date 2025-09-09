@@ -107,13 +107,9 @@ esp_err_t requestInit(RequestContextHandle *ctxHandle) {
 }
 
 esp_err_t requestEnd(RequestContextHandle ctx) {
+  requestEtagEnd(&ctx->response->eTag);
+  requestEtagEnd(&ctx->eTag);
   free(ctx->response->data);
-  if (ctx->response->eTag != NULL) {
-    free(ctx->response->eTag);
-  }
-  if (ctx->eTag != NULL) {
-    free(ctx->eTag);
-  }
   free(ctx->response);
   free(ctx);
   return ESP_OK;
