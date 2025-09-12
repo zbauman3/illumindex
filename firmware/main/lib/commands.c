@@ -246,7 +246,7 @@ void parseAndAddState(const cJSON *commandJson, char *type,
   }
 
   const cJSON *color = cJSON_GetObjectItemCaseSensitive(commandJson, "color");
-  if (cJSON_IsObject(color)) {
+  if (cJSON_IsObject(color) && !cJSON_IsNull(color)) {
     const cJSON *red = cJSON_GetObjectItemCaseSensitive(color, "red");
     const cJSON *green = cJSON_GetObjectItemCaseSensitive(color, "green");
     const cJSON *blue = cJSON_GetObjectItemCaseSensitive(color, "blue");
@@ -263,8 +263,6 @@ void parseAndAddState(const cJSON *commandJson, char *type,
     } else {
       invalidPropWarn(type, "color");
     }
-  } else {
-    invalidPropWarn(type, "color");
   }
 
   const cJSON *pos = cJSON_GetObjectItemCaseSensitive(commandJson, "position");
@@ -297,7 +295,8 @@ void parseAndAddConfig(const cJSON *json, CommandListHandle commandList) {
   const cJSON *animationDelay =
       cJSON_GetObjectItemCaseSensitive(config, "animationDelay");
 
-  if (cJSON_IsNumber(animationDelay) && animationDelay->valueint > 5) {
+  if (cJSON_IsNumber(animationDelay) && animationDelay->valueint > 5 &&
+      animationDelay->valueint <= 65535) {
     commandList->config.animationDelay = (uint16_t)animationDelay->valueint;
   }
 }

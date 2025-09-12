@@ -37,22 +37,25 @@ void setState(DisplayBufferHandle db, CommandState *state) {
 
 esp_err_t displayBuildAndShow(DisplayHandle display) {
   displayBufferClear(display->displayBuffer);
+  displayBufferSetCursor(display->displayBuffer, 0, 0);
 
   CommandListNode *loopNode = display->commands->head;
   while (loopNode != NULL) {
     switch (loopNode->command->type) {
-    case COMMAND_TYPE_STRING:
+    case COMMAND_TYPE_STRING: {
       setState(display->displayBuffer, loopNode->command->value.string->state);
       displayBufferDrawString(display->displayBuffer,
                               loopNode->command->value.string->value);
       break;
-    case COMMAND_TYPE_LINE:
+    }
+    case COMMAND_TYPE_LINE: {
       setState(display->displayBuffer, loopNode->command->value.line->state);
       displayBufferDrawLine(display->displayBuffer,
                             loopNode->command->value.line->toX,
                             loopNode->command->value.line->toY);
       break;
-    case COMMAND_TYPE_BITMAP:
+    }
+    case COMMAND_TYPE_BITMAP: {
       setState(display->displayBuffer, loopNode->command->value.bitmap->state);
       displayBufferDrawBitmap(display->displayBuffer,
                               loopNode->command->value.bitmap->width,
@@ -61,13 +64,16 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
                               loopNode->command->value.bitmap->dataGreen,
                               loopNode->command->value.bitmap->dataBlue);
       break;
-    case COMMAND_TYPE_SETSTATE:
+    }
+    case COMMAND_TYPE_SETSTATE: {
       setState(display->displayBuffer,
                loopNode->command->value.setState->state);
       break;
-    case COMMAND_TYPE_LINEFEED:
+    }
+    case COMMAND_TYPE_LINEFEED: {
       displayBufferLineFeed(display->displayBuffer);
       break;
+    }
     case COMMAND_TYPE_ANIMATION: {
       loopNode->command->value.animation->lastShowFrame++;
       if (loopNode->command->value.animation->lastShowFrame >=
@@ -126,13 +132,18 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       displayBufferDrawString(display->displayBuffer, timeString);
       break;
     }
-    case COMMAND_TYPE_GRAPH:
+    case COMMAND_TYPE_GRAPH: {
       setState(display->displayBuffer, loopNode->command->value.graph->state);
       displayBufferDrawGraph(display->displayBuffer,
                              loopNode->command->value.graph->width,
                              loopNode->command->value.graph->height,
                              loopNode->command->value.graph->values);
       break;
+    }
+    default: {
+      ESP_LOGW(TAG, "Unknown command type %d", loopNode->command->type);
+      break;
+    }
     }
 
     loopNode = loopNode->next;

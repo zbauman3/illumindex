@@ -117,7 +117,7 @@ void displayBufferDrawString(DisplayBufferHandle db, char *string) {
 void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
   // faster to write it twice ¯\_(ツ)_/¯
   if (db->cursor.y > to) {
-    while (db->cursor.y >= to) {
+    while (db->cursor.y > to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
@@ -127,7 +127,7 @@ void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
       db->cursor.y--;
     }
   } else {
-    while (db->cursor.y <= to) {
+    while (db->cursor.y < to) {
       if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
         safeSetBufferValue(
             db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
@@ -136,6 +136,11 @@ void displayBufferDrawFastVertLine(DisplayBufferHandle db, uint8_t to) {
 
       db->cursor.y++;
     }
+  }
+  if (displayBufferPointIsVisible(db, db->cursor.x, db->cursor.y)) {
+    safeSetBufferValue(
+        db, displayBufferPointToIndex(db, db->cursor.x, db->cursor.y),
+        db->colorRed, db->colorGreen, db->colorBlue);
   }
 
   displayBufferSetCursor(db, db->cursor.x, to);
@@ -234,10 +239,12 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
 
 void displayBufferDrawGraph(DisplayBufferHandle db, uint8_t width,
                             uint8_t height, uint8_t *values) {
+  uint8_t cursorStartX = db->cursor.x;
+  uint8_t cursorStartY = db->cursor.y;
   for (uint8_t x = 0; x < width; x++) {
     uint8_t value = MAX(MIN(values[x], height), 0);
-    displayBufferSetCursor(db, db->cursor.x + x, db->cursor.y + height - 1);
-    displayBufferDrawFastVertLine(db, db->cursor.y + height - value);
+    displayBufferSetCursor(db, cursorStartX + x, cursorStartY + height - 1);
+    displayBufferDrawFastVertLine(db, cursorStartY + height - value);
   }
 }
 
