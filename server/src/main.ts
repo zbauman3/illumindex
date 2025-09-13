@@ -1,24 +1,38 @@
 import {
-  CommandAnimation,
-  createBitmap,
-  drawCommands,
+  AnimationFrameCommand,
   fontSizeDetailsMap,
   type Command,
   type CommandApiResponse,
 } from "@/lib"
 import {
   getWeatherData,
-  generateWeatherGraphBitmaps,
+  generateWeatherGraphs,
   // weatherCodeToBitmap,
 } from "./data/weather"
 import { SCREEN } from "@/data/constants"
 
 export const main = async (): Promise<CommandApiResponse> => {
-  const commands: Command[] = []
+  const commands: Command[] = [
+    {
+      type: "time",
+      position: { x: 0, y: 0 },
+      fontSize: "lg",
+      color: {
+        red: 255,
+        green: 255,
+        blue: 255,
+      },
+    },
+    {
+      type: "date",
+      position: { x: 1, y: fontSizeDetailsMap.lg.height },
+      fontSize: "sm",
+    },
+  ]
 
   try {
     const weather = await getWeatherData()
-    const weatherGraphBitmaps = generateWeatherGraphBitmaps(weather)
+    const weatherGraphs = generateWeatherGraphs(weather)
 
     const tempMax = Math.max(...weather.hourly.temperature_2m)
     const tempMin = Math.min(...weather.hourly.temperature_2m)
@@ -32,113 +46,53 @@ export const main = async (): Promise<CommandApiResponse> => {
 
     commands.push({
       type: "animation",
-      position: {
-        x: 0,
-        y: 0,
-      },
-      size: {
-        width: SCREEN.width,
-        height: SCREEN.height,
-      },
-      frames: Object.entries(weatherGraphBitmaps.bitmaps)
-        .map(
-          ([name, graph]) =>
-            drawCommands({
-              bitmap: createBitmap(SCREEN.width, SCREEN.height),
-              config: {
-                animationDelay: 1000,
-              },
-              allAnimationStates: [],
-              commands: [
-                {
-                  type: "string",
-                  value: bitmapNameToText[name],
-                  position: {
-                    x: 0,
-                    y:
-                      SCREEN.height -
-                      weatherGraphBitmaps.height -
-                      fontSizeDetailsMap.sm.height,
-                  },
-                  fontSize: "sm",
-                  color: {
-                    red: 255,
-                    green: 255,
-                    blue: 255,
-                  },
-                },
-                {
-                  type: "bitmap",
-                  position: {
-                    x: 0,
-                    y: SCREEN.height - weatherGraphBitmaps.height,
-                  },
-                  ...graph.bitmap,
-                },
-                // {
-                //   type: "bitmap",
-                //   position: {
-                //     x: 33,
-                //     y: SCREEN.height - weatherGraphBitmaps.height - 30,
-                //   },
-                //   ...weatherCodeToBitmap({
-                //     code: weather.current.weather_code,
-                //     isDayTime: weather.current.is_day,
-                //   }),
-                // },
-              ],
-            }).data
-        )
-        .reduce(
-          (acc, loopFrame) => {
-            acc.red.push(loopFrame.red)
-            acc.green.push(loopFrame.green)
-            acc.blue.push(loopFrame.blue)
-            return acc
+      frames: Object.entries(weatherGraphs.graphs).map<AnimationFrameCommand[]>(
+        ([name, graph]) => [
+          {
+            type: "string",
+            value: bitmapNameToText[name],
+            position: {
+              x: 0,
+              y:
+                SCREEN.height -
+                weatherGraphs.size.height -
+                fontSizeDetailsMap.sm.height,
+            },
+            fontSize: "sm",
+            color: {
+              red: 255,
+              green: 255,
+              blue: 255,
+            },
           },
           {
-            red: [],
-            green: [],
-            blue: [],
-          } as CommandAnimation["frames"]
-        ),
-    })
-
-    commands.push(
-      {
-        type: "time",
-        position: { x: 0, y: 0 },
-        fontSize: "lg",
-        color: {
-          red: 255,
-          green: 255,
-          blue: 255,
-        },
-      },
-      {
-        type: "line-feed",
-      },
-      {
-        type: "date",
-        fontSize: "sm",
-      }
-    )
-
-    commands.splice(0, commands.length - 1)
-
-    commands.push({
-      type: "graph",
-      position: {
-        x: 1,
-        y: SCREEN.height - 21,
-      },
-      size: {
-        width: 20,
-        height: 20,
-      },
-      values: [
-        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
-      ],
+            type: "graph",
+            position: {
+              x: 0,
+              y: SCREEN.height - weatherGraphs.size.height,
+            },
+            color: graph.color,
+            backgroundColor: {
+              red: 50,
+              green: 50,
+              blue: 50,
+            },
+            size: graph.size,
+            values: graph.data,
+          },
+          // {
+          //   type: "bitmap",
+          //   position: {
+          //     x: 33,
+          //     y: SCREEN.height - weatherGraphBitmaps.height - 30,
+          //   },
+          //   ...weatherCodeToBitmap({
+          //     code: weather.current.weather_code,
+          //     isDayTime: weather.current.is_day,
+          //   }),
+          // },
+        ]
+      ),
     })
   } catch (e) {
     console.error("Unable to generate weather data", e)

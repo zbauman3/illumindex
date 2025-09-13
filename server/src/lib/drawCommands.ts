@@ -225,16 +225,40 @@ const drawString = ({
   }
 }
 
+const fillRect = ({
+  point,
+  size,
+  color,
+  bitmap,
+}: {
+  point: Point
+  size: Size
+  color: ColorRGB
+  bitmap: Bitmap
+}) => {
+  for (let y = 0; y < size.height; y++) {
+    for (let x = 0; x < size.width; x++) {
+      setMatrixValue({
+        point: { x: point.x + x, y: point.y + y },
+        color,
+        bitmap,
+      })
+    }
+  }
+}
+
 const drawGraph = ({
   state,
   size,
   values,
   bitmap,
+  backgroundColor,
 }: {
   state: DrawingState
   size: Size
   values: number[]
   bitmap: Bitmap
+  backgroundColor?: ColorRGB
 }) => {
   if (values.length < size.width) {
     throw new Error("Not enough values to fill graph width")
@@ -249,13 +273,26 @@ const drawGraph = ({
     throw new Error("Min value is below zero")
   }
 
+  if (backgroundColor) {
+    fillRect({
+      point: state.cursor,
+      size,
+      color: backgroundColor,
+      bitmap,
+    })
+  }
+
   values.forEach((value, x) => {
-    const parsedValue = Math.min(Math.max(value, 0), size.height)
+    // don't draw anything for zero values
+    if (value === 0) {
+      return
+    }
+
     drawLine({
       from: { x: state.cursor.x + x, y: state.cursor.y + size.height - 1 },
       to: {
         x: state.cursor.x + x,
-        y: state.cursor.y + size.height - parsedValue,
+        y: state.cursor.y + size.height - value,
       },
       color: state.color,
       bitmap,
@@ -274,7 +311,7 @@ export const drawCommands = ({
 }: {
   bitmap: Bitmap
   allAnimationStates: AnimationState[]
-} & CommandApiResponse): Bitmap => {
+} & Pick<CommandApiResponse, "commands">): Bitmap => {
   const state: DrawingState = {
     cursor: { x: 0, y: 0 },
     color: { red: 255, green: 255, blue: 255 },
@@ -283,7 +320,7 @@ export const drawCommands = ({
     },
   }
   const loopBitmap: Bitmap = bitmap
-  const animationCount = 0
+  let animationCount = 0
 
   for (const command of commands) {
     parseAndSetState(state, command)
@@ -303,30 +340,20 @@ export const drawCommands = ({
           animationState.lastShowFrame = 0
         }
 
-        const prevX = state.cursor.x
-        const prevY = state.cursor.y
+        const frameCommands = command.frames[animationState.lastShowFrame]
+        if (!frameCommands) {
+          throw new Error(`Missing frame ${animationState.lastShowFrame}`)
+        }
 
-        state.cursor.x = command.position.x
-        state.cursor.y = command.position.y
+        const withAnimationApplied = drawCommands({
+          bitmap: loopBitmap,
+          commands: frameCommands,
+          // no sub-animations are allowed, so pass in empty state
+          allAnimationStates: [],
+        })
 
-        loopBitmap.data = mergeBitmaps({
-          base: loopBitmap,
-          overlays: [
-            {
-              data: {
-                red: command.frames.red[animationState.lastShowFrame],
-                green: command.frames.green[animationState.lastShowFrame],
-                blue: command.frames.blue[animationState.lastShowFrame],
-              },
-              size: command.size,
-            },
-          ],
-          offsetX: state.cursor.x,
-          offsetY: state.cursor.y,
-        }).data
-
-        state.cursor.x = prevX
-        state.cursor.y = prevY
+        loopBitmap.data = withAnimationApplied.data
+        animationCount++
         break
       case "bitmap":
         loopBitmap.data = mergeBitmaps({
@@ -382,6 +409,7 @@ export const drawCommands = ({
           size: command.size,
           values: command.values,
           bitmap: loopBitmap,
+          backgroundColor: command.backgroundColor,
         })
         break
       default:

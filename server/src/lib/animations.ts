@@ -8,8 +8,8 @@ export const createNewAnimationsState = (
     if (command.type === "animation") {
       allAnimationsState.push({
         // start from the last one, so the first one is shown next
-        lastShowFrame: command.frames.red.length - 1,
-        frameCount: command.frames.red.length,
+        lastShowFrame: command.frames.length - 1,
+        frameCount: command.frames.length,
       })
     }
   })

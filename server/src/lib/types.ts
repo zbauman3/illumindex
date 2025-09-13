@@ -70,13 +70,7 @@ export type CommandLineFeed = {
 
 export type CommandAnimation = {
   type: "animation"
-  position: Point
-  size: Size
-  frames: {
-    red: number[][]
-    green: number[][]
-    blue: number[][]
-  }
+  frames: AnimationFrameCommand[][]
 }
 
 export type AnimationState = {
@@ -96,6 +90,7 @@ export type CommandGraph = State & {
   type: "graph"
   size: Size
   values: number[]
+  backgroundColor?: ColorRGB
 }
 
 export type Command =
@@ -108,6 +103,8 @@ export type Command =
   | CommandTime
   | CommandDate
   | CommandGraph
+
+export type AnimationFrameCommand = Exclude<Command, CommandAnimation>
 
 export type Bitmap = Pick<CommandBitmap, "size" | "data">
 

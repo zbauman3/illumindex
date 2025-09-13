@@ -20,7 +20,6 @@ export const AnimatedBitmap = ({ commands, config }: CommandApiResponse) => {
       const updateBitmap = drawCommands({
         bitmap: newBitmap,
         commands,
-        config,
         allAnimationStates,
       })
 

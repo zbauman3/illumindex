@@ -1,14 +1,15 @@
 import {
   Bitmap,
-  Command,
-  createBitmap,
-  drawCommands,
   generateGraphValues,
-  Size,
   ColorRGB,
+  Size,
   // mergeBitmaps,
 } from "@/lib"
-import { scaleUpGraphValues, smoothGraphValues } from "@/lib/graphing"
+import {
+  GraphData,
+  scaleUpGraphValues,
+  smoothGraphValues,
+} from "@/lib/graphing"
 import z from "zod"
 import { SCREEN } from "./constants"
 // import * as bitmaps from "./bitmaps"
@@ -22,12 +23,9 @@ if (typeof endpoint !== "string") {
 
 export type WeatherData = Awaited<ReturnType<typeof getWeatherData>>
 
-type WeatherGraphBitmapData = {
-  bitmap: Bitmap
-  scaleMax: number
-  scaleMin: number
-  max: number
-  min: number
+type WeatherGraphData = GraphData & {
+  color: ColorRGB
+  size: Size
 }
 
 export const weatherCodeToBitmap = ({
@@ -206,42 +204,19 @@ export const getWeatherData = async () => {
   return reformatted
 }
 
-export const generateWeatherGraphBitmaps = (
+export const generateWeatherGraphs = (
   data: WeatherData
 ): {
-  bitmaps: {
-    cloud: WeatherGraphBitmapData
-    wind: WeatherGraphBitmapData
-    precipitation: WeatherGraphBitmapData
-    temperature: WeatherGraphBitmapData
+  size: Size
+  graphs: {
+    cloud: WeatherGraphData
+    wind: WeatherGraphData
+    precipitation: WeatherGraphData
+    temperature: WeatherGraphData
   }
-} & Size => {
+} => {
   const height = 16
   const width = SCREEN.width
-
-  const graphDataToBitmap = (graphData: number[], color: ColorRGB) => {
-    const graphCommands = graphData.map<Command>((val, i) => ({
-      type: "line",
-      color,
-      position: {
-        x: i,
-        y: height - 1,
-      },
-      to: {
-        x: i,
-        y: height - 1 - val,
-      },
-    }))
-
-    return drawCommands({
-      bitmap: createBitmap(width, height),
-      commands: graphCommands,
-      config: {
-        animationDelay: 1000,
-      },
-      allAnimationStates: [],
-    })
-  }
 
   // generate graph data
 
@@ -275,95 +250,74 @@ export const generateWeatherGraphBitmaps = (
   })
 
   // generate bitmaps from graph data
-
-  const cloudBitmap = graphDataToBitmap(
-    scaleUpGraphValues({
+  const cloudGraph: WeatherGraphData = {
+    ...cloudGraphValues,
+    data: scaleUpGraphValues({
       data: cloudGraphValues.data,
       width: width,
     }),
-    // dark gray for cloud cover
-    {
+    size: { width, height },
+    color: {
       red: 120,
       green: 120,
       blue: 120,
-    }
-  )
+    },
+  }
 
-  const windBitmap = graphDataToBitmap(
-    smoothGraphValues(
-      scaleUpGraphValues({
-        data: windGraphValues.data,
-        width: width,
-      })
-    ),
-    // light gray for wind speed
-    {
+  const windGraph: WeatherGraphData = {
+    ...windGraphValues,
+    data: scaleUpGraphValues({
+      data: windGraphValues.data,
+      width: width,
+    }),
+    size: { width, height },
+    color: {
       red: 255,
       green: 250,
       blue: 190,
-    }
-  )
+    },
+  }
 
-  const precipitationBitmap = graphDataToBitmap(
-    scaleUpGraphValues({
+  const precipitationGraph: WeatherGraphData = {
+    ...precipitationGraphValues,
+    data: scaleUpGraphValues({
       data: precipitationGraphValues.data,
       width: width,
     }),
-    // light blue for precipitation probability
-    {
+    size: { width, height },
+    color: {
       red: 80,
       green: 100,
       blue: 255,
-    }
-  )
+    },
+  }
 
-  const temperatureBitmap = graphDataToBitmap(
-    smoothGraphValues(
+  const temperatureGraph: WeatherGraphData = {
+    ...temperatureGraphValues,
+    data: smoothGraphValues(
       scaleUpGraphValues({
         data: temperatureGraphValues.data,
         width: width,
       })
     ),
-    // orange for temperature
-    {
+    size: { width, height },
+    color: {
       red: 255,
       green: 150,
       blue: 50,
-    }
-  )
+    },
+  }
 
   return {
-    width,
-    height,
-    bitmaps: {
-      cloud: {
-        bitmap: cloudBitmap,
-        scaleMax: cloudGraphValues.scaleMax,
-        max: cloudGraphValues.max,
-        scaleMin: cloudGraphValues.scaleMin,
-        min: cloudGraphValues.min,
-      },
-      wind: {
-        bitmap: windBitmap,
-        scaleMax: windGraphValues.scaleMax,
-        max: windGraphValues.max,
-        scaleMin: windGraphValues.scaleMin,
-        min: windGraphValues.min,
-      },
-      precipitation: {
-        bitmap: precipitationBitmap,
-        scaleMax: precipitationGraphValues.scaleMax,
-        max: precipitationGraphValues.max,
-        scaleMin: precipitationGraphValues.scaleMin,
-        min: precipitationGraphValues.min,
-      },
-      temperature: {
-        bitmap: temperatureBitmap,
-        scaleMax: temperatureGraphValues.scaleMax,
-        max: temperatureGraphValues.max,
-        scaleMin: temperatureGraphValues.scaleMin,
-        min: temperatureGraphValues.min,
-      },
+    size: {
+      width,
+      height,
+    },
+    graphs: {
+      cloud: cloudGraph,
+      wind: windGraph,
+      precipitation: precipitationGraph,
+      temperature: temperatureGraph,
     },
   }
 }

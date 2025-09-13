@@ -1,3 +1,11 @@
+export type GraphData = {
+  data: number[]
+  scaleMax: number
+  scaleMin: number
+  max: number
+  min: number
+}
+
 /**
  * Generates graph values from a set of data, scaling them to fit within a specified range.
  * It calculates the maximum and minimum values from the data, and then scales the values
@@ -26,13 +34,7 @@ export const generateGraphValues = ({
    * values will be scaled to fit within the range of 0 to 9.
    */
   height: number
-}): {
-  data: number[]
-  scaleMax: number
-  scaleMin: number
-  max: number
-  min: number
-} => {
+}): GraphData => {
   const scaleMax = Math.max(
     data.reduce((acc, temp) => (temp > acc ? temp : acc), 0),
     defaultMax
