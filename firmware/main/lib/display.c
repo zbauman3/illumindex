@@ -35,11 +35,10 @@ void setState(DisplayBufferHandle db, CommandState *state) {
   }
 }
 
-esp_err_t displayBuildAndShow(DisplayHandle display) {
-  displayBufferClear(display->displayBuffer);
-  displayBufferSetCursor(display->displayBuffer, 0, 0);
-
-  CommandListNode *loopNode = display->commands->head;
+void displayApplyCommandList(DisplayHandle display,
+                             CommandListHandle commandList,
+                             bool isInsideAnimation) {
+  CommandListNode *loopNode = commandList->head;
   while (loopNode != NULL) {
     switch (loopNode->command->type) {
     case COMMAND_TYPE_STRING: {
@@ -75,35 +74,23 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       break;
     }
     case COMMAND_TYPE_ANIMATION: {
+      if (isInsideAnimation) {
+        ESP_LOGW(
+            TAG,
+            "Nested animations are not supported. Skipping inner animation.");
+        break;
+      }
       loopNode->command->value.animation->lastShowFrame++;
       if (loopNode->command->value.animation->lastShowFrame >=
           loopNode->command->value.animation->frameCount) {
         loopNode->command->value.animation->lastShowFrame = 0;
       }
 
-      uint8_t prevX = display->displayBuffer->cursor.x;
-      uint8_t prevY = display->displayBuffer->cursor.y;
-      displayBufferSetCursor(display->displayBuffer,
-                             loopNode->command->value.animation->posX,
-                             loopNode->command->value.animation->posY);
-
-      displayBufferDrawBitmap(
-          display->displayBuffer, loopNode->command->value.animation->width,
-          loopNode->command->value.animation->height,
-          loopNode->command->value.animation->framesRed +
-              (loopNode->command->value.animation->lastShowFrame *
-               loopNode->command->value.animation->width *
-               loopNode->command->value.animation->height),
-          loopNode->command->value.animation->framesGreen +
-              (loopNode->command->value.animation->lastShowFrame *
-               loopNode->command->value.animation->width *
-               loopNode->command->value.animation->height),
-          loopNode->command->value.animation->framesBlue +
-              (loopNode->command->value.animation->lastShowFrame *
-               loopNode->command->value.animation->width *
-               loopNode->command->value.animation->height));
-
-      displayBufferSetCursor(display->displayBuffer, prevX, prevY);
+      displayApplyCommandList(
+          display,
+          loopNode->command->value.animation
+              ->frames[loopNode->command->value.animation->lastShowFrame],
+          true);
 
       break;
     }
@@ -137,7 +124,10 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
       displayBufferDrawGraph(display->displayBuffer,
                              loopNode->command->value.graph->width,
                              loopNode->command->value.graph->height,
-                             loopNode->command->value.graph->values);
+                             loopNode->command->value.graph->values,
+                             loopNode->command->value.graph->bgColorRed,
+                             loopNode->command->value.graph->bgColorGreen,
+                             loopNode->command->value.graph->bgColorBlue);
       break;
     }
     default: {
@@ -148,6 +138,13 @@ esp_err_t displayBuildAndShow(DisplayHandle display) {
 
     loopNode = loopNode->next;
   }
+}
+
+esp_err_t displayBuildAndShow(DisplayHandle display) {
+  displayBufferClear(display->displayBuffer);
+  displayBufferSetCursor(display->displayBuffer, 0, 0);
+
+  displayApplyCommandList(display, display->commands, false);
 
   displayBufferAddFeedback(
       display->displayBuffer, display->state->remoteStateInvalid,

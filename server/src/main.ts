@@ -73,9 +73,9 @@ export const main = async (): Promise<CommandApiResponse> => {
             },
             color: graph.color,
             backgroundColor: {
-              red: 50,
-              green: 50,
-              blue: 50,
+              red: 10,
+              green: 10,
+              blue: 10,
             },
             size: graph.size,
             values: graph.data,

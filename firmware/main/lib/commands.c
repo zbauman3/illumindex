@@ -16,6 +16,9 @@ static const char *TAG = "COMMANDS";
 #define invalidPropWarn(type, prop)                                            \
   ESP_LOGW(TAG, "Command of type '%s' has an invalid '%s'", type, prop)
 
+void parseCommandArray(CommandListHandle commandListHandle,
+                       const cJSON *commandArray, bool isInsideAnimation);
+
 // --------
 // Below are the functions related to initiating and cleaning up the structures
 // for commands. Ideally, all memory allocation and deallocation should occur
@@ -74,10 +77,9 @@ esp_err_t commandInit(CommandHandle *commandHandle, CommandType type) {
   case COMMAND_TYPE_ANIMATION:
     command->value.animation =
         (CommandAnimation *)malloc(sizeof(CommandAnimation));
-    command->value.animation->framesRed = NULL;
-    command->value.animation->framesGreen = NULL;
-    command->value.animation->framesBlue = NULL;
     command->value.animation->frameCount = 0;
+    command->value.animation->lastShowFrame = 0;
+    command->value.animation->frames = NULL;
     break;
   case COMMAND_TYPE_TIME:
     command->value.time = (CommandTime *)malloc(sizeof(CommandTime));
@@ -93,6 +95,9 @@ esp_err_t commandInit(CommandHandle *commandHandle, CommandType type) {
     command->value.graph->height = 0;
     command->value.graph->width = 0;
     command->value.graph->values = NULL;
+    command->value.graph->bgColorRed = 0;
+    command->value.graph->bgColorGreen = 0;
+    command->value.graph->bgColorBlue = 0;
     break;
   default:
     free(command);
@@ -130,9 +135,11 @@ void commandCleanup(CommandHandle command) {
     free(command->value.lineFeed);
     break;
   case COMMAND_TYPE_ANIMATION:
-    free(command->value.animation->framesRed);
-    free(command->value.animation->framesGreen);
-    free(command->value.animation->framesBlue);
+    for (uint16_t i = 0; i < command->value.animation->frameCount; i++) {
+      commandListCleanup(command->value.animation->frames[i]);
+      command->value.animation->frames[i] = NULL;
+    }
+    free(command->value.animation->frames);
     free(command->value.animation);
     break;
   case COMMAND_TYPE_TIME:
@@ -413,117 +420,31 @@ void parseAndAppendBitmap(CommandListHandle commandList,
 
 void parseAndAppendAnimation(CommandListHandle commandList,
                              const cJSON *commandJson) {
-  const cJSON *position =
-      cJSON_GetObjectItemCaseSensitive(commandJson, "position");
-  const cJSON *size = cJSON_GetObjectItemCaseSensitive(commandJson, "size");
-  const cJSON *framesObj =
+  const cJSON *framesArr =
       cJSON_GetObjectItemCaseSensitive(commandJson, "frames");
-  if (!cJSON_IsObject(position) || !cJSON_IsObject(size) ||
-      !cJSON_IsObject(framesObj) || cJSON_IsNull(framesObj)) {
+  if (!cJSON_IsArray(framesArr) || cJSON_IsNull(framesArr)) {
     invalidShapeWarn("animation");
-    return;
-  }
-
-  const cJSON *framesRed = cJSON_GetObjectItemCaseSensitive(framesObj, "red");
-  const cJSON *framesGreen =
-      cJSON_GetObjectItemCaseSensitive(framesObj, "green");
-  const cJSON *framesBlue = cJSON_GetObjectItemCaseSensitive(framesObj, "blue");
-  if (!cJSON_IsArray(framesRed) || !cJSON_IsArray(framesGreen) ||
-      !cJSON_IsArray(framesBlue)) {
-    invalidPropWarn("animation", "frames");
-    return;
-  }
-
-  const cJSON *posX = cJSON_GetObjectItemCaseSensitive(position, "x");
-  const cJSON *posY = cJSON_GetObjectItemCaseSensitive(position, "y");
-  if (!cJSON_IsNumber(posX) || !cJSON_IsNumber(posY)) {
-    invalidPropWarn("animation", "position");
-    return;
-  }
-
-  const cJSON *sizeW = cJSON_GetObjectItemCaseSensitive(size, "width");
-  const cJSON *sizeH = cJSON_GetObjectItemCaseSensitive(size, "height");
-  if (!cJSON_IsNumber(sizeW) || !cJSON_IsNumber(sizeH)) {
-    invalidPropWarn("animation", "size");
     return;
   }
 
   CommandHandle command;
   commandListNodeInit(commandList, COMMAND_TYPE_ANIMATION, &command);
 
-  command->value.animation->frameCount = cJSON_GetArraySize(framesRed);
+  command->value.animation->frameCount = cJSON_GetArraySize(framesArr);
   // init the as the "last frame", so that we always start in the first
   command->value.animation->lastShowFrame =
       command->value.animation->frameCount - 1;
-  command->value.animation->posX = posX->valueint;
-  command->value.animation->posY = posY->valueint;
-  command->value.animation->width = sizeW->valueint;
-  command->value.animation->height = sizeH->valueint;
-  command->value.animation->framesRed = (uint8_t *)malloc(
-      command->value.animation->frameCount * command->value.animation->width *
-      command->value.animation->height * sizeof(uint8_t));
-  command->value.animation->framesGreen = (uint8_t *)malloc(
-      command->value.animation->frameCount * command->value.animation->width *
-      command->value.animation->height * sizeof(uint8_t));
-  command->value.animation->framesBlue = (uint8_t *)malloc(
-      command->value.animation->frameCount * command->value.animation->width *
-      command->value.animation->height * sizeof(uint8_t));
-
-  uint32_t frameLength =
-      command->value.animation->width * command->value.animation->height;
+  command->value.animation->frames = (void *)malloc(
+      sizeof(CommandListHandle) * command->value.animation->frameCount);
 
   // the frame we're iterating
   uint16_t frameI = 0;
-  // the value within the frame
-  uint16_t pixelValueI = 0;
-  const cJSON *frameRed = NULL;
-  const cJSON *frameGreen = NULL;
-  const cJSON *frameBlue = NULL;
-  const cJSON *pixelValueRed = NULL;
-  const cJSON *pixelValueGreen = NULL;
-  const cJSON *pixelValueBlue = NULL;
-
+  const cJSON *frameCommandsArr = NULL;
   // now loop all frames and extract their values
-  cJSON_ArrayForEach(frameRed, framesRed) {
-    frameGreen = cJSON_GetArrayItem(framesGreen, frameI);
-    frameBlue = cJSON_GetArrayItem(framesBlue, frameI);
-    if (cJSON_IsArray(frameRed) && cJSON_IsArray(frameGreen) &&
-        cJSON_IsArray(frameBlue)) {
-      pixelValueI = 0;
-      cJSON_ArrayForEach(pixelValueRed, frameRed) {
-        pixelValueGreen = cJSON_GetArrayItem(frameGreen, pixelValueI);
-        pixelValueBlue = cJSON_GetArrayItem(frameBlue, pixelValueI);
-        if (pixelValueI < frameLength) {
-          if (cJSON_IsNumber(pixelValueRed) &&
-              cJSON_IsNumber(pixelValueGreen) &&
-              cJSON_IsNumber(pixelValueBlue)) {
-            command->value.animation
-                ->framesRed[(frameI * command->value.animation->width *
-                             command->value.animation->height) +
-                            pixelValueI] = (uint8_t)pixelValueRed->valueint;
-            command->value.animation
-                ->framesGreen[(frameI * command->value.animation->width *
-                               command->value.animation->height) +
-                              pixelValueI] = (uint8_t)pixelValueGreen->valueint;
-            command->value.animation
-                ->framesBlue[(frameI * command->value.animation->width *
-                              command->value.animation->height) +
-                             pixelValueI] = (uint8_t)pixelValueBlue->valueint;
-          } else {
-            invalidPropWarn("animation", "frames > frame > value");
-          }
-        } else {
-          invalidPropWarn("animation", "frames > frame.length");
-          // no need to continue if we're past the frame length
-          break;
-        }
-
-        pixelValueI++;
-      }
-    } else {
-      invalidPropWarn("animation", "frames > frame");
-    }
-
+  cJSON_ArrayForEach(frameCommandsArr, framesArr) {
+    commandListInit(&command->value.animation->frames[frameI]);
+    parseCommandArray(command->value.animation->frames[frameI],
+                      frameCommandsArr, true);
     frameI++;
   }
 }
@@ -579,6 +500,21 @@ void parseAndAppendGraph(CommandListHandle commandList,
 
   parseAndAddState(commandJson, "graph", &command->value.graph->state);
 
+  const cJSON *bgColor =
+      cJSON_GetObjectItemCaseSensitive(commandJson, "backgroundColor");
+  if (cJSON_IsObject(bgColor) && !cJSON_IsNull(bgColor)) {
+    const cJSON *red = cJSON_GetObjectItemCaseSensitive(bgColor, "red");
+    const cJSON *green = cJSON_GetObjectItemCaseSensitive(bgColor, "green");
+    const cJSON *blue = cJSON_GetObjectItemCaseSensitive(bgColor, "blue");
+    if (cJSON_IsNumber(red) && cJSON_IsNumber(green) && cJSON_IsNumber(blue)) {
+      command->value.graph->bgColorRed = (uint8_t)red->valueint;
+      command->value.graph->bgColorGreen = (uint8_t)green->valueint;
+      command->value.graph->bgColorBlue = (uint8_t)blue->valueint;
+    } else {
+      invalidPropWarn("graph", "backgroundColor");
+    }
+  }
+
   command->value.graph->width = sizeW->valueint;
   command->value.graph->height = sizeH->valueint;
   command->value.graph->values =
@@ -597,12 +533,58 @@ void parseAndAppendGraph(CommandListHandle commandList,
   }
 }
 
+void parseCommandArray(CommandListHandle commandListHandle,
+                       const cJSON *commandArray, bool isInsideAnimation) {
+  uint16_t commandIndex = 0;
+  const cJSON *commandJson = NULL;
+  const cJSON *commandType = NULL;
+
+  cJSON_ArrayForEach(commandJson, commandArray) {
+    if (cJSON_IsObject(commandJson)) {
+      commandType = cJSON_GetObjectItemCaseSensitive(commandJson, "type");
+      if (cJSON_IsString(commandType) && commandType->valuestring != NULL) {
+        if (strcmp(commandType->valuestring, "string") == 0) {
+          parseAndAppendString(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "line") == 0) {
+          parseAndAppendLine(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "bitmap") == 0) {
+          parseAndAppendBitmap(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "line-feed") == 0) {
+          parseAndAppendLineFeed(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "set-state") == 0) {
+          parseAndAppendSetState(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "animation") == 0) {
+          if (isInsideAnimation == true) {
+            ESP_LOGW(TAG, "Nested animations are not supported (command %u)",
+                     commandIndex);
+          } else {
+            parseAndAppendAnimation(commandListHandle, commandJson);
+          }
+        } else if (strcmp(commandType->valuestring, "time") == 0) {
+          parseAndAppendTime(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "date") == 0) {
+          parseAndAppendDate(commandListHandle, commandJson);
+        } else if (strcmp(commandType->valuestring, "graph") == 0) {
+          parseAndAppendGraph(commandListHandle, commandJson);
+        } else {
+          ESP_LOGW(TAG, "Command %u does not have a valid 'type'",
+                   commandIndex);
+        }
+      } else {
+        ESP_LOGW(TAG, "Command %u does not have a 'string' 'type'",
+                 commandIndex);
+      }
+    } else {
+      ESP_LOGW(TAG, "Command %u is not an object", commandIndex);
+    }
+
+    commandIndex++;
+  }
+}
+
 esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
                         size_t length) {
   esp_err_t ret = ESP_OK;
-  const cJSON *commandJson = NULL;
-  const cJSON *type = NULL;
-  uint16_t commandIndex = 0;
   cJSON *json = cJSON_ParseWithLength(data, length);
 
   ESP_GOTO_ON_FALSE(json != NULL, ESP_ERR_INVALID_RESPONSE,
@@ -624,42 +606,7 @@ esp_err_t parseCommands(CommandListHandle *commandListHandle, char *data,
 
   parseAndAddConfig(json, *commandListHandle);
 
-  cJSON_ArrayForEach(commandJson, commandArray) {
-    if (cJSON_IsObject(commandJson)) {
-      type = cJSON_GetObjectItemCaseSensitive(commandJson, "type");
-      if (cJSON_IsString(type) && type->valuestring != NULL) {
-        if (strcmp(type->valuestring, "string") == 0) {
-          parseAndAppendString(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "line") == 0) {
-          parseAndAppendLine(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "bitmap") == 0) {
-          parseAndAppendBitmap(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "line-feed") == 0) {
-          parseAndAppendLineFeed(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "set-state") == 0) {
-          parseAndAppendSetState(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "animation") == 0) {
-          parseAndAppendAnimation(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "time") == 0) {
-          parseAndAppendTime(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "date") == 0) {
-          parseAndAppendDate(*commandListHandle, commandJson);
-        } else if (strcmp(type->valuestring, "graph") == 0) {
-          parseAndAppendGraph(*commandListHandle, commandJson);
-        } else {
-          ESP_LOGW(TAG, "Command %u does not have a valid 'type'",
-                   commandIndex);
-        }
-      } else {
-        ESP_LOGW(TAG, "Command %u does not have a 'string' 'type'",
-                 commandIndex);
-      }
-    } else {
-      ESP_LOGW(TAG, "Command %u is not an object", commandIndex);
-    }
-
-    commandIndex++;
-  }
+  parseCommandArray(*commandListHandle, commandArray, false);
 
 parseCommands_cleanup:
   cJSON_Delete(json);

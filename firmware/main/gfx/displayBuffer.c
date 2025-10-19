@@ -238,11 +238,31 @@ void displayBufferDrawBitmap(DisplayBufferHandle db, uint8_t width,
 }
 
 void displayBufferDrawGraph(DisplayBufferHandle db, uint8_t width,
-                            uint8_t height, uint8_t *values) {
+                            uint8_t height, uint8_t *values, uint8_t bgColorRed,
+                            uint8_t bgColorGreen, uint8_t bgColorBlue) {
   uint8_t cursorStartX = db->cursor.x;
   uint8_t cursorStartY = db->cursor.y;
+
+  uint8_t prevColorRed = db->colorRed;
+  uint8_t prevColorGreen = db->colorGreen;
+  uint8_t prevColorBlue = db->colorBlue;
+
+  // first draw the background
+  displayBufferSetColor(db, bgColorRed, bgColorGreen, bgColorBlue);
+  for (uint8_t y = 0; y < height; y++) {
+    displayBufferSetCursor(db, cursorStartX, cursorStartY + y);
+    displayBufferDrawFastHorizonLine(db, cursorStartX + width - 1);
+  }
+
+  // reset the color
+  displayBufferSetColor(db, prevColorRed, prevColorGreen, prevColorBlue);
+
+  // now draw the values
   for (uint8_t x = 0; x < width; x++) {
     uint8_t value = MAX(MIN(values[x], height), 0);
+    if (value == 0) {
+      continue;
+    }
     displayBufferSetCursor(db, cursorStartX + x, cursorStartY + height - 1);
     displayBufferDrawFastVertLine(db, cursorStartY + height - value);
   }

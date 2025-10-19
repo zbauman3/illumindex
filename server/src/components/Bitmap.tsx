@@ -83,7 +83,7 @@ export const BitmapComponent = ({
         flexDirection: "column",
         flexWrap: "nowrap",
         padding: bitmapSpace * 2,
-        backgroundColor: "#111111",
+        backgroundColor: "#010101",
         width: "auto",
       }}
     >

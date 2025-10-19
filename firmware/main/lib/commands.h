@@ -102,15 +102,10 @@ typedef struct {
 } CommandLineFeed;
 
 typedef struct {
-  uint8_t posX;
-  uint8_t posY;
-  uint8_t height;
-  uint8_t width;
   uint16_t frameCount;
   uint16_t lastShowFrame;
-  uint8_t *framesRed;
-  uint8_t *framesGreen;
-  uint8_t *framesBlue;
+  // have to use the full struct here due to the typedef not being defined yet
+  struct CommandListStruct **frames;
 } CommandAnimation;
 
 typedef struct {
@@ -126,6 +121,9 @@ typedef struct {
   uint8_t height;
   uint8_t width;
   uint8_t *values;
+  uint8_t bgColorRed;
+  uint8_t bgColorGreen;
+  uint8_t bgColorBlue;
 } CommandGraph;
 
 // -------- high-level usage structs/fns
@@ -154,7 +152,7 @@ typedef struct CommandListNode {
   struct CommandListNode *next;
 } CommandListNode;
 
-typedef struct {
+typedef struct CommandListStruct {
   bool hasAnimation;
   bool hasShown;
   CommandConfig config;
