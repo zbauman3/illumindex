@@ -7,11 +7,13 @@ import {
 import {
   getWeatherData,
   generateWeatherGraphs,
-  // weatherCodeToBitmap,
+  weatherCodeToBitmap,
 } from "./data/weather"
 import { SCREEN } from "@/data/constants"
 
 export const main = async (): Promise<CommandApiResponse> => {
+  const dividerLineY =
+    fontSizeDetailsMap.lg.height + fontSizeDetailsMap.sm.height + 1
   const commands: Command[] = [
     {
       type: "time",
@@ -28,6 +30,18 @@ export const main = async (): Promise<CommandApiResponse> => {
       position: { x: 1, y: fontSizeDetailsMap.lg.height },
       fontSize: "sm",
     },
+    {
+      type: "line",
+      position: {
+        x: 0,
+        y: dividerLineY,
+      },
+      to: {
+        x: SCREEN.width,
+        y: dividerLineY,
+      },
+      color: { red: 255, green: 255, blue: 255 },
+    },
   ]
 
   try {
@@ -43,6 +57,25 @@ export const main = async (): Promise<CommandApiResponse> => {
       temperature: "Temp",
       wind: "Wind",
     }
+    const bitmapNameToUnit: Record<string, string> = {
+      cloud: "%",
+      precipitation: "%",
+      temperature: "F",
+      wind: "MPH",
+    }
+    const weatherBitmap = weatherCodeToBitmap({
+      code: weather.current.weather_code,
+      isDayTime: weather.current.is_day,
+    })
+
+    commands.push({
+      type: "bitmap",
+      position: {
+        x: SCREEN.width - weatherBitmap.size.width - 2,
+        y: dividerLineY + 3,
+      },
+      ...weatherBitmap,
+    })
 
     commands.push({
       type: "animation",
@@ -53,16 +86,32 @@ export const main = async (): Promise<CommandApiResponse> => {
             value: bitmapNameToText[name],
             position: {
               x: 0,
-              y:
-                SCREEN.height -
-                weatherGraphs.size.height -
-                fontSizeDetailsMap.sm.height,
+              y: dividerLineY + 3,
             },
             fontSize: "sm",
             color: {
               red: 255,
               green: 255,
               blue: 255,
+            },
+          },
+          {
+            type: "string",
+            value:
+              Math.floor(graph.current).toString() +
+              " " +
+              bitmapNameToUnit[name],
+            position: {
+              x: 0,
+              y: dividerLineY + 3 + fontSizeDetailsMap.sm.height + 2,
+            },
+          },
+          {
+            type: "string",
+            value: Math.floor(graph.min) + "/" + Math.floor(graph.max),
+            position: {
+              x: 0,
+              y: dividerLineY + 3 + (fontSizeDetailsMap.sm.height + 2) * 2,
             },
           },
           {
@@ -80,17 +129,6 @@ export const main = async (): Promise<CommandApiResponse> => {
             size: graph.size,
             values: graph.data,
           },
-          // {
-          //   type: "bitmap",
-          //   position: {
-          //     x: 33,
-          //     y: SCREEN.height - weatherGraphBitmaps.height - 30,
-          //   },
-          //   ...weatherCodeToBitmap({
-          //     code: weather.current.weather_code,
-          //     isDayTime: weather.current.is_day,
-          //   }),
-          // },
         ]
       ),
     })

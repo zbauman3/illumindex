@@ -3,7 +3,7 @@ import {
   generateGraphValues,
   ColorRGB,
   Size,
-  // mergeBitmaps,
+  mergeBitmaps,
 } from "@/lib"
 import {
   GraphData,
@@ -12,7 +12,7 @@ import {
 } from "@/lib/graphing"
 import z from "zod"
 import { SCREEN } from "./constants"
-// import * as bitmaps from "./bitmaps"
+import * as bitmaps from "./bitmaps"
 
 // https://open-meteo.com/en/docs?latitude=41.94235335717608&longitude=-87.6400647248335&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,precipitation_probability,cloud_cover,wind_speed_10m,precipitation,wind_gusts_10m,is_day&current=temperature_2m,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&timezone=America%2FChicago&forecast_days=3&timeformat=unixtime&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&forecast_hours=24
 // https://api.open-meteo.com/v1/forecast?latitude=41.94235335717608&longitude=-87.6400647248335&daily=sunrise,sunset,temperature_2m_max,temperature_2m_min&hourly=temperature_2m,precipitation_probability,cloud_cover,wind_speed_10m,precipitation,wind_gusts_10m,is_day&current=temperature_2m,is_day,precipitation,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m,weather_code&timezone=America%2FChicago&forecast_days=3&timeformat=unixtime&wind_speed_unit=mph&temperature_unit=fahrenheit&precipitation_unit=inch&forecast_hours=24
@@ -26,6 +26,7 @@ export type WeatherData = Awaited<ReturnType<typeof getWeatherData>>
 type WeatherGraphData = GraphData & {
   color: ColorRGB
   size: Size
+  current: number
 }
 
 export const weatherCodeToBitmap = ({
@@ -35,20 +36,16 @@ export const weatherCodeToBitmap = ({
   code: number
   isDayTime: boolean
 }): Bitmap => {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const overlays: Bitmap[] = []
   switch (code) {
     case 0: // "clear"
     case 1: // "mainly_clear"
-      if (isDayTime) {
-        // overlays.push(bitmaps.sunRays)
-      }
       break
     case 2: // "partly_cloudy"
     case 3: // "overcast"
     case 45: // "fog"
     case 48: // "fog"
-      // overlays.push(bitmaps.cloud)
+      overlays.push(bitmaps.cloud)
       break
     case 51: // "drizzle_light"
     case 53: // "drizzle_moderate"
@@ -59,8 +56,8 @@ export const weatherCodeToBitmap = ({
     case 80: // "rain_showers_slight"
     case 81: // "rain_showers_moderate"
     case 82: // "rain_showers_violent"
-      // overlays.push(bitmaps.cloud)
-      // overlays.push(bitmaps.rain)
+      overlays.push(bitmaps.cloud)
+      overlays.push(bitmaps.rain)
       break
     case 56: // "freezing_drizzle_light"
     case 57: // "freezing_drizzle_dense"
@@ -72,36 +69,24 @@ export const weatherCodeToBitmap = ({
     case 77: // "snow_grains"
     case 85: // "snow_showers_slight"
     case 86: // "snow_showers_heavy"
-      // overlays.push(bitmaps.cloud)
-      // overlays.push(bitmaps.snow)
+      overlays.push(bitmaps.cloud)
+      overlays.push(bitmaps.snow)
       break
     case 95: // "thunderstorm"
     case 96: // "thunderstorm_slight_hail"
     case 99: // "thunderstorm_heavy_hail"
-      // overlays.push(bitmaps.cloud)
-      // overlays.push(bitmaps.rain)
-      // overlays.push(bitmaps.lightning)
+      overlays.push(bitmaps.cloud)
+      overlays.push(bitmaps.rain)
+      overlays.push(bitmaps.lightning)
       break
   }
 
-  // return mergeBitmaps({
-  //   base: isDayTime ? bitmaps.sun : bitmaps.moon,
-  //   overlays,
-  //   offsetX: 0,
-  //   offsetY: 0,
-  // })
-
-  return {
-    size: {
-      height: 30,
-      width: 30,
-    },
-    data: {
-      red: [],
-      green: [],
-      blue: [],
-    },
-  }
+  return mergeBitmaps({
+    base: isDayTime ? bitmaps.sun : bitmaps.moon,
+    overlays,
+    offsetX: 0,
+    offsetY: 0,
+  })
 }
 
 const weatherApiSchema = z.object({
@@ -252,6 +237,7 @@ export const generateWeatherGraphs = (
   // generate bitmaps from graph data
   const cloudGraph: WeatherGraphData = {
     ...cloudGraphValues,
+    current: data.current.cloud_cover,
     data: scaleUpGraphValues({
       data: cloudGraphValues.data,
       width: width,
@@ -266,6 +252,7 @@ export const generateWeatherGraphs = (
 
   const windGraph: WeatherGraphData = {
     ...windGraphValues,
+    current: data.current.wind_speed_10m,
     data: scaleUpGraphValues({
       data: windGraphValues.data,
       width: width,
@@ -280,6 +267,7 @@ export const generateWeatherGraphs = (
 
   const precipitationGraph: WeatherGraphData = {
     ...precipitationGraphValues,
+    current: data.current.precipitation,
     data: scaleUpGraphValues({
       data: precipitationGraphValues.data,
       width: width,
@@ -294,6 +282,7 @@ export const generateWeatherGraphs = (
 
   const temperatureGraph: WeatherGraphData = {
     ...temperatureGraphValues,
+    current: data.current.temperature_2m,
     data: smoothGraphValues(
       scaleUpGraphValues({
         data: temperatureGraphValues.data,

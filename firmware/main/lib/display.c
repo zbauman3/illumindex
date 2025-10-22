@@ -100,7 +100,7 @@ void displayApplyCommandList(DisplayHandle display,
       char timeString[8];
       TimeInfo timeInfo;
       timeGet(&timeInfo);
-      snprintf(timeString, sizeof(timeString), "%u:%u %s", timeInfo.hour12,
+      snprintf(timeString, sizeof(timeString), "%u:%02u %s", timeInfo.hour12,
                timeInfo.minute, timeInfo.isPM ? "PM" : "AM");
 
       displayBufferDrawString(display->displayBuffer, timeString);
