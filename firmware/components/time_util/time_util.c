@@ -2,13 +2,15 @@
 #include "esp_log.h"
 #include "esp_netif_sntp.h"
 #include "esp_sntp.h"
+#include <sys/time.h>
+#include <time.h>
 
-#include "lib/time.h"
-#include "util/error_helpers.h"
+#include "helper_utils.h"
+#include "time_util.h"
 
 static const char *TAG = "TIME";
 
-esp_err_t timeInit() {
+esp_err_t time_util_init() {
   ESP_LOGD(TAG, "Initializing time module");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
   config.start = true;
@@ -25,7 +27,7 @@ esp_err_t timeInit() {
   return ESP_OK;
 }
 
-void timeGet(TimeInfo *timeInfo) {
+void time_util_get(time_util_info_t *timeInfo) {
   time_t now;
   struct tm cTimeinfo;
   time(&now);

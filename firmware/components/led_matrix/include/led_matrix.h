@@ -5,8 +5,8 @@
 #include "esp_err.h"
 
 // src    = 80,000,000hz          // APB CLOCK
-// speed  = 40,000,000hz          // MATRIX_TIMER_RESOLUTION
-// timer  = 40                    // MATRIX_TIMER_ALARM
+// speed  = 40,000,000hz          // LED_MATRIX_TIMER_RESOLUTION
+// timer  = 40                    // LED_MATRIX_TIMER_ALARM
 // bit0   = speed / (timer * 2^0) // 0.001 ms
 // bit1   = speed / (timer * 2^1) // 0.002 ms
 // bit2   = speed / (timer * 2^2) // 0.004 ms
@@ -22,18 +22,18 @@
 // ## Description
 //
 // We start with a source clock speed of 80,000,000hz from the APB clock. We
-// then select a prescale value by passing in the `MATRIX_TIMER_RESOLUTION`
+// then select a prescale value by passing in the `LED_MATRIX_TIMER_RESOLUTION`
 // value. That creates a prescale of `2`, giving us a resolution of 0.025µs.
 // This is the max value achievable because `2` is the minimum prescale value.
 //
 // Next, we select a "base" starting point for the timer alarm
-// `MATRIX_TIMER_ALARM`. After some calculations, I landed on `40`, explained
-// below.
+// `LED_MATRIX_TIMER_ALARM`. After some calculations, I landed on `40`,
+// explained below.
 //
 // We output the value for bit0, and set the timer alarm count to
-// `MATRIX_TIMER_ALARM`. Then we repeat this process for each subsequent bit,
-// except we increase `MATRIX_TIMER_ALARM` by multiplying it by powers of 2,
-// doubling the timer alarm value each time.
+// `LED_MATRIX_TIMER_ALARM`. Then we repeat this process for each subsequent
+// bit, except we increase `LED_MATRIX_TIMER_ALARM` by multiplying it by powers
+// of 2, doubling the timer alarm value each time.
 //
 // After completing all 8 bits, we have completed a row in 0.255 ms (not
 // including ISR overhead, more on that next). The data is output two rows at a
@@ -50,23 +50,23 @@
 // flicker territory.
 //
 // I'm estimating the worst case for the overhead of each ISR is equal to the
-// base timer alarm count, `MATRIX_TIMER_ALARM`. So if we add
-// `MATRIX_TIMER_ALARM * 8` to each row, we get an additional `0.008 ms` of
+// base timer alarm count, `LED_MATRIX_TIMER_ALARM`. So if we add
+// `LED_MATRIX_TIMER_ALARM * 8` to each row, we get an additional `0.008 ms` of
 // overhead for each row. This gives us a "worst case" refresh rate of 118.82Hz,
 // although I think that is likely slower than reality.
 
-#define MATRIX_TIMER_RESOLUTION 40000000
-#define MATRIX_TIMER_ALARM 40
-#define MATRIX_BIT_DEPTH 8
+#define LED_MATRIX_TIMER_RESOLUTION 40000000
+#define LED_MATRIX_TIMER_ALARM 40
+#define LED_MATRIX_BIT_DEPTH 8
 
-#define MATRIX_TIMER_ALARM_0 (MATRIX_TIMER_ALARM)
-#define MATRIX_TIMER_ALARM_1 (MATRIX_TIMER_ALARM * 2)
-#define MATRIX_TIMER_ALARM_2 (MATRIX_TIMER_ALARM * 4)
-#define MATRIX_TIMER_ALARM_3 (MATRIX_TIMER_ALARM * 8)
-#define MATRIX_TIMER_ALARM_4 (MATRIX_TIMER_ALARM * 16)
-#define MATRIX_TIMER_ALARM_5 (MATRIX_TIMER_ALARM * 32)
-#define MATRIX_TIMER_ALARM_6 (MATRIX_TIMER_ALARM * 64)
-#define MATRIX_TIMER_ALARM_7 (MATRIX_TIMER_ALARM * 128)
+#define LED_MATRIX_TIMER_ALARM_0 (LED_MATRIX_TIMER_ALARM)
+#define LED_MATRIX_TIMER_ALARM_1 (LED_MATRIX_TIMER_ALARM * 2)
+#define LED_MATRIX_TIMER_ALARM_2 (LED_MATRIX_TIMER_ALARM * 4)
+#define LED_MATRIX_TIMER_ALARM_3 (LED_MATRIX_TIMER_ALARM * 8)
+#define LED_MATRIX_TIMER_ALARM_4 (LED_MATRIX_TIMER_ALARM * 16)
+#define LED_MATRIX_TIMER_ALARM_5 (LED_MATRIX_TIMER_ALARM * 32)
+#define LED_MATRIX_TIMER_ALARM_6 (LED_MATRIX_TIMER_ALARM * 64)
+#define LED_MATRIX_TIMER_ALARM_7 (LED_MATRIX_TIMER_ALARM * 128)
 
 // if using a 5-bit address matrix, a4 MUST be set
 typedef struct {
@@ -87,16 +87,16 @@ typedef struct {
   uint8_t latch;
   uint8_t clock;
   uint8_t oe;
-} MatrixPins;
+} led_matrix_pins_t;
 
 typedef struct {
-  MatrixPins pins;
+  led_matrix_pins_t pins;
   uint8_t width;
   uint8_t height;
-} MatrixInitConfig;
+} led_matrix_config_t;
 
 typedef struct {
-  MatrixPins *pins;
+  led_matrix_pins_t *pins;
   dedic_gpio_bundle_handle_t gpioBundle;
   gptimer_handle_t timer;
   uint8_t *displayBuffer;
@@ -108,13 +108,14 @@ typedef struct {
   uint16_t splitOffset;
   bool fiveBitAddress;
   uint16_t currentBufferOffset;
-} MatrixState;
+} led_matrix_state_t;
 
-typedef MatrixState *MatrixHandle;
+typedef led_matrix_state_t *led_matrix_handle_t;
 
-esp_err_t matrixInit(MatrixHandle *matrix, MatrixInitConfig *config);
-esp_err_t matrixStart(MatrixHandle matrix);
-esp_err_t matrixStop(MatrixHandle matrix);
-esp_err_t matrixEnd(MatrixHandle matrix);
-esp_err_t matrixShow(MatrixHandle matrix, uint8_t *bufferRed,
-                     uint8_t *bufferGreen, uint8_t *bufferBlue);
+esp_err_t led_matrix_init(led_matrix_handle_t *matrix,
+                          led_matrix_config_t *config);
+esp_err_t led_matrix_start(led_matrix_handle_t matrix);
+esp_err_t led_matrix_stop(led_matrix_handle_t matrix);
+esp_err_t led_matrix_end(led_matrix_handle_t matrix);
+esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *bufferRed,
+                          uint8_t *bufferGreen, uint8_t *bufferBlue);

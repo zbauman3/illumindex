@@ -1,7 +1,6 @@
 #pragma once
 
-#include <sys/time.h>
-#include <time.h>
+#include <stdbool.h>
 
 #include "esp_err.h"
 
@@ -18,7 +17,7 @@ typedef struct {
   int dayOfWeek;
   int dayOfYear;
   bool isDST;
-} TimeInfo;
+} time_util_info_t;
 
 // should be called after the network is initialized
 // initializes the SNTP client and starts it
@@ -26,7 +25,7 @@ typedef struct {
 // configures it to renew servers after getting a new IP address
 // and to use the first server from the DHCP response
 // sets the IP event to renew servers when the STA gets an IP address
-esp_err_t timeInit();
+esp_err_t time_util_init();
 
 // updates the global time variable with the current time
-void timeGet(TimeInfo *timeInfo);
+void time_util_get(time_util_info_t *timeInfo);

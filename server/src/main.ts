@@ -20,9 +20,9 @@ export const main = async (): Promise<CommandApiResponse> => {
       position: { x: 0, y: 0 },
       fontSize: "lg",
       color: {
-        red: 255,
+        red: 0,
         green: 255,
-        blue: 255,
+        blue: 160,
       },
     },
     {
@@ -40,7 +40,11 @@ export const main = async (): Promise<CommandApiResponse> => {
         x: SCREEN.width,
         y: dividerLineY,
       },
-      color: { red: 255, green: 255, blue: 255 },
+      color: {
+        red: 10,
+        green: 10,
+        blue: 10,
+      },
     },
   ]
 
@@ -85,15 +89,11 @@ export const main = async (): Promise<CommandApiResponse> => {
             type: "string",
             value: bitmapNameToText[name],
             position: {
-              x: 0,
-              y: dividerLineY + 3,
+              x: 1,
+              y: dividerLineY + 4,
             },
             fontSize: "sm",
-            color: {
-              red: 255,
-              green: 255,
-              blue: 255,
-            },
+            color: graph.color,
           },
           {
             type: "string",
@@ -102,16 +102,16 @@ export const main = async (): Promise<CommandApiResponse> => {
               " " +
               bitmapNameToUnit[name],
             position: {
-              x: 0,
-              y: dividerLineY + 3 + fontSizeDetailsMap.sm.height + 2,
+              x: 1,
+              y: dividerLineY + 4 + fontSizeDetailsMap.sm.height + 2,
             },
           },
           {
             type: "string",
             value: Math.floor(graph.min) + "/" + Math.floor(graph.max),
             position: {
-              x: 0,
-              y: dividerLineY + 3 + (fontSizeDetailsMap.sm.height + 2) * 2,
+              x: 1,
+              y: dividerLineY + 4 + (fontSizeDetailsMap.sm.height + 2) * 2,
             },
           },
           {

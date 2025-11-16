@@ -5,23 +5,23 @@
 #include <string.h>
 #include <sys/param.h>
 
-#include "network/request.h"
+#include "network/fetch.h"
 
 static const char *TAG = "NETWORK_REQUEST";
 
-void requestEtagInit(char **eTag) {
-  requestEtagEnd(eTag);
+void fetch_etag_init(char **eTag) {
+  fetch_etag_end(eTag);
   *eTag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
 }
 
-void requestEtagCopy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
+void fetch_etag_copy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
 
-void requestEtagEnd(char **eTag) {
+void fetch_etag_end(char **eTag) {
   free(*eTag);
   *eTag = NULL;
 }
 
-static esp_err_t eventHandler(esp_http_client_event_t *evt) {
+static esp_err_t event_handler(esp_http_client_event_t *evt) {
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR: {
     ESP_LOGW(TAG, "HTTP_EVENT_ERROR");
@@ -30,7 +30,7 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   case HTTP_EVENT_ON_DATA: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_DATA, len=%d", evt->data_len);
 
-    RequestContextHandle ctx = evt->user_data;
+    fetch_ctx_handle_t ctx = evt->user_data;
     if (ctx->response->data == NULL) {
       ctx->response->data = (char *)malloc(evt->data_len);
     } else {
@@ -50,7 +50,7 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   case HTTP_EVENT_ON_FINISH: {
     ESP_LOGD(TAG, "HTTP_EVENT_ON_FINISH");
 
-    RequestContextHandle ctx = evt->user_data;
+    fetch_ctx_handle_t ctx = evt->user_data;
     // if there is data, append the null terminator
     if (ctx->response->data != NULL) {
       ctx->response->length += 1;
@@ -62,15 +62,15 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   }
   case HTTP_EVENT_ON_HEADER: {
     if (strcmp("etag", evt->header_key) == 0) {
-      RequestContextHandle ctx = evt->user_data;
+      fetch_ctx_handle_t ctx = evt->user_data;
       size_t length = strlen(evt->header_value) + 1;
 
       if (length > ETAG_LENGTH) {
         ESP_LOGW(TAG, "ETAG length '%u' is larger than '%u'", length - 1,
                  ETAG_LENGTH - 1);
       } else {
-        requestEtagInit(&ctx->response->eTag);
-        requestEtagCopy(ctx->response->eTag, evt->header_value);
+        fetch_etag_init(&ctx->response->eTag);
+        fetch_etag_copy(ctx->response->eTag, evt->header_value);
       }
     }
     break;
@@ -93,10 +93,10 @@ static esp_err_t eventHandler(esp_http_client_event_t *evt) {
   return ESP_OK;
 }
 
-esp_err_t requestInit(RequestContextHandle *ctxHandle) {
-  RequestContextHandle ctx =
-      (RequestContextHandle)malloc(sizeof(RequestContext));
-  ctx->response = (ResponseData *)malloc(sizeof(ResponseData));
+esp_err_t fetch_init(fetch_ctx_handle_t *ctxHandle) {
+  fetch_ctx_handle_t ctx = (fetch_ctx_handle_t)malloc(sizeof(fetch_ctx_t));
+  ctx->response =
+      (fetch_response_data_t *)malloc(sizeof(fetch_response_data_t));
   ctx->response->data = NULL;
   ctx->response->length = 0;
   ctx->response->eTag = NULL;
@@ -106,21 +106,21 @@ esp_err_t requestInit(RequestContextHandle *ctxHandle) {
   return ESP_OK;
 }
 
-esp_err_t requestEnd(RequestContextHandle ctx) {
-  requestEtagEnd(&ctx->response->eTag);
-  requestEtagEnd(&ctx->eTag);
+esp_err_t fetch_end(fetch_ctx_handle_t ctx) {
+  fetch_etag_end(&ctx->response->eTag);
+  fetch_etag_end(&ctx->eTag);
   free(ctx->response->data);
   free(ctx->response);
   free(ctx);
   return ESP_OK;
 }
 
-esp_err_t requestPerform(RequestContextHandle ctx) {
+esp_err_t fetch_perform(fetch_ctx_handle_t ctx) {
   esp_http_client_config_t config = {
       .url = ctx->url,
       .method = ctx->method,
       .timeout_ms = 10000,
-      .event_handler = eventHandler,
+      .event_handler = event_handler,
       .crt_bundle_attach = esp_crt_bundle_attach,
       .user_data = ctx,
   };
@@ -130,20 +130,18 @@ esp_err_t requestPerform(RequestContextHandle ctx) {
     esp_http_client_set_header(client, "If-None-Match", ctx->eTag);
   }
 
-#ifdef CONFIG_ENDPOINT_TOKEN
   esp_http_client_set_header(client, "Authorization",
                              "Bearer: " CONFIG_ENDPOINT_TOKEN);
-#endif
 
   esp_err_t err = esp_http_client_perform(client);
 
-  ctx->response->statusCode = esp_http_client_get_status_code(client);
+  ctx->response->status_code = esp_http_client_get_status_code(client);
   esp_http_client_cleanup(client);
 
   if (err == ESP_OK) {
-    ESP_LOGD(TAG, "(%d) \"%s\"", ctx->response->statusCode, ctx->url);
+    ESP_LOGD(TAG, "(%d) \"%s\"", ctx->response->status_code, ctx->url);
   } else {
-    ESP_LOGE(TAG, "(%d) \"%s\"(%s) ", ctx->response->statusCode, ctx->url,
+    ESP_LOGE(TAG, "(%d) \"%s\"(%s) ", ctx->response->status_code, ctx->url,
              esp_err_to_name(err));
   }
 

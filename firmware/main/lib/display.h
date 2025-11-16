@@ -6,25 +6,25 @@
 #include "esp_err.h"
 #include <stdbool.h>
 
-#include "drivers/matrix.h"
-#include "gfx/displayBuffer.h"
+#include "gfx/display_buffer.h"
+#include "led_matrix.h"
+
 #include "lib/commands.h"
 #include "lib/state.h"
 
 typedef struct {
-  MatrixHandle matrix;
-  DisplayBufferHandle displayBuffer;
-  StateHandle state;
+  led_matrix_handle_t matrix;
+  display_buffer_handle_t displayBuffer;
+  state_handle_t state;
   TaskHandle_t mainTaskHandle;
   TaskHandle_t animationTaskHandle;
   char *lastEtag;
-  CommandListHandle commands;
-} Display;
+  command_list_handle_t commands;
+} display_t;
 
-typedef Display *DisplayHandle;
+typedef display_t *display_handle_t;
 
-esp_err_t displayInit(DisplayHandle *displayHandle,
-                      MatrixInitConfig *matrixConfig);
-
-void displayEnd(DisplayHandle display);
-esp_err_t displayStart(DisplayHandle display);
+esp_err_t display_init(display_handle_t *displayHandle,
+                       led_matrix_config_t *matrixConfig);
+void display_end(display_handle_t display);
+esp_err_t display_start(display_handle_t display);

@@ -6,14 +6,15 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 
+#include "helper_utils.h"
+#include "network/wifi.h"
+#include "time_util.h"
+
 #include "lib/display.h"
 #include "lib/state.h"
-#include "lib/time.h"
-#include "network/wifi.h"
-#include "util/error_helpers.h"
 
 static const char *TAG = "APP_MAIN";
-static DisplayHandle display;
+static display_handle_t display;
 
 esp_err_t appInit() {
   esp_err_t init_ret = nvs_flash_init();
@@ -25,7 +26,7 @@ esp_err_t appInit() {
 
   ESP_ERROR_BUBBLE(esp_event_loop_create_default());
 
-  MatrixInitConfig matrixConfig = {
+  led_matrix_config_t matrixConfig = {
       .width = 64,
       .height = 64,
       .pins =
@@ -49,20 +50,20 @@ esp_err_t appInit() {
           },
   };
 
-  ESP_ERROR_BUBBLE(displayInit(&display, &matrixConfig));
+  ESP_ERROR_BUBBLE(display_init(&display, &matrixConfig));
 
   ESP_ERROR_BUBBLE(wifi_init());
 
-  ESP_ERROR_BUBBLE(timeInit());
+  ESP_ERROR_BUBBLE(time_util_init());
 
-  ESP_ERROR_BUBBLE(displayStart(display));
+  ESP_ERROR_BUBBLE(display_start(display));
 
   return ESP_OK;
 }
 
 void app_main(void) {
   if (appInit() != ESP_OK) {
-    displayEnd(display);
+    display_end(display);
 
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
     vTaskDelay(10000 / portTICK_PERIOD_MS);

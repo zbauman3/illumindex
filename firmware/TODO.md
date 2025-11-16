@@ -1,2 +1,2 @@
 - `main/lib/commands.c`
-  - Usage of `commandListNodeInit` (and other fns) need to have their errors checked
+  - Usage of `command_list_node_init` (and other fns) need to have their errors checked

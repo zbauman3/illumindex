@@ -1,6 +1,6 @@
 #include <memory.h>
 
-#include "gfx/fonts.h"
+#include "gfx/font.h"
 
 const static uint32_t ascii8By12[] = {
     0x00000000, 0x00000000, 0x00000000, //
@@ -297,16 +297,16 @@ const static uint8_t ascii4By6[] = {
 };
 
 // allocates all memory needed for the font
-void fontInit(FontHandle *fontHandle) {
-  FontHandle font = (FontHandle)malloc(sizeof(Font));
-  fontSetSize(font, FONT_SIZE_MD);
+void font_init(font_handle_t *fontHandle) {
+  font_handle_t font = (font_handle_t)malloc(sizeof(font_t));
+  font_set_size(font, FONT_SIZE_MD);
 
   *fontHandle = font;
 }
 
-void fontEnd(FontHandle fontHandle) { free(fontHandle); }
+void font_end(font_handle_t fontHandle) { free(fontHandle); }
 
-void fontSetSize(FontHandle font, FontSize size) {
+void font_set_size(font_handle_t font, font_size_t size) {
   font->size = size;
 
   switch (font->size) {
@@ -337,21 +337,24 @@ void fontSetSize(FontHandle font, FontSize size) {
   font->bitPerChar = font->bitsPerChunk * font->chunksPerChar;
 }
 
-uint32_t fontGetChunk(FontHandle font, char asciiChar, uint8_t chunk) {
-  if (!fontIsValidChunk(font, chunk) || !fontIsValidAscii(asciiChar)) {
+uint32_t font_get_chunk(font_handle_t font, char asciiChar, uint8_t chunk) {
+  if (!font_is_valid_chunk(font, chunk) || !font_is_valid_ascii(asciiChar)) {
     return (uint32_t)0;
   }
 
   switch (font->size) {
   case FONT_SIZE_SM:
     return (uint32_t)
-        ascii4By6[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
+        ascii4By6[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+                  chunk];
   case FONT_SIZE_LG:
     return (uint32_t)
-        ascii8By12[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
+        ascii8By12[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+                   chunk];
   case FONT_SIZE_MD:
   default:
     return (uint32_t)
-        ascii6By8[(fontAsciiToIndex(asciiChar) * font->chunksPerChar) + chunk];
+        ascii6By8[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+                  chunk];
   }
 }

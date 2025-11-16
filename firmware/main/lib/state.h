@@ -11,10 +11,10 @@ typedef struct {
   bool commandsInvalid;
   uint16_t loopSeconds;
   uint8_t fetchFailureCount;
-} State;
+} state_t;
 
-typedef State *StateHandle;
+typedef state_t *state_handle_t;
 
-esp_err_t stateInit(StateHandle *stateHandle);
-void stateEnd(StateHandle state);
-esp_err_t stateFetchRemote(StateHandle state);
+esp_err_t state_init(state_handle_t *stateHandle);
+void state_end(state_handle_t state);
+esp_err_t state_fetch_remote(state_handle_t state);
