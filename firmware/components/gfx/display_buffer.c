@@ -4,9 +4,10 @@
 #include "esp_log.h"
 
 #include "color_utils.h"
+#include "helper_utils.h"
+
 #include "gfx/display_buffer.h"
 #include "gfx/font.h"
-#include "helper_utils.h"
 
 const static char *TAG = "DISPLAY_BUFFER";
 

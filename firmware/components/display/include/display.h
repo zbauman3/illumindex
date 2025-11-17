@@ -6,11 +6,10 @@
 #include "esp_err.h"
 #include <stdbool.h>
 
+#include "commands.h"
 #include "gfx/display_buffer.h"
 #include "led_matrix.h"
-
-#include "lib/commands.h"
-#include "lib/state.h"
+#include "state.h"
 
 typedef struct {
   led_matrix_handle_t matrix;

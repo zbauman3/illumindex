@@ -1,5 +1,4 @@
 idf_component_register(
-  SRCS "main.c" "lib/commands.c" "lib/state.c" "lib/display.c"
-  INCLUDE_DIRS "."
+  SRCS "main.c"
   REQUIRED_IDF_TARGETS esp32s3
 )

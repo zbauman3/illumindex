@@ -6,12 +6,11 @@
 #include "esp_system.h"
 #include "nvs_flash.h"
 
+#include "display.h"
 #include "helper_utils.h"
 #include "network/wifi.h"
+#include "state.h"
 #include "time_util.h"
-
-#include "lib/display.h"
-#include "lib/state.h"
 
 static const char *TAG = "APP_MAIN";
 static display_handle_t display;

@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "helper_utils.h"
+
 #include "network/events.h"
 
 #define WIFI_MAXIMUM_RETRY 3

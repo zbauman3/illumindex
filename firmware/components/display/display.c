@@ -7,7 +7,7 @@
 #include "network/fetch.h"
 #include "time_util.h"
 
-#include "lib/display.h"
+#include "display.h"
 
 static const char *TAG = "DISPLAY";
 static const char *MAIN_TASK_NAME = "DISPLAY:MAIN_TASK";

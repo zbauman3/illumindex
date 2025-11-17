@@ -7,7 +7,7 @@
 #include "gfx/display_buffer.h"
 #include "time_util.h"
 
-#include "lib/commands.h"
+#include "commands.h"
 
 static const char *TAG = "COMMANDS";
 

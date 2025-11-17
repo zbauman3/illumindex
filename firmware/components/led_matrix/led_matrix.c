@@ -12,6 +12,7 @@
 
 #include "color_utils.h"
 #include "helper_utils.h"
+
 #include "led_matrix.h"
 
 static const char *TAG = "LED_MATRIX_DRIVER";

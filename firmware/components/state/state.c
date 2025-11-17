@@ -8,7 +8,7 @@
 
 #include "network/fetch.h"
 
-#include "lib/state.h"
+#include "state.h"
 
 static const char *TAG = "STATE";
 
