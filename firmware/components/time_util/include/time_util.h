@@ -28,4 +28,4 @@ typedef struct {
 esp_err_t time_util_init();
 
 // updates the global time variable with the current time
-void time_util_get(time_util_info_t *timeInfo);
+void time_util_get(time_util_info_t *time_info);

@@ -2,7 +2,7 @@
 
 #include "gfx/font.h"
 
-const static uint32_t ascii8By12[] = {
+const static uint32_t ascii_8_12[] = {
     0x00000000, 0x00000000, 0x00000000, //
     0x00307878, 0x78303000, 0x30300000, // !
     0x00666666, 0x24000000, 0x00000000, // "
@@ -100,7 +100,7 @@ const static uint32_t ascii8By12[] = {
     0x0073DACE, 0x00000000, 0x00000000, // ~
 };
 
-const static uint16_t ascii6By8[] = {
+const static uint16_t ascii_6_8[] = {
     0x0000, 0x0000, 0x0000, // Space
     0x10E3, 0x8410, 0x0100, // !
     0x6DB4, 0x8000, 0x0000, // "
@@ -198,7 +198,7 @@ const static uint16_t ascii6By8[] = {
     0x2940, 0x0000, 0x0000, // ~
 };
 
-const static uint8_t ascii4By6[] = {
+const static uint8_t ascii_4_6[] = {
     0x00, 0x00, 0x00, // Space
     0x66, 0x60, 0x60, // !
     0x55, 0x00, 0x00, // "
@@ -297,14 +297,14 @@ const static uint8_t ascii4By6[] = {
 };
 
 // allocates all memory needed for the font
-void font_init(font_handle_t *fontHandle) {
+void font_init(font_handle_t *font_handle) {
   font_handle_t font = (font_handle_t)malloc(sizeof(font_t));
   font_set_size(font, FONT_SIZE_MD);
 
-  *fontHandle = font;
+  *font_handle = font;
 }
 
-void font_end(font_handle_t fontHandle) { free(fontHandle); }
+void font_end(font_handle_t font_handle) { free(font_handle); }
 
 void font_set_size(font_handle_t font, font_size_t size) {
   font->size = size;
@@ -313,48 +313,48 @@ void font_set_size(font_handle_t font, font_size_t size) {
   case FONT_SIZE_SM:
     font->width = 4;
     font->height = 6;
-    font->bitsPerChunk = 8;
-    font->chunksPerChar = 3;
+    font->bits_per_chunk = 8;
+    font->chunks_per_char = 3;
     font->spacing = 1;
     break;
   case FONT_SIZE_LG:
     font->width = 8;
     font->height = 12;
-    font->bitsPerChunk = 32;
-    font->chunksPerChar = 3;
+    font->bits_per_chunk = 32;
+    font->chunks_per_char = 3;
     font->spacing = 0;
     break;
   case FONT_SIZE_MD:
   default:
     font->width = 6;
     font->height = 8;
-    font->bitsPerChunk = 16;
-    font->chunksPerChar = 3;
+    font->bits_per_chunk = 16;
+    font->chunks_per_char = 3;
     font->spacing = 0;
     break;
   }
 
-  font->bitPerChar = font->bitsPerChunk * font->chunksPerChar;
+  font->bits_per_char = font->bits_per_chunk * font->chunks_per_char;
 }
 
-uint32_t font_get_chunk(font_handle_t font, char asciiChar, uint8_t chunk) {
-  if (!font_is_valid_chunk(font, chunk) || !font_is_valid_ascii(asciiChar)) {
+uint32_t font_get_chunk(font_handle_t font, char ascii_char, uint8_t chunk) {
+  if (!font_is_valid_chunk(font, chunk) || !font_is_valid_ascii(ascii_char)) {
     return (uint32_t)0;
   }
 
   switch (font->size) {
   case FONT_SIZE_SM:
     return (uint32_t)
-        ascii4By6[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+        ascii_4_6[(font_ascii_to_index(ascii_char) * font->chunks_per_char) +
                   chunk];
   case FONT_SIZE_LG:
     return (uint32_t)
-        ascii8By12[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+        ascii_8_12[(font_ascii_to_index(ascii_char) * font->chunks_per_char) +
                    chunk];
   case FONT_SIZE_MD:
   default:
     return (uint32_t)
-        ascii6By8[(font_ascii_to_index(asciiChar) * font->chunksPerChar) +
+        ascii_6_8[(font_ascii_to_index(ascii_char) * font->chunks_per_char) +
                   chunk];
   }
 }

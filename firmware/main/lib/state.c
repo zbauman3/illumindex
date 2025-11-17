@@ -12,15 +12,15 @@
 
 static const char *TAG = "STATE";
 
-esp_err_t state_init(state_handle_t *stateHandle) {
+esp_err_t state_init(state_handle_t *state_handle) {
   // allocate the the state
   state_handle_t state = (state_handle_t)malloc(sizeof(state_t));
 
-  state->isDevMode = false;
+  state->is_dev_mode = false;
   state->commandEndpoint = CONFIG_ENDPOINT_URL;
   state->fetchInterval = CONFIG_ENDPOINT_FETCH_INTERVAL;
-  state->remoteStateInvalid = false;
-  state->commandsInvalid = false;
+  state->remote_state_invalid = false;
+  state->commands_invalid = false;
   state->loopSeconds = 65535;
   state->fetchFailureCount = 0;
 
@@ -30,7 +30,7 @@ esp_err_t state_init(state_handle_t *stateHandle) {
   }
 
   // pass back the state
-  *stateHandle = state;
+  *state_handle = state;
 
   return ESP_OK;
 }
@@ -55,7 +55,7 @@ esp_err_t parse_from_remote(state_handle_t state, char *data, size_t length) {
                     parse_from_remote_cleanup, TAG,
                     "data.isDevMode is not a boolean");
 
-  state->isDevMode = cJSON_IsTrue(values);
+  state->is_dev_mode = cJSON_IsTrue(values);
 
   values = cJSON_GetObjectItemCaseSensitive(json, "commandEndpoint");
   ESP_GOTO_ON_FALSE(cJSON_IsString(values) && values->valuestring != NULL,

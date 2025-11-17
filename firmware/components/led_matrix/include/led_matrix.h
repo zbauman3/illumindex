@@ -97,9 +97,9 @@ typedef struct {
 
 typedef struct {
   led_matrix_pins_t *pins;
-  dedic_gpio_bundle_handle_t gpioBundle;
+  dedic_gpio_bundle_handle_t gpio_bundle;
   gptimer_handle_t timer;
-  uint8_t *displayBuffer;
+  uint8_t *buffer;
   uint8_t rowNum;
   uint8_t bitNum;
   uint8_t width;
@@ -117,5 +117,5 @@ esp_err_t led_matrix_init(led_matrix_handle_t *matrix,
 esp_err_t led_matrix_start(led_matrix_handle_t matrix);
 esp_err_t led_matrix_stop(led_matrix_handle_t matrix);
 esp_err_t led_matrix_end(led_matrix_handle_t matrix);
-esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *bufferRed,
-                          uint8_t *bufferGreen, uint8_t *bufferBlue);
+esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *buffer_red,
+                          uint8_t *buffer_green, uint8_t *buffer_blue);

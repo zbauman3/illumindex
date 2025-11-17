@@ -99,10 +99,10 @@ static DRAM_ATTR uint16_t timer_count_values[8] = {
     LED_MATRIX_TIMER_ALARM_6, LED_MATRIX_TIMER_ALARM_7};
 
 static bool IRAM_ATTR led_matrix_timer_callback(
-    gptimer_handle_t timer, const gptimer_alarm_event_data_t *edata,
-    void *userData) {
+    gptimer_handle_t timer, const gptimer_alarm_event_data_t *event_data,
+    void *user_data) {
   static led_matrix_handle_t matrix;
-  matrix = (led_matrix_handle_t)userData;
+  matrix = (led_matrix_handle_t)user_data;
 
   gptimer_stop(matrix->timer);
 
@@ -119,7 +119,7 @@ static bool IRAM_ATTR led_matrix_timer_callback(
       (matrix->rowNum * matrix->width) +
       (matrix->bitNum * matrix->width * matrix->height);
 
-  shift_out_row(matrix->displayBuffer, matrix->currentBufferOffset);
+  shift_out_row(matrix->buffer, matrix->currentBufferOffset);
 
   // blank screen
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
@@ -151,7 +151,7 @@ static bool IRAM_ATTR led_matrix_timer_callback(
 }
 
 // Allocates the resources for a matrix and masses back a handle
-esp_err_t led_matrix_init(led_matrix_handle_t *matrixHandle,
+esp_err_t led_matrix_init(led_matrix_handle_t *matrix_handle,
                           led_matrix_config_t *config) {
   // allocate the the state. Must be in IRAM for the interrupt handler
   led_matrix_handle_t matrix = (led_matrix_handle_t)heap_caps_malloc(
@@ -168,10 +168,10 @@ esp_err_t led_matrix_init(led_matrix_handle_t *matrixHandle,
   matrix->fiveBitAddress = matrix->height > 32;
 
   // allocate/clear the frame buffer. Must be in IRAM for the interrupt handler
-  matrix->displayBuffer = (uint8_t *)heap_caps_malloc(
+  matrix->buffer = (uint8_t *)heap_caps_malloc(
       sizeof(uint8_t) * matrix->width * matrix->height * LED_MATRIX_BIT_DEPTH,
       MALLOC_CAP_INTERNAL);
-  memset(matrix->displayBuffer, 0,
+  memset(matrix->buffer, 0,
          sizeof(uint8_t) * matrix->width * matrix->height *
              LED_MATRIX_BIT_DEPTH);
 
@@ -209,7 +209,7 @@ esp_err_t led_matrix_init(led_matrix_handle_t *matrixHandle,
       .flags = {.out_en = 1},
   };
   ESP_RETURN_ON_ERROR(
-      dedic_gpio_new_bundle(&gpio_bundle_color_config, &matrix->gpioBundle),
+      dedic_gpio_new_bundle(&gpio_bundle_color_config, &matrix->gpio_bundle),
       TAG, "Failed to init matrix dedicated GPIO bundle");
 
   // setup the timer
@@ -247,7 +247,7 @@ esp_err_t led_matrix_init(led_matrix_handle_t *matrixHandle,
       "Failed to set timer raw count");
 
   // pass back the config
-  *matrixHandle = matrix;
+  *matrix_handle = matrix;
 
   return ESP_OK;
 };
@@ -271,16 +271,16 @@ esp_err_t led_matrix_stop(led_matrix_handle_t matrix) {
 esp_err_t led_matrix_end(led_matrix_handle_t matrix) {
   ESP_RETURN_ON_ERROR(led_matrix_stop(matrix), TAG, "END: Failed to stop.");
   gptimer_del_timer(matrix->timer);
-  dedic_gpio_del_bundle(matrix->gpioBundle);
+  dedic_gpio_del_bundle(matrix->gpio_bundle);
   free(matrix->pins);
-  free(matrix->displayBuffer);
+  free(matrix->buffer);
   free(matrix);
   return ESP_OK;
 }
 
 // Shows a `buffer` in the `matrix`
-esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *bufferRed,
-                          uint8_t *bufferGreen, uint8_t *bufferBlue) {
+esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *buffer_red,
+                          uint8_t *buffer_green, uint8_t *buffer_blue) {
   uint16_t rowAndBitOffset;
   uint16_t rowOffset;
   uint8_t row;
@@ -294,17 +294,17 @@ esp_err_t led_matrix_show(led_matrix_handle_t matrix, uint8_t *bufferRed,
       for (col = 0; col < matrix->width; col++) {
         SET_MATRIX_BYTE(
             // put the value into the variable
-            matrix->displayBuffer[rowAndBitOffset + col],
+            matrix->buffer[rowAndBitOffset + col],
             // pull the "top" red from the frame buffer
-            bufferRed[rowOffset + col],
+            buffer_red[rowOffset + col],
             // pull the "top" green from the frame buffer
-            bufferGreen[rowOffset + col],
+            buffer_green[rowOffset + col],
             // pull the "top" blue from the frame buffer
-            bufferBlue[rowOffset + col],
+            buffer_blue[rowOffset + col],
             // pull the "bottom" ...
-            bufferRed[matrix->splitOffset + rowOffset + col],
-            bufferGreen[matrix->splitOffset + rowOffset + col],
-            bufferBlue[matrix->splitOffset + rowOffset + col],
+            buffer_red[matrix->splitOffset + rowOffset + col],
+            buffer_green[matrix->splitOffset + rowOffset + col],
+            buffer_blue[matrix->splitOffset + rowOffset + col],
             // just this loop's bit
             bitNum);
       }

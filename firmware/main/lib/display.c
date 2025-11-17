@@ -23,112 +23,114 @@ void set_state(display_buffer_handle_t db, command_state_t *state) {
   }
 
   if (command_state_has_color(state)) {
-    display_buffer_set_color(db, state->colorRed, state->colorGreen,
-                             state->colorBlue);
+    display_buffer_set_color(db, state->color_red, state->color_green,
+                             state->color_blue);
   }
 
   if (command_state_has_font(state)) {
-    font_set_size(db->font, state->fontSize);
+    font_set_size(db->font, state->font_size);
   }
 
   if (command_state_has_position(state)) {
-    display_buffer_set_cursor(db, state->posX, state->posY);
+    display_buffer_set_cursor(db, state->pos_x, state->pos_y);
   }
 }
 
 void apply_command_list(display_handle_t display,
-                        command_list_handle_t commandList,
-                        bool isInsideAnimation) {
-  command_list_node_t *loopNode = commandList->head;
+                        command_list_handle_t command_list,
+                        bool is_in_animation) {
+  command_list_node_t *loopNode = command_list->head;
   while (loopNode != NULL) {
     switch (loopNode->command->type) {
     case COMMAND_TYPE_STRING: {
-      set_state(display->displayBuffer, loopNode->command->value.string->state);
-      display_buffer_draw_string(display->displayBuffer,
+      set_state(display->display_buffer,
+                loopNode->command->value.string->state);
+      display_buffer_draw_string(display->display_buffer,
                                  loopNode->command->value.string->value);
       break;
     }
     case COMMAND_TYPE_LINE: {
-      set_state(display->displayBuffer, loopNode->command->value.line->state);
-      display_buffer_draw_line(display->displayBuffer,
-                               loopNode->command->value.line->toX,
-                               loopNode->command->value.line->toY);
+      set_state(display->display_buffer, loopNode->command->value.line->state);
+      display_buffer_draw_line(display->display_buffer,
+                               loopNode->command->value.line->to_x,
+                               loopNode->command->value.line->to_y);
       break;
     }
     case COMMAND_TYPE_BITMAP: {
-      set_state(display->displayBuffer, loopNode->command->value.bitmap->state);
-      display_buffer_draw_bitmap(display->displayBuffer,
+      set_state(display->display_buffer,
+                loopNode->command->value.bitmap->state);
+      display_buffer_draw_bitmap(display->display_buffer,
                                  loopNode->command->value.bitmap->width,
                                  loopNode->command->value.bitmap->height,
-                                 loopNode->command->value.bitmap->dataRed,
-                                 loopNode->command->value.bitmap->dataGreen,
-                                 loopNode->command->value.bitmap->dataBlue);
+                                 loopNode->command->value.bitmap->data_red,
+                                 loopNode->command->value.bitmap->data_green,
+                                 loopNode->command->value.bitmap->data_blue);
       break;
     }
     case COMMAND_TYPE_SETSTATE: {
-      set_state(display->displayBuffer,
-                loopNode->command->value.setState->state);
+      set_state(display->display_buffer,
+                loopNode->command->value.set_state->state);
       break;
     }
     case COMMAND_TYPE_LINEFEED: {
-      display_buffer_line_feed(display->displayBuffer);
+      display_buffer_line_feed(display->display_buffer);
       break;
     }
     case COMMAND_TYPE_ANIMATION: {
-      if (isInsideAnimation) {
+      if (is_in_animation) {
         ESP_LOGW(
             TAG,
             "Nested animations are not supported. Skipping inner animation.");
         break;
       }
-      loopNode->command->value.animation->lastShowFrame++;
-      if (loopNode->command->value.animation->lastShowFrame >=
-          loopNode->command->value.animation->frameCount) {
-        loopNode->command->value.animation->lastShowFrame = 0;
+      loopNode->command->value.animation->last_show_frame++;
+      if (loopNode->command->value.animation->last_show_frame >=
+          loopNode->command->value.animation->frame_count) {
+        loopNode->command->value.animation->last_show_frame = 0;
       }
 
       apply_command_list(
           display,
           loopNode->command->value.animation
-              ->frames[loopNode->command->value.animation->lastShowFrame],
+              ->frames[loopNode->command->value.animation->last_show_frame],
           true);
 
       break;
     }
     case COMMAND_TYPE_TIME: {
-      set_state(display->displayBuffer, loopNode->command->value.time->state);
+      set_state(display->display_buffer, loopNode->command->value.time->state);
 
       char timeString[8];
-      time_util_info_t timeInfo;
-      time_util_get(&timeInfo);
-      snprintf(timeString, sizeof(timeString), "%u:%02u %s", timeInfo.hour12,
-               timeInfo.minute, timeInfo.isPM ? "PM" : "AM");
+      time_util_info_t time_info;
+      time_util_get(&time_info);
+      snprintf(timeString, sizeof(timeString), "%u:%02u %s", time_info.hour12,
+               time_info.minute, time_info.isPM ? "PM" : "AM");
 
-      display_buffer_draw_string(display->displayBuffer, timeString);
+      display_buffer_draw_string(display->display_buffer, timeString);
       break;
     }
     case COMMAND_TYPE_DATE: {
-      set_state(display->displayBuffer, loopNode->command->value.date->state);
+      set_state(display->display_buffer, loopNode->command->value.date->state);
 
-      time_util_info_t timeInfo;
+      time_util_info_t time_info;
       char timeString[13];
-      time_util_get(&timeInfo);
+      time_util_get(&time_info);
       snprintf(timeString, sizeof(timeString), "%s %u, %u",
-               month_name_strings[timeInfo.month - 1], timeInfo.dayOfMonth,
-               timeInfo.year);
+               month_name_strings[time_info.month - 1], time_info.dayOfMonth,
+               time_info.year);
 
-      display_buffer_draw_string(display->displayBuffer, timeString);
+      display_buffer_draw_string(display->display_buffer, timeString);
       break;
     }
     case COMMAND_TYPE_GRAPH: {
-      set_state(display->displayBuffer, loopNode->command->value.graph->state);
-      display_buffer_draw_graph(display->displayBuffer,
+      set_state(display->display_buffer, loopNode->command->value.graph->state);
+      display_buffer_draw_graph(display->display_buffer,
                                 loopNode->command->value.graph->width,
                                 loopNode->command->value.graph->height,
                                 loopNode->command->value.graph->values,
-                                loopNode->command->value.graph->bgColorRed,
-                                loopNode->command->value.graph->bgColorGreen,
-                                loopNode->command->value.graph->bgColorBlue);
+                                loopNode->command->value.graph->bg_color_red,
+                                loopNode->command->value.graph->bg_color_green,
+                                loopNode->command->value.graph->bg_color_blue);
       break;
     }
     default: {
@@ -142,20 +144,20 @@ void apply_command_list(display_handle_t display,
 }
 
 esp_err_t build_and_show(display_handle_t display) {
-  display_buffer_clear(display->displayBuffer);
-  display_buffer_set_cursor(display->displayBuffer, 0, 0);
+  display_buffer_clear(display->display_buffer);
+  display_buffer_set_cursor(display->display_buffer, 0, 0);
 
   apply_command_list(display, display->commands, false);
 
   display_buffer_add_feedback(
-      display->displayBuffer, display->state->remoteStateInvalid,
-      display->state->commandsInvalid, display->state->isDevMode);
+      display->display_buffer, display->state->remote_state_invalid,
+      display->state->commands_invalid, display->state->is_dev_mode);
 
-  display->commands->hasShown = true;
+  display->commands->has_shown = true;
 
-  return led_matrix_show(display->matrix, display->displayBuffer->bufferRed,
-                         display->displayBuffer->bufferGreen,
-                         display->displayBuffer->bufferBlue);
+  return led_matrix_show(display->matrix, display->display_buffer->buffer_red,
+                         display->display_buffer->buffer_green,
+                         display->display_buffer->buffer_blue);
 }
 
 esp_err_t fetch_commands(display_handle_t display) {
@@ -168,9 +170,9 @@ esp_err_t fetch_commands(display_handle_t display) {
 
   ctx->url = display->state->commandEndpoint;
   ctx->method = HTTP_METHOD_GET;
-  if (display->lastEtag != NULL) {
-    fetch_etag_init(&ctx->eTag);
-    fetch_etag_copy(ctx->eTag, display->lastEtag);
+  if (display->last_etag != NULL) {
+    fetch_etag_init(&ctx->etag);
+    fetch_etag_copy(ctx->etag, display->last_etag);
   }
 
   ESP_GOTO_ON_ERROR(fetch_perform(ctx), fetch_commands_cleanup, MAIN_TASK_NAME,
@@ -186,11 +188,11 @@ esp_err_t fetch_commands(display_handle_t display) {
                     "Invalid response status code \"%d\"",
                     ctx->response->status_code);
 
-  if (ctx->response->eTag == NULL) {
+  if (ctx->response->etag == NULL) {
     ESP_LOGD(MAIN_TASK_NAME, "ETag is null");
   } else {
-    fetch_etag_init(&display->lastEtag);
-    fetch_etag_copy(display->lastEtag, ctx->response->eTag);
+    fetch_etag_init(&display->last_etag);
+    fetch_etag_copy(display->last_etag, ctx->response->etag);
   }
 
   command_list_handle_t newCommands;
@@ -204,12 +206,12 @@ esp_err_t fetch_commands(display_handle_t display) {
   display->commands = newCommands;
   command_list_end(oldCommands);
 
-  display->state->commandsInvalid = false;
+  display->state->commands_invalid = false;
 
 fetch_commands_cleanup:
   fetch_end(ctx);
   if (ret != ESP_OK) {
-    fetch_etag_end(&display->lastEtag);
+    fetch_etag_end(&display->last_etag);
   }
   return ret;
 }
@@ -235,7 +237,7 @@ void main_task(void *pvParameters) {
 
         display->state->fetchFailureCount++;
         if (display->state->fetchFailureCount > 5) {
-          display->state->commandsInvalid = true;
+          display->state->commands_invalid = true;
         }
       }
     } else {
@@ -252,29 +254,30 @@ void animation_task(void *pvParameters) {
   while (true) {
     // We only need to do another "show" if there is an animation that needs to
     // be updated, or if this is a new command list
-    if (!display->commands->hasShown || display->commands->hasAnimation) {
+    if (!display->commands->has_shown || display->commands->has_animation) {
       build_and_show(display);
     }
     // max animation speed is limited by the freertos tick...
-    vTaskDelay(display->commands->config.animationDelay / portTICK_PERIOD_MS);
+    vTaskDelay(display->commands->config.animation_delay / portTICK_PERIOD_MS);
   }
 }
 
-esp_err_t display_init(display_handle_t *displayHandle,
-                       led_matrix_config_t *matrixConfig) {
+esp_err_t display_init(display_handle_t *display_handle,
+                       led_matrix_config_t *led_matrix_config) {
   // allocate the the display
   display_handle_t display = (display_handle_t)malloc(sizeof(display_t));
 
   // reset ETag
-  display->lastEtag = NULL;
+  display->last_etag = NULL;
 
   // setup matrix
-  ESP_ERROR_BUBBLE(led_matrix_init(&display->matrix, matrixConfig));
+  ESP_ERROR_BUBBLE(led_matrix_init(&display->matrix, led_matrix_config));
   ESP_ERROR_BUBBLE(led_matrix_start(display->matrix));
 
   // setup db
-  ESP_ERROR_BUBBLE(display_buffer_init(
-      &display->displayBuffer, matrixConfig->width, matrixConfig->height));
+  ESP_ERROR_BUBBLE(display_buffer_init(&display->display_buffer,
+                                       led_matrix_config->width,
+                                       led_matrix_config->height));
 
   // setup state
   ESP_ERROR_BUBBLE(state_init(&display->state));
@@ -288,17 +291,17 @@ esp_err_t display_init(display_handle_t *displayHandle,
 
   command_state_init(&startCommand->value.string->state);
 
-  startCommand->value.string->state->colorRed = 0;
-  startCommand->value.string->state->colorGreen = 255;
-  startCommand->value.string->state->colorBlue = 149;
+  startCommand->value.string->state->color_red = 0;
+  startCommand->value.string->state->color_green = 255;
+  startCommand->value.string->state->color_blue = 149;
   command_state_set_flag_color(startCommand->value.string->state);
 
-  startCommand->value.string->state->posX = 0;
-  startCommand->value.string->state->posY =
-      (display->displayBuffer->height / 2) - 8;
+  startCommand->value.string->state->pos_x = 0;
+  startCommand->value.string->state->pos_y =
+      (display->display_buffer->height / 2) - 8;
   command_state_set_flag_position(startCommand->value.string->state);
 
-  startCommand->value.string->state->fontSize = FONT_SIZE_LG;
+  startCommand->value.string->state->font_size = FONT_SIZE_LG;
   command_state_set_flag_font(startCommand->value.string->state);
 
   startCommand->value.string->value = malloc(sizeof(char) * 9);
@@ -307,7 +310,7 @@ esp_err_t display_init(display_handle_t *displayHandle,
   build_and_show(display);
 
   // pass back the display
-  *displayHandle = display;
+  *display_handle = display;
 
   return ESP_OK;
 }
@@ -315,32 +318,32 @@ esp_err_t display_init(display_handle_t *displayHandle,
 void display_end(display_handle_t display) {
   led_matrix_stop(display->matrix);
   led_matrix_end(display->matrix);
-  display_buffer_end(display->displayBuffer);
+  display_buffer_end(display->display_buffer);
   state_end(display->state);
   command_list_end(display->commands);
 
   TaskHandle_t taskHandle;
   taskHandle = xTaskGetHandle(MAIN_TASK_NAME);
-  if (taskHandle != NULL && taskHandle == display->mainTaskHandle) {
-    vTaskDelete(display->mainTaskHandle);
+  if (taskHandle != NULL && taskHandle == display->main_task_handle) {
+    vTaskDelete(display->main_task_handle);
   }
 
   taskHandle = xTaskGetHandle(ANIMATION_TASK_NAME);
-  if (taskHandle != NULL && taskHandle == display->animationTaskHandle) {
-    vTaskDelete(display->animationTaskHandle);
+  if (taskHandle != NULL && taskHandle == display->animation_task_handle) {
+    vTaskDelete(display->animation_task_handle);
   }
 
-  free(display->lastEtag);
+  free(display->last_etag);
   free(display);
 }
 
 esp_err_t display_start(display_handle_t display) {
   if (state_fetch_remote(display->state) != ESP_OK) {
-    display->state->remoteStateInvalid = true;
+    display->state->remote_state_invalid = true;
     ESP_LOGE(TAG, "Failed to fetch remote state");
   }
 
-  if (display->state->isDevMode) {
+  if (display->state->is_dev_mode) {
     ESP_LOGI(TAG, "Running in dev mode");
   }
 
@@ -350,18 +353,18 @@ esp_err_t display_start(display_handle_t display) {
   BaseType_t taskCreate;
   taskCreate = xTaskCreatePinnedToCore(animation_task, ANIMATION_TASK_NAME,
                                        4096, display, tskIDLE_PRIORITY + 2,
-                                       &display->animationTaskHandle, 0);
+                                       &display->animation_task_handle, 0);
 
-  if (taskCreate != pdPASS || display->animationTaskHandle == NULL) {
+  if (taskCreate != pdPASS || display->animation_task_handle == NULL) {
     ESP_LOGE(TAG, "Failed to create task '%s'", ANIMATION_TASK_NAME);
     return ESP_ERR_INVALID_STATE;
   }
 
   taskCreate = xTaskCreatePinnedToCore(main_task, MAIN_TASK_NAME, 4096, display,
                                        tskIDLE_PRIORITY + 1,
-                                       &display->mainTaskHandle, 0);
+                                       &display->main_task_handle, 0);
 
-  if (taskCreate != pdPASS || display->mainTaskHandle == NULL) {
+  if (taskCreate != pdPASS || display->main_task_handle == NULL) {
     ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);
     return ESP_ERR_INVALID_STATE;
   }

@@ -14,17 +14,17 @@
 
 typedef struct {
   led_matrix_handle_t matrix;
-  display_buffer_handle_t displayBuffer;
+  display_buffer_handle_t display_buffer;
   state_handle_t state;
-  TaskHandle_t mainTaskHandle;
-  TaskHandle_t animationTaskHandle;
-  char *lastEtag;
+  TaskHandle_t main_task_handle;
+  TaskHandle_t animation_task_handle;
+  char *last_etag;
   command_list_handle_t commands;
 } display_t;
 
 typedef display_t *display_handle_t;
 
-esp_err_t display_init(display_handle_t *displayHandle,
-                       led_matrix_config_t *matrixConfig);
+esp_err_t display_init(display_handle_t *display_handle,
+                       led_matrix_config_t *led_matrix_config);
 void display_end(display_handle_t display);
 esp_err_t display_start(display_handle_t display);

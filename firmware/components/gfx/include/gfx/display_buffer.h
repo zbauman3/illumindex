@@ -10,9 +10,9 @@
 #define display_buffer_safe_set_value(db, index, red, green, blue)             \
   ({                                                                           \
     if ((index) < db->length) {                                                \
-      db->bufferRed[(index)] = (red);                                          \
-      db->bufferGreen[(index)] = (green);                                      \
-      db->bufferBlue[(index)] = (blue);                                        \
+      db->buffer_red[(index)] = (red);                                         \
+      db->buffer_green[(index)] = (green);                                     \
+      db->buffer_blue[(index)] = (blue);                                       \
     }                                                                          \
   })
 
@@ -48,9 +48,9 @@
 
 #define display_buffer_set_color(db, red, green, blue)                         \
   ({                                                                           \
-    db->colorRed = (red);                                                      \
-    db->colorGreen = (green);                                                  \
-    db->colorBlue = (blue);                                                    \
+    db->color_red = (red);                                                     \
+    db->color_green = (green);                                                 \
+    db->color_blue = (blue);                                                   \
   })
 
 #define display_buffer_line_feed(db)                                           \
@@ -60,16 +60,16 @@
   })
 
 typedef struct {
-  uint8_t *bufferRed;
-  uint8_t *bufferGreen;
-  uint8_t *bufferBlue;
+  uint8_t *buffer_red;
+  uint8_t *buffer_green;
+  uint8_t *buffer_blue;
   uint8_t width;
   uint8_t height;
   uint16_t length;
   font_handle_t font;
-  uint8_t colorRed;
-  uint8_t colorGreen;
-  uint8_t colorBlue;
+  uint8_t color_red;
+  uint8_t color_green;
+  uint8_t color_blue;
   struct {
     uint8_t x;
     uint8_t y;
@@ -78,24 +78,24 @@ typedef struct {
 
 typedef display_buffer_t *display_buffer_handle_t;
 
-esp_err_t display_buffer_init(display_buffer_handle_t *dbHandle, uint8_t width,
+esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
                               uint8_t height);
-void display_buffer_end(display_buffer_handle_t dbHandle);
-void display_buffer_clear(display_buffer_handle_t dbHandle);
+void display_buffer_end(display_buffer_handle_t db_handle);
+void display_buffer_clear(display_buffer_handle_t db_handle);
 void display_buffer_draw_string(display_buffer_handle_t db, char *string);
 void display_buffer_draw_vert_line(display_buffer_handle_t db, uint8_t to);
 void display_buffer_draw_horiz_line(display_buffer_handle_t db, uint8_t to);
-void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t toX,
-                                   uint8_t toY);
-void display_buffer_draw_line(display_buffer_handle_t db, uint8_t toX,
-                              uint8_t toY);
+void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t to_x,
+                                   uint8_t to_y);
+void display_buffer_draw_line(display_buffer_handle_t db, uint8_t to_x,
+                              uint8_t to_y);
 void display_buffer_draw_bitmap(display_buffer_handle_t db, uint8_t width,
-                                uint8_t height, uint8_t *bufferRed,
-                                uint8_t *bufferGreen, uint8_t *bufferBlue);
+                                uint8_t height, uint8_t *buffer_red,
+                                uint8_t *buffer_green, uint8_t *buffer_blue);
 void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
                                uint8_t height, uint8_t *values,
-                               uint8_t bgColorRed, uint8_t bgColorGreen,
-                               uint8_t bgColorBlue);
+                               uint8_t bg_color_red, uint8_t bg_color_green,
+                               uint8_t bg_color_blue);
 void display_buffer_add_feedback(display_buffer_handle_t db,
-                                 bool remoteStateInvalid, bool commandsInvalid,
-                                 bool isDevMode);
+                                 bool remote_state_invalid,
+                                 bool commands_invalid, bool is_dev_mode);

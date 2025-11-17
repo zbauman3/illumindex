@@ -12,8 +12,8 @@ const static char *TAG = "DISPLAY_BUFFER";
 
 // allocates all memory required for the display_buffer_t and initiates the
 // values
-esp_err_t display_buffer_init(display_buffer_handle_t *displayBufferHandle,
-                              uint8_t width, uint8_t height) {
+esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
+                              uint8_t height) {
   display_buffer_handle_t db =
       (display_buffer_handle_t)malloc(sizeof(display_buffer_t));
 
@@ -23,31 +23,31 @@ esp_err_t display_buffer_init(display_buffer_handle_t *displayBufferHandle,
   db->height = height;
   db->length = db->width * db->height;
 
-  db->bufferRed = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
-  db->bufferGreen = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
-  db->bufferBlue = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+  db->buffer_red = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+  db->buffer_green = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+  db->buffer_blue = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   display_buffer_clear(db);
 
   font_init(&db->font);
 
-  *displayBufferHandle = db;
+  *db_handle = db;
 
   return ESP_OK;
 }
 
 // resets all values in the buffer to `0`
 void display_buffer_clear(display_buffer_handle_t db) {
-  memset(db->bufferRed, 0, sizeof(uint8_t) * db->length);
-  memset(db->bufferGreen, 0, sizeof(uint8_t) * db->length);
-  memset(db->bufferBlue, 0, sizeof(uint8_t) * db->length);
+  memset(db->buffer_red, 0, sizeof(uint8_t) * db->length);
+  memset(db->buffer_green, 0, sizeof(uint8_t) * db->length);
+  memset(db->buffer_blue, 0, sizeof(uint8_t) * db->length);
 }
 
 // cleans up all memory associated with the buffer
 void display_buffer_end(display_buffer_handle_t db) {
   font_end(db->font);
-  free(db->bufferRed);
-  free(db->bufferGreen);
-  free(db->bufferBlue);
+  free(db->buffer_red);
+  free(db->buffer_green);
+  free(db->buffer_blue);
   free(db);
 }
 
@@ -58,7 +58,7 @@ void display_buffer_draw_string(display_buffer_handle_t db, char *string) {
   // the index within the string we are working on
   uint16_t stringIndex;
   // the actual ascii character we are working on
-  char asciiChar;
+  char ascii_char;
   // the starting point to draw bits at in the buffer
   uint16_t bufferStartIdx;
   // which bit of the font->width we are on working on
@@ -73,7 +73,7 @@ void display_buffer_draw_string(display_buffer_handle_t db, char *string) {
 
   // loop all the characters in the string
   for (stringIndex = 0; stringIndex < stringLength; stringIndex++) {
-    asciiChar = string[stringIndex];
+    ascii_char = string[stringIndex];
     bitmapRowIdx = 0;
     // convert the buffers cursor to an index, where we start this char
     bufferStartIdx = display_buffer_cursor_to_index(db);
@@ -84,21 +84,21 @@ void display_buffer_draw_string(display_buffer_handle_t db, char *string) {
     }
 
     // if not a character that we support, change to `?`
-    if (!font_is_valid_ascii(asciiChar)) {
-      ESP_LOGW(TAG, "Unsupported ASCII character \"%d\"", asciiChar);
-      asciiChar = 63;
+    if (!font_is_valid_ascii(ascii_char)) {
+      ESP_LOGW(TAG, "Unsupported ASCII character \"%d\"", ascii_char);
+      ascii_char = 63;
     }
 
-    for (chunkIdx = 0; chunkIdx < db->font->chunksPerChar; chunkIdx++) {
-      chunkVal = font_get_chunk(db->font, asciiChar, chunkIdx);
+    for (chunkIdx = 0; chunkIdx < db->font->chunks_per_char; chunkIdx++) {
+      chunkVal = font_get_chunk(db->font, ascii_char, chunkIdx);
 
-      for (chunkBitN = 1; chunkBitN <= db->font->bitsPerChunk; chunkBitN++) {
+      for (chunkBitN = 1; chunkBitN <= db->font->bits_per_chunk; chunkBitN++) {
         // mask the chunk bit, then AND it to the chunk value. Use the result as
         // a boolean to check if we should set the value to the color or blank
-        if (chunkVal & _BV_1ULL(db->font->bitsPerChunk - chunkBitN)) {
+        if (chunkVal & _BV_1ULL(db->font->bits_per_chunk - chunkBitN)) {
           display_buffer_safe_set_value(db, bufferStartIdx + bitmapRowIdx,
-                                        db->colorRed, db->colorGreen,
-                                        db->colorBlue);
+                                        db->color_red, db->color_green,
+                                        db->color_blue);
         } else {
           display_buffer_safe_set_value(db, bufferStartIdx + bitmapRowIdx, 0, 0,
                                         0);
@@ -125,7 +125,7 @@ void display_buffer_draw_vert_line(display_buffer_handle_t db, uint8_t to) {
       if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
         display_buffer_safe_set_value(
             db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.y--;
@@ -135,7 +135,7 @@ void display_buffer_draw_vert_line(display_buffer_handle_t db, uint8_t to) {
       if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
         display_buffer_safe_set_value(
             db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.y++;
@@ -144,7 +144,7 @@ void display_buffer_draw_vert_line(display_buffer_handle_t db, uint8_t to) {
   if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
     display_buffer_safe_set_value(
         db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
-        db->colorRed, db->colorGreen, db->colorBlue);
+        db->color_red, db->color_green, db->color_blue);
   }
 
   display_buffer_set_cursor(db, db->cursor.x, to);
@@ -157,7 +157,7 @@ void display_buffer_draw_horiz_line(display_buffer_handle_t db, uint8_t to) {
       if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
         display_buffer_safe_set_value(
             db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.x--;
@@ -167,7 +167,7 @@ void display_buffer_draw_horiz_line(display_buffer_handle_t db, uint8_t to) {
       if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
         display_buffer_safe_set_value(
             db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.x++;
@@ -177,36 +177,36 @@ void display_buffer_draw_horiz_line(display_buffer_handle_t db, uint8_t to) {
   display_buffer_set_cursor(db, to, db->cursor.y);
 }
 
-void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t toX,
-                                   uint8_t toY) {
+void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t to_x,
+                                   uint8_t to_y) {
   float change =
-      ((float)db->cursor.y - (float)toY) / ((float)db->cursor.x - (float)toX);
+      ((float)db->cursor.y - (float)to_y) / ((float)db->cursor.x - (float)to_x);
   float unroundedY = (float)db->cursor.y;
 
   // faster to write it twice ¯\_(ツ)_/¯
-  if (db->cursor.x <= toX) {
-    while (db->cursor.x <= toX) {
+  if (db->cursor.x <= to_x) {
+    while (db->cursor.x <= to_x) {
       if (display_buffer_point_is_visible(db, db->cursor.x,
                                           (uint8_t)round(unroundedY))) {
         display_buffer_safe_set_value(
             db,
             display_buffer_point_to_index(db, db->cursor.x,
                                           (uint8_t)round(unroundedY)),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.x++;
       unroundedY += change;
     }
   } else {
-    while (db->cursor.x >= toX) {
+    while (db->cursor.x >= to_x) {
       if (display_buffer_point_is_visible(db, db->cursor.x,
                                           (uint8_t)round(unroundedY))) {
         display_buffer_safe_set_value(
             db,
             display_buffer_point_to_index(db, db->cursor.x,
                                           (uint8_t)round(unroundedY)),
-            db->colorRed, db->colorGreen, db->colorBlue);
+            db->color_red, db->color_green, db->color_blue);
       }
 
       db->cursor.x--;
@@ -214,50 +214,50 @@ void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t toX,
     }
   }
 
-  display_buffer_set_cursor(db, toX, toY);
+  display_buffer_set_cursor(db, to_x, to_y);
 }
 
 // if you know the shape of your line already, you can save a few clocks by
 // using the above `displayBufferDrawFast*` versions
-void display_buffer_draw_line(display_buffer_handle_t db, uint8_t toX,
-                              uint8_t toY) {
-  if (db->cursor.x == toX) {
-    display_buffer_draw_vert_line(db, toY);
-  } else if (db->cursor.y == toY) {
-    display_buffer_draw_horiz_line(db, toX);
+void display_buffer_draw_line(display_buffer_handle_t db, uint8_t to_x,
+                              uint8_t to_y) {
+  if (db->cursor.x == to_x) {
+    display_buffer_draw_vert_line(db, to_y);
+  } else if (db->cursor.y == to_y) {
+    display_buffer_draw_horiz_line(db, to_x);
   } else {
-    display_buffer_draw_diag_line(db, toX, toY);
+    display_buffer_draw_diag_line(db, to_x, to_y);
   }
 }
 
 void display_buffer_draw_bitmap(display_buffer_handle_t db, uint8_t width,
-                                uint8_t height, uint8_t *bufferRed,
-                                uint8_t *bufferGreen, uint8_t *bufferBlue) {
+                                uint8_t height, uint8_t *buffer_red,
+                                uint8_t *buffer_green, uint8_t *buffer_blue) {
   for (uint8_t row = 0; row < height; row++) {
     for (uint8_t col = 0; col < width; col++) {
       display_buffer_safe_set_value(
           db,
           display_buffer_point_to_index(db, db->cursor.x + col,
                                         db->cursor.y + row),
-          bufferRed[(row * width) + col], bufferGreen[(row * width) + col],
-          bufferBlue[(row * width) + col]);
+          buffer_red[(row * width) + col], buffer_green[(row * width) + col],
+          buffer_blue[(row * width) + col]);
     }
   }
 }
 
 void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
                                uint8_t height, uint8_t *values,
-                               uint8_t bgColorRed, uint8_t bgColorGreen,
-                               uint8_t bgColorBlue) {
+                               uint8_t bg_color_red, uint8_t bg_color_green,
+                               uint8_t bg_color_blue) {
   uint8_t cursorStartX = db->cursor.x;
   uint8_t cursorStartY = db->cursor.y;
 
-  uint8_t prevColorRed = db->colorRed;
-  uint8_t prevColorGreen = db->colorGreen;
-  uint8_t prevColorBlue = db->colorBlue;
+  uint8_t prevColorRed = db->color_red;
+  uint8_t prevColorGreen = db->color_green;
+  uint8_t prevColorBlue = db->color_blue;
 
   // first draw the background
-  display_buffer_set_color(db, bgColorRed, bgColorGreen, bgColorBlue);
+  display_buffer_set_color(db, bg_color_red, bg_color_green, bg_color_blue);
   for (uint8_t y = 0; y < height; y++) {
     display_buffer_set_cursor(db, cursorStartX, cursorStartY + y);
     display_buffer_draw_horiz_line(db, cursorStartX + width - 1);
@@ -278,17 +278,17 @@ void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
 }
 
 void display_buffer_add_feedback(display_buffer_handle_t db,
-                                 bool remoteStateInvalid, bool commandsInvalid,
-                                 bool isDevMode) {
-  if (isDevMode) {
+                                 bool remote_state_invalid,
+                                 bool commands_invalid, bool is_dev_mode) {
+  if (is_dev_mode) {
     display_buffer_safe_set_value(db, 0, 0, 0, 255);
   }
 
-  if (remoteStateInvalid) {
+  if (remote_state_invalid) {
     display_buffer_safe_set_value(db, 2, 255, 255, 0);
   }
 
-  if (commandsInvalid) {
+  if (commands_invalid) {
     display_buffer_safe_set_value(db, 4, 255, 0, 0);
   }
 }

@@ -9,16 +9,16 @@
 
 static const char *TAG = "NETWORK_REQUEST";
 
-void fetch_etag_init(char **eTag) {
-  fetch_etag_end(eTag);
-  *eTag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
+void fetch_etag_init(char **etag) {
+  fetch_etag_end(etag);
+  *etag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
 }
 
 void fetch_etag_copy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
 
-void fetch_etag_end(char **eTag) {
-  free(*eTag);
-  *eTag = NULL;
+void fetch_etag_end(char **etag) {
+  free(*etag);
+  *etag = NULL;
 }
 
 static esp_err_t event_handler(esp_http_client_event_t *evt) {
@@ -69,8 +69,8 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
         ESP_LOGW(TAG, "ETAG length '%u' is larger than '%u'", length - 1,
                  ETAG_LENGTH - 1);
       } else {
-        fetch_etag_init(&ctx->response->eTag);
-        fetch_etag_copy(ctx->response->eTag, evt->header_value);
+        fetch_etag_init(&ctx->response->etag);
+        fetch_etag_copy(ctx->response->etag, evt->header_value);
       }
     }
     break;
@@ -93,22 +93,22 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
   return ESP_OK;
 }
 
-esp_err_t fetch_init(fetch_ctx_handle_t *ctxHandle) {
+esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle) {
   fetch_ctx_handle_t ctx = (fetch_ctx_handle_t)malloc(sizeof(fetch_ctx_t));
   ctx->response =
       (fetch_response_data_t *)malloc(sizeof(fetch_response_data_t));
   ctx->response->data = NULL;
   ctx->response->length = 0;
-  ctx->response->eTag = NULL;
-  ctx->eTag = NULL;
+  ctx->response->etag = NULL;
+  ctx->etag = NULL;
 
-  *ctxHandle = ctx;
+  *ctx_handle = ctx;
   return ESP_OK;
 }
 
 esp_err_t fetch_end(fetch_ctx_handle_t ctx) {
-  fetch_etag_end(&ctx->response->eTag);
-  fetch_etag_end(&ctx->eTag);
+  fetch_etag_end(&ctx->response->etag);
+  fetch_etag_end(&ctx->etag);
   free(ctx->response->data);
   free(ctx->response);
   free(ctx);
@@ -126,8 +126,8 @@ esp_err_t fetch_perform(fetch_ctx_handle_t ctx) {
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
 
-  if (ctx->eTag != NULL) {
-    esp_http_client_set_header(client, "If-None-Match", ctx->eTag);
+  if (ctx->etag != NULL) {
+    esp_http_client_set_header(client, "If-None-Match", ctx->etag);
   }
 
   esp_http_client_set_header(client, "Authorization",

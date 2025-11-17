@@ -16,7 +16,7 @@
 static const char *TAG = "APP_MAIN";
 static display_handle_t display;
 
-esp_err_t appInit() {
+esp_err_t app_init() {
   esp_err_t init_ret = nvs_flash_init();
   if (init_ret == ESP_ERR_NVS_NO_FREE_PAGES ||
       init_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
@@ -26,7 +26,7 @@ esp_err_t appInit() {
 
   ESP_ERROR_BUBBLE(esp_event_loop_create_default());
 
-  led_matrix_config_t matrixConfig = {
+  led_matrix_config_t led_matrix_config = {
       .width = 64,
       .height = 64,
       .pins =
@@ -50,7 +50,7 @@ esp_err_t appInit() {
           },
   };
 
-  ESP_ERROR_BUBBLE(display_init(&display, &matrixConfig));
+  ESP_ERROR_BUBBLE(display_init(&display, &led_matrix_config));
 
   ESP_ERROR_BUBBLE(wifi_init());
 
@@ -62,11 +62,11 @@ esp_err_t appInit() {
 }
 
 void app_main(void) {
-  if (appInit() != ESP_OK) {
+  if (app_init() != ESP_OK) {
     display_end(display);
 
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
-    vTaskDelay(10000 / portTICK_PERIOD_MS);
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     esp_restart();
     return;
