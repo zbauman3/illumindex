@@ -16,6 +16,7 @@ static const char *TAG = "APP_MAIN";
 static display_handle_t display;
 
 esp_err_t app_init() {
+  // NVS is used to store WiFi config/calibration data for faster startup
   esp_err_t init_ret = nvs_flash_init();
   if (init_ret == ESP_ERR_NVS_NO_FREE_PAGES ||
       init_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {

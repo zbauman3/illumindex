@@ -6,3 +6,6 @@
   - fine-tine IRAM usage
   - network reconnection
   - make sure `TAG`s are up to date
+  - Memory
+    - check all allocations
+    - set to NULL after free

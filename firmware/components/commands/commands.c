@@ -26,8 +26,13 @@ void parse_command_array(command_list_handle_t command_list_handle,
 // within these functions
 // --------
 
-void command_state_init(command_state_t **state_handle) {
+esp_err_t command_state_init(command_state_t **state_handle) {
   command_state_t *state = (command_state_t *)malloc(sizeof(command_state_t));
+  if (state == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for command state");
+    *state_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
 
   state->color_red = 255;
   state->color_green = 255;
@@ -38,6 +43,8 @@ void command_state_init(command_state_t **state_handle) {
   state->flags = 0;
 
   *state_handle = state;
+
+  return ESP_OK;
 }
 
 void command_state_end(command_state_t *state) {
@@ -48,23 +55,47 @@ void command_state_end(command_state_t *state) {
 esp_err_t command_init(command_handle_t *command_handle,
                        command_type_enum_t type) {
   command_handle_t command = (command_t *)malloc(sizeof(command_t));
+  if (command == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for command");
+    *command_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
+
   command->type = type;
 
   switch (command->type) {
   case COMMAND_TYPE_STRING:
     command->value.string =
         (command_value_string_t *)malloc(sizeof(command_value_string_t));
+    if (command->value.string == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command string");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.string->state = NULL;
     command->value.string->value = NULL;
     break;
   case COMMAND_TYPE_LINE:
     command->value.line =
         (command_value_line_t *)malloc(sizeof(command_value_line_t));
+    if (command->value.line == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command line");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.line->state = NULL;
     break;
   case COMMAND_TYPE_BITMAP:
     command->value.bitmap =
         (command_value_bitmap_t *)malloc(sizeof(command_value_bitmap_t));
+    if (command->value.bitmap == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command bitmap");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.bitmap->state = NULL;
     command->value.bitmap->data_red = NULL;
     command->value.bitmap->data_green = NULL;
@@ -73,15 +104,33 @@ esp_err_t command_init(command_handle_t *command_handle,
   case COMMAND_TYPE_SETSTATE:
     command->value.set_state =
         (command_value_set_state_t *)malloc(sizeof(command_value_set_state_t));
+    if (command->value.set_state == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command set state");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.set_state->state = NULL;
     break;
   case COMMAND_TYPE_LINEFEED:
     command->value.line_feed =
         (command_value_line_feed_t *)malloc(sizeof(command_value_line_feed_t));
+    if (command->value.line_feed == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command line feed");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     break;
   case COMMAND_TYPE_ANIMATION:
     command->value.animation =
         (command_value_animation_t *)malloc(sizeof(command_value_animation_t));
+    if (command->value.animation == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command animation");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.animation->frame_count = 0;
     command->value.animation->last_show_frame = 0;
     command->value.animation->frames = NULL;
@@ -89,16 +138,34 @@ esp_err_t command_init(command_handle_t *command_handle,
   case COMMAND_TYPE_TIME:
     command->value.time =
         (command_value_time_t *)malloc(sizeof(command_value_time_t));
+    if (command->value.time == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command time");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.time->state = NULL;
     break;
   case COMMAND_TYPE_DATE:
     command->value.date =
         (command_value_date_t *)malloc(sizeof(command_value_date_t));
+    if (command->value.date == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command date");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.date->state = NULL;
     break;
   case COMMAND_TYPE_GRAPH:
     command->value.graph =
         (command_value_graph_t *)malloc(sizeof(command_value_graph_t));
+    if (command->value.graph == NULL) {
+      free(command);
+      ESP_LOGE(TAG, "Failed to allocate memory for command graph");
+      *command_handle = NULL;
+      return ESP_ERR_NO_MEM;
+    }
     command->value.graph->state = NULL;
     command->value.graph->height = 0;
     command->value.graph->width = 0;
@@ -109,6 +176,7 @@ esp_err_t command_init(command_handle_t *command_handle,
     break;
   default:
     free(command);
+    ESP_LOGE(TAG, "command_t has an invalid type");
     return ESP_ERR_INVALID_ARG;
   }
 
@@ -178,6 +246,12 @@ esp_err_t command_list_node_init(command_list_handle_t command_list,
 
   command_list_node_t *newNode =
       (command_list_node_t *)malloc(sizeof(command_list_node_t));
+  if (newNode == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for command list node");
+    command_end(*command_handle);
+    *command_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
   newNode->command = *command_handle;
   newNode->next = NULL;
 
@@ -203,9 +277,14 @@ void command_list_node_end(command_list_node_t *commandListNode) {
   free(commandListNode);
 }
 
-void command_list_init(command_list_handle_t *command_list_handle) {
+esp_err_t command_list_init(command_list_handle_t *command_list_handle) {
   command_list_handle_t command_list =
       (command_list_t *)malloc(sizeof(command_list_t));
+  if (command_list == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for command list");
+    *command_list_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
 
   command_list->head = NULL;
   command_list->tail = NULL;
@@ -214,6 +293,8 @@ void command_list_init(command_list_handle_t *command_list_handle) {
   command_list->config.animation_delay = COMMAND_CONFIG_ANIMATION_DELAY_DEFAULT;
 
   *command_list_handle = command_list;
+
+  return ESP_OK;
 }
 
 void command_list_end(command_list_handle_t command_list) {
@@ -246,7 +327,11 @@ void parse_and_add_state(const cJSON *commandJson, char *type,
   if (cJSON_IsString(font_size) && font_size->valuestring != NULL) {
     if (!didInitState) {
       didInitState = true;
-      command_state_init(state);
+      if (command_state_init(state) != ESP_OK) {
+        ESP_LOGW(TAG, "Failed to init command state for command type '%s'",
+                 type);
+        return;
+      }
     }
 
     if (strcmp(font_size->valuestring, "sm") == 0) {
@@ -271,7 +356,11 @@ void parse_and_add_state(const cJSON *commandJson, char *type,
     if (cJSON_IsNumber(red) && cJSON_IsNumber(green) && cJSON_IsNumber(blue)) {
       if (!didInitState) {
         didInitState = true;
-        command_state_init(state);
+        if (command_state_init(state) != ESP_OK) {
+          ESP_LOGW(TAG, "Failed to init command state for command type '%s'",
+                   type);
+          return;
+        }
       }
 
       (*state)->color_red = (uint8_t)red->valueint;
@@ -293,7 +382,11 @@ void parse_and_add_state(const cJSON *commandJson, char *type,
     } else {
       if (!didInitState) {
         didInitState = true;
-        command_state_init(state);
+        if (command_state_init(state) != ESP_OK) {
+          ESP_LOGW(TAG, "Failed to init command state for command type '%s'",
+                   type);
+          return;
+        }
       }
 
       (*state)->pos_x = x->valueint;
@@ -335,6 +428,10 @@ void parse_and_append_string(command_list_handle_t command_list,
 
   command->value.string->value =
       (char *)malloc((strlen(value->valuestring) + 1) * sizeof(char));
+  if (command->value.string->value == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for string command value");
+    return;
+  }
 
   strcpy(command->value.string->value, value->valuestring);
 }
@@ -403,6 +500,16 @@ void parse_and_append_bitmap(command_list_handle_t command_list,
   command->value.bitmap->data_blue =
       (uint8_t *)malloc(cJSON_GetArraySize(data_blue) * sizeof(uint8_t));
 
+  if (command->value.bitmap->data_red == NULL ||
+      command->value.bitmap->data_green == NULL ||
+      command->value.bitmap->data_blue == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for bitmap channels");
+    free(command->value.bitmap->data_red);
+    free(command->value.bitmap->data_green);
+    free(command->value.bitmap->data_blue);
+    return;
+  }
+
   // we cannot access the array directly, so we have to loop and put the values
   // into a buffer that we can use with the display buffer
   const cJSON *pixelValueRed = NULL;
@@ -448,13 +555,22 @@ void parse_and_append_animation(command_list_handle_t command_list,
       command->value.animation->frame_count - 1;
   command->value.animation->frames = (void *)malloc(
       sizeof(command_list_handle_t) * command->value.animation->frame_count);
+  if (command->value.animation->frames == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for animation frames");
+    return;
+  }
 
   // the frame we're iterating
   uint16_t frameI = 0;
   const cJSON *frameCommandsArr = NULL;
   // now loop all frames and extract their values
   cJSON_ArrayForEach(frameCommandsArr, framesArr) {
-    command_list_init(&command->value.animation->frames[frameI]);
+    if (command_list_init(&command->value.animation->frames[frameI]) !=
+        ESP_OK) {
+      ESP_LOGW(TAG, "Failed to init command list for animation frame %u",
+               frameI);
+      continue;
+    }
     parse_command_array(command->value.animation->frames[frameI],
                         frameCommandsArr, true);
     frameI++;
@@ -532,6 +648,10 @@ void parse_and_append_graph(command_list_handle_t command_list,
   command->value.graph->height = sizeH->valueint;
   command->value.graph->values =
       (uint8_t *)malloc(cJSON_GetArraySize(values) * sizeof(uint8_t));
+  if (command->value.graph->values == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for graph values");
+    return;
+  }
 
   const cJSON *value = NULL;
   uint16_t valIndex = 0;
@@ -615,7 +735,9 @@ esp_err_t command_list_parse(command_list_handle_t *command_list_handle,
                     command_list_parse_cleanup, TAG,
                     "response.commands is not an array");
 
-  command_list_init(command_list_handle);
+  ESP_GOTO_ON_FALSE(command_list_init(command_list_handle) == ESP_OK,
+                    ESP_ERR_NO_MEM, command_list_parse_cleanup, TAG,
+                    "Failed to init command list");
 
   parse_and_add_config(json, *command_list_handle);
 

@@ -2,6 +2,8 @@
 
 #include <inttypes.h>
 
+// Bit values for each color channel in a single byte.
+// Used with "define concatenation" to select bits.
 #define BV_COLOR_0 0b00000001
 #define BV_COLOR_1 0b00000010
 #define BV_COLOR_2 0b00000100
@@ -14,6 +16,7 @@
 // Given two RGB values, this determines how far we should shift a given bit to
 // get it into a single byte as `0,0,R1,G1,B1,R2,G2,B2` so that we can shift it
 // out in parallel on the 8-bit serial bus.
+// Used with "define concatenation" to select bits.
 #define SHIFT_HIGH_BIT_RED_0 << 5
 #define SHIFT_HIGH_BIT_RED_1 << 4
 #define SHIFT_HIGH_BIT_RED_2 << 3
@@ -38,7 +41,7 @@
 #define SHIFT_HIGH_BIT_BLUE_5 >> 2
 #define SHIFT_HIGH_BIT_BLUE_6 >> 3
 #define SHIFT_HIGH_BIT_BLUE_7 >> 4
-
+// low bits
 #define SHIFT_LOW_BIT_RED_0 << 2
 #define SHIFT_LOW_BIT_RED_1 << 1
 #define SHIFT_LOW_BIT_RED_2 << 0

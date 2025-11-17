@@ -10,7 +10,7 @@
 
 #define WIFI_MAXIMUM_RETRY 3
 
-static const char *TAG = "NETWORK_WIFI";
+static const char *TAG = "NETWORK:WIFI";
 static uint8_t connect_retry_num = 0;
 
 static void event_handler(void *arg, esp_event_base_t event_base,

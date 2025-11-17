@@ -9,8 +9,9 @@
 
 #include "time_util.h"
 
-static const char *TAG = "TIME";
+static const char *TAG = "TIME_UTIL";
 
+// initialize the time module, setting up SNTP and timezone
 esp_err_t time_util_init() {
   ESP_LOGD(TAG, "Initializing time module");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");

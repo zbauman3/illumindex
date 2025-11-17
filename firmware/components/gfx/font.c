@@ -2,6 +2,8 @@
 
 #include "gfx/font.h"
 
+static const char *TAG = "GFX:FONT";
+
 const static uint32_t ascii_8_12[] = {
     0x00000000, 0x00000000, 0x00000000, //
     0x00307878, 0x78303000, 0x30300000, // !
@@ -297,11 +299,18 @@ const static uint8_t ascii_4_6[] = {
 };
 
 // allocates all memory needed for the font
-void font_init(font_handle_t *font_handle) {
+esp_err_t font_init(font_handle_t *font_handle) {
   font_handle_t font = (font_handle_t)malloc(sizeof(font_t));
+  if (font == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for font");
+    *font_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
   font_set_size(font, FONT_SIZE_MD);
 
   *font_handle = font;
+
+  return ESP_OK;
 }
 
 void font_end(font_handle_t font_handle) { free(font_handle); }

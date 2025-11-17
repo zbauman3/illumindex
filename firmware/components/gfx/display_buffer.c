@@ -9,7 +9,7 @@
 #include "gfx/display_buffer.h"
 #include "gfx/font.h"
 
-const static char *TAG = "DISPLAY_BUFFER";
+const static char *TAG = "GFX:DISPLAY_BUFFER";
 
 // allocates all memory required for the display_buffer_t and initiates the
 // values
@@ -17,6 +17,10 @@ esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
                               uint8_t height) {
   display_buffer_handle_t db =
       (display_buffer_handle_t)malloc(sizeof(display_buffer_t));
+  if (db == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for display buffer");
+    return ESP_ERR_NO_MEM;
+  }
 
   display_buffer_set_color(db, 255, 255, 255);
   display_buffer_set_cursor(db, 0, 0);
@@ -27,9 +31,20 @@ esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
   db->buffer_red = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   db->buffer_green = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   db->buffer_blue = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
+
+  if (db->buffer_red == NULL || db->buffer_green == NULL ||
+      db->buffer_blue == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for display buffer colors");
+    free(db->buffer_red);
+    free(db->buffer_green);
+    free(db->buffer_blue);
+    free(db);
+    return ESP_ERR_NO_MEM;
+  }
+
   display_buffer_clear(db);
 
-  font_init(&db->font);
+  ESP_ERROR_BUBBLE(font_init(&db->font));
 
   *db_handle = db;
 

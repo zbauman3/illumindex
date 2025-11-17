@@ -24,6 +24,6 @@ typedef fetch_ctx_t *fetch_ctx_handle_t;
 esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle);
 esp_err_t fetch_end(fetch_ctx_handle_t ctx);
 esp_err_t fetch_perform(fetch_ctx_handle_t ctx);
-void fetch_etag_init(char **etag);
+esp_err_t fetch_etag_init(char **etag);
 void fetch_etag_copy(char *to, char *from);
 void fetch_etag_end(char **etag);

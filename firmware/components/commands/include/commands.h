@@ -162,9 +162,9 @@ typedef struct command_list_t {
 
 typedef command_list_t *command_list_handle_t;
 
-void command_state_init(command_state_t **state_handle);
+esp_err_t command_state_init(command_state_t **state_handle);
 
-void command_list_init(command_list_handle_t *command_list_handle);
+esp_err_t command_list_init(command_list_handle_t *command_list_handle);
 esp_err_t command_list_node_init(command_list_handle_t command_list,
                                  command_type_enum_t type,
                                  command_handle_t *command_handle);

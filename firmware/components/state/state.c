@@ -13,8 +13,11 @@
 static const char *TAG = "STATE";
 
 esp_err_t state_init(state_handle_t *state_handle) {
-  // allocate the the state
   state_handle_t state = (state_handle_t)malloc(sizeof(state_t));
+  if (state == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for state");
+    return ESP_ERR_NO_MEM;
+  }
 
   state->is_dev_mode = false;
   state->commandEndpoint = CONFIG_ENDPOINT_URL;
@@ -66,6 +69,9 @@ esp_err_t parse_from_remote(state_handle_t state, char *data, size_t length) {
                     "data.commandEndpoint is empty");
   // allocate the new endpoint
   state->commandEndpoint = (char *)malloc(strlen(values->valuestring) + 1);
+  ESP_GOTO_ON_FALSE(state->commandEndpoint != NULL, ESP_ERR_NO_MEM,
+                    parse_from_remote_cleanup, TAG,
+                    "Failed to allocate memory for commandEndpoint");
   strcpy(state->commandEndpoint, values->valuestring);
 
   values = cJSON_GetObjectItemCaseSensitive(json, "fetchInterval");

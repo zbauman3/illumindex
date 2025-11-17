@@ -15,7 +15,7 @@
 
 #include "led_matrix.h"
 
-static const char *TAG = "LED_MATRIX_DRIVER";
+static const char *TAG = "LED_MATRIX";
 
 #define shift_out_val(_val)                                                    \
   ({                                                                           \

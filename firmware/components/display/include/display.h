@@ -15,7 +15,7 @@ typedef struct {
   led_matrix_handle_t matrix;
   display_buffer_handle_t display_buffer;
   state_handle_t state;
-  TaskHandle_t main_task_handle;
+  TaskHandle_t fetch_task_handle;
   TaskHandle_t animation_task_handle;
   char *last_etag;
   command_list_handle_t commands;

@@ -10,7 +10,7 @@
 #include "display.h"
 
 static const char *TAG = "DISPLAY";
-static const char *MAIN_TASK_NAME = "DISPLAY:MAIN_TASK";
+static const char *FETCH_TASK_NAME = "DISPLAY:FETCH_TASK";
 static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
 
 // maps month integers to strings. This is zero-indexed.
@@ -161,44 +161,50 @@ esp_err_t build_and_show(display_handle_t display) {
 }
 
 esp_err_t fetch_commands(display_handle_t display) {
-  ESP_LOGD(MAIN_TASK_NAME, "FETCHING DATA");
+  ESP_LOGD(FETCH_TASK_NAME, "FETCHING DATA");
   esp_err_t ret = ESP_OK;
   fetch_ctx_handle_t ctx;
 
-  ESP_GOTO_ON_ERROR(fetch_init(&ctx), fetch_commands_cleanup, MAIN_TASK_NAME,
+  ESP_GOTO_ON_ERROR(fetch_init(&ctx), fetch_commands_cleanup, FETCH_TASK_NAME,
                     "Error initiating the request context");
 
   ctx->url = display->state->commandEndpoint;
   ctx->method = HTTP_METHOD_GET;
   if (display->last_etag != NULL) {
-    fetch_etag_init(&ctx->etag);
-    fetch_etag_copy(ctx->etag, display->last_etag);
+    if (fetch_etag_init(&ctx->etag) == ESP_OK) {
+      fetch_etag_copy(ctx->etag, display->last_etag);
+    } else {
+      ESP_LOGW(FETCH_TASK_NAME, "Failed to init ETag for request");
+    }
   }
 
-  ESP_GOTO_ON_ERROR(fetch_perform(ctx), fetch_commands_cleanup, MAIN_TASK_NAME,
+  ESP_GOTO_ON_ERROR(fetch_perform(ctx), fetch_commands_cleanup, FETCH_TASK_NAME,
                     "Error fetching data from endpoint");
 
   if (ctx->response->status_code == 304) {
-    ESP_LOGD(MAIN_TASK_NAME, "Content not modified. Not updating buffer.");
+    ESP_LOGD(FETCH_TASK_NAME, "Content not modified. Not updating buffer.");
     goto fetch_commands_cleanup;
   }
 
   ESP_GOTO_ON_FALSE(ctx->response->status_code < 300, ESP_ERR_INVALID_RESPONSE,
-                    fetch_commands_cleanup, MAIN_TASK_NAME,
+                    fetch_commands_cleanup, FETCH_TASK_NAME,
                     "Invalid response status code \"%d\"",
                     ctx->response->status_code);
 
   if (ctx->response->etag == NULL) {
-    ESP_LOGD(MAIN_TASK_NAME, "ETag is null");
+    ESP_LOGD(FETCH_TASK_NAME, "ETag is null");
   } else {
-    fetch_etag_init(&display->last_etag);
-    fetch_etag_copy(display->last_etag, ctx->response->etag);
+    if (fetch_etag_init(&display->last_etag) == ESP_OK) {
+      fetch_etag_copy(display->last_etag, ctx->response->etag);
+    } else {
+      ESP_LOGW(FETCH_TASK_NAME, "Failed to init ETag storage");
+    }
   }
 
   command_list_handle_t newCommands;
   ESP_GOTO_ON_ERROR(command_list_parse(&newCommands, ctx->response->data,
                                        ctx->response->length),
-                    fetch_commands_cleanup, MAIN_TASK_NAME,
+                    fetch_commands_cleanup, FETCH_TASK_NAME,
                     "Invalid JSON response or content length");
 
   // hot-swap commands and cleanup the old one
@@ -216,7 +222,7 @@ fetch_commands_cleanup:
   return ret;
 }
 
-void main_task(void *pvParameters) {
+void fetch_task(void *pvParameters) {
   display_handle_t display = (display_handle_t)pvParameters;
 
   // the `loopSeconds` could be really long, so instead of using that for
@@ -266,6 +272,11 @@ esp_err_t display_init(display_handle_t *display_handle,
                        led_matrix_config_t *led_matrix_config) {
   // allocate the the display
   display_handle_t display = (display_handle_t)malloc(sizeof(display_t));
+  if (display == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate display handle");
+    *display_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
 
   // reset ETag
   display->last_etag = NULL;
@@ -283,13 +294,13 @@ esp_err_t display_init(display_handle_t *display_handle,
   ESP_ERROR_BUBBLE(state_init(&display->state));
 
   // setup commands
-  command_list_init(&display->commands);
+  ESP_ERROR_BUBBLE(command_list_init(&display->commands));
 
   command_handle_t startCommand;
   ESP_ERROR_BUBBLE(command_list_node_init(display->commands,
                                           COMMAND_TYPE_STRING, &startCommand));
 
-  command_state_init(&startCommand->value.string->state);
+  ESP_ERROR_BUBBLE(command_state_init(&startCommand->value.string->state));
 
   startCommand->value.string->state->color_red = 0;
   startCommand->value.string->state->color_green = 255;
@@ -305,6 +316,12 @@ esp_err_t display_init(display_handle_t *display_handle,
   command_state_set_flag_font(startCommand->value.string->state);
 
   startCommand->value.string->value = malloc(sizeof(char) * 9);
+  if (startCommand->value.string->value == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate start command string value");
+    display_end(display);
+    *display_handle = NULL;
+    return ESP_ERR_NO_MEM;
+  }
   strcpy(startCommand->value.string->value, "Starting");
 
   build_and_show(display);
@@ -323,9 +340,9 @@ void display_end(display_handle_t display) {
   command_list_end(display->commands);
 
   TaskHandle_t taskHandle;
-  taskHandle = xTaskGetHandle(MAIN_TASK_NAME);
-  if (taskHandle != NULL && taskHandle == display->main_task_handle) {
-    vTaskDelete(display->main_task_handle);
+  taskHandle = xTaskGetHandle(FETCH_TASK_NAME);
+  if (taskHandle != NULL && taskHandle == display->fetch_task_handle) {
+    vTaskDelete(display->fetch_task_handle);
   }
 
   taskHandle = xTaskGetHandle(ANIMATION_TASK_NAME);
@@ -360,12 +377,12 @@ esp_err_t display_start(display_handle_t display) {
     return ESP_ERR_INVALID_STATE;
   }
 
-  taskCreate = xTaskCreatePinnedToCore(main_task, MAIN_TASK_NAME, 4096, display,
-                                       tskIDLE_PRIORITY + 1,
-                                       &display->main_task_handle, 0);
+  taskCreate = xTaskCreatePinnedToCore(fetch_task, FETCH_TASK_NAME, 4096,
+                                       display, tskIDLE_PRIORITY + 1,
+                                       &display->fetch_task_handle, 0);
 
-  if (taskCreate != pdPASS || display->main_task_handle == NULL) {
-    ESP_LOGE(TAG, "Failed to create task '%s'", MAIN_TASK_NAME);
+  if (taskCreate != pdPASS || display->fetch_task_handle == NULL) {
+    ESP_LOGE(TAG, "Failed to create task '%s'", FETCH_TASK_NAME);
     return ESP_ERR_INVALID_STATE;
   }
 

@@ -7,11 +7,16 @@
 
 #include "network/fetch.h"
 
-static const char *TAG = "NETWORK_REQUEST";
+static const char *TAG = "NETWORK:FETCH";
 
-void fetch_etag_init(char **etag) {
+esp_err_t fetch_etag_init(char **etag) {
   fetch_etag_end(etag);
   *etag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
+  if (*etag == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for etag");
+    return ESP_ERR_NO_MEM;
+  }
+  return ESP_OK;
 }
 
 void fetch_etag_copy(char *to, char *from) { memcpy(to, from, ETAG_LENGTH); }
@@ -33,6 +38,10 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
     fetch_ctx_handle_t ctx = evt->user_data;
     if (ctx->response->data == NULL) {
       ctx->response->data = (char *)malloc(evt->data_len);
+      if (ctx->response->data == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for response data");
+        return ESP_ERR_NO_MEM;
+      }
     } else {
       ctx->response->data = (char *)realloc(
           ctx->response->data, ctx->response->length + evt->data_len);
@@ -69,8 +78,11 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
         ESP_LOGW(TAG, "ETAG length '%u' is larger than '%u'", length - 1,
                  ETAG_LENGTH - 1);
       } else {
-        fetch_etag_init(&ctx->response->etag);
-        fetch_etag_copy(ctx->response->etag, evt->header_value);
+        if (fetch_etag_init(&ctx->response->etag) == ESP_OK) {
+          fetch_etag_copy(ctx->response->etag, evt->header_value);
+        } else {
+          ESP_LOGW(TAG, "Failed to allocate memory for etag");
+        }
       }
     }
     break;
@@ -95,8 +107,19 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
 
 esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle) {
   fetch_ctx_handle_t ctx = (fetch_ctx_handle_t)malloc(sizeof(fetch_ctx_t));
+  if (ctx == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for fetch context");
+    return ESP_ERR_NO_MEM;
+  }
+
   ctx->response =
       (fetch_response_data_t *)malloc(sizeof(fetch_response_data_t));
+  if (ctx->response == NULL) {
+    ESP_LOGE(TAG, "Failed to allocate memory for fetch response");
+    free(ctx);
+    return ESP_ERR_NO_MEM;
+  }
+
   ctx->response->data = NULL;
   ctx->response->length = 0;
   ctx->response->etag = NULL;

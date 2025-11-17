@@ -2,6 +2,8 @@
 
 #include <inttypes.h>
 
+#include "esp_err.h"
+
 #define FONT_SIZE_SM 0
 #define FONT_SIZE_MD 1
 #define FONT_SIZE_LG 2
@@ -32,7 +34,7 @@ typedef struct {
 
 typedef font_t *font_handle_t;
 
-void font_init(font_handle_t *font_handle);
+esp_err_t font_init(font_handle_t *font_handle);
 void font_set_size(font_handle_t font, font_size_t size);
 void font_end(font_handle_t font);
 
