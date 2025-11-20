@@ -9,9 +9,6 @@
 
 #include "display.h"
 
-#include "esp_timer.h"
-#include "led_matrix.h"
-
 static const char *TAG = "DISPLAY";
 static const char *FETCH_TASK_NAME = "DISPLAY:FETCH_TASK";
 static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
@@ -259,30 +256,8 @@ void fetch_task(void *pvParameters) {
 
 void animation_task(void *pvParameters) {
   display_handle_t display = (display_handle_t)pvParameters;
-  uint64_t lastTime = esp_timer_get_time();
-  uint64_t nowTime = esp_timer_get_time();
-  uint64_t timeDiff = 0;
-  uint32_t cycle_count = 0;
-  uint64_t frame_count = 0;
-  uint64_t prev_frame_count = 0;
-  uint64_t diff_frame_count = 0;
 
   while (true) {
-    nowTime = esp_timer_get_time();
-    frame_count = get_frame_count();
-    cycle_count = get_cycle_count();
-
-    timeDiff = nowTime - lastTime;
-    diff_frame_count = frame_count - prev_frame_count;
-
-    lastTime = nowTime;
-    prev_frame_count = frame_count;
-
-    ESP_LOGI(ANIMATION_TASK_NAME, "Avg cycles %lu", cycle_count);
-    ESP_LOGI(ANIMATION_TASK_NAME, "FPS: %.2f (Frames: %llu, Time Diff: %lluus)",
-             (diff_frame_count / (timeDiff / 1000000.0)), diff_frame_count,
-             timeDiff);
-
     // We only need to do another "show" if there is an animation that needs to
     // be updated, or if this is a new command list
     if (!display->commands->has_shown || display->commands->has_animation) {

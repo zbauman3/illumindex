@@ -57,9 +57,6 @@
 // so we need to do this 32 times for a full screen refresh. This results in
 // a total screen refresh time of `8.4 ms`, or about a `119.05 Hz` refresh rate.
 
-uint32_t get_cycle_count();
-uint64_t get_frame_count();
-
 #define LED_MATRIX_TIMER_RESOLUTION 40000000
 #define LED_MATRIX_TIMER_ALARM 28
 #define LED_MATRIX_BIT_DEPTH 8
