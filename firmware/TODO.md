@@ -1,11 +1,7 @@
 - `main/lib/commands.c`
   - Usage of `command_list_node_init` (and other fns) need to have their errors checked
-  - Commends for functions
+  - Comments for functions
   - _some_ tests
   - performance timing on matrix driver
   - fine-tine IRAM usage
   - network reconnection
-  - make sure `TAG`s are up to date
-  - Memory
-    - check all allocations
-    - set to NULL after free

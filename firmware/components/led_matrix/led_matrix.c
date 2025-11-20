@@ -15,6 +15,8 @@
 
 #include "led_matrix.h"
 
+#include "hal/cpu_hal.h"
+
 static const char *TAG = "LED_MATRIX";
 
 #define shift_out_val(_val)                                                    \
@@ -92,8 +94,13 @@ static const char *TAG = "LED_MATRIX";
     shift_out_val(_b[(_o) + 63]);                                              \
   })
 
+volatile uint32_t DRAM_ATTR cycle_count = 0;
+volatile uint64_t DRAM_ATTR frame_count = 0;
+uint32_t get_cycle_count() { return cycle_count; }
+uint64_t get_frame_count() { return frame_count; }
+
 // used for quick access to the timer count values
-static DRAM_ATTR uint16_t timer_count_values[8] = {
+static uint16_t DRAM_ATTR timer_count_values[8] = {
     LED_MATRIX_TIMER_ALARM_0, LED_MATRIX_TIMER_ALARM_1,
     LED_MATRIX_TIMER_ALARM_2, LED_MATRIX_TIMER_ALARM_3,
     LED_MATRIX_TIMER_ALARM_4, LED_MATRIX_TIMER_ALARM_5,
@@ -102,8 +109,14 @@ static DRAM_ATTR uint16_t timer_count_values[8] = {
 static bool IRAM_ATTR led_matrix_timer_callback(
     gptimer_handle_t timer, const gptimer_alarm_event_data_t *event_data,
     void *user_data) {
+  static uint32_t cycle_count_end;
+  static uint32_t cycle_count_start;
+
   static led_matrix_handle_t matrix;
   matrix = (led_matrix_handle_t)user_data;
+
+  cycle_count_end = 0;
+  cycle_count_start = cpu_hal_get_cycle_count();
 
   gptimer_stop(matrix->timer);
 
@@ -113,6 +126,7 @@ static bool IRAM_ATTR led_matrix_timer_callback(
     matrix->rowNum++;
     if (matrix->rowNum >= matrix->halfHeight) {
       matrix->rowNum = 0;
+      frame_count++;
     }
   }
 
@@ -147,6 +161,13 @@ static bool IRAM_ATTR led_matrix_timer_callback(
 
   gptimer_set_raw_count(matrix->timer, timer_count_values[matrix->bitNum]);
   gptimer_start(matrix->timer);
+
+  cycle_count_end = cpu_hal_get_cycle_count();
+  if (cycle_count == 0) {
+    cycle_count = cycle_count_end - cycle_count_start;
+  } else {
+    cycle_count = (cycle_count + (cycle_count_end - cycle_count_start)) / 2;
+  }
 
   return false;
 }

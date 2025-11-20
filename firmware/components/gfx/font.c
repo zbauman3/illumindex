@@ -1,3 +1,4 @@
+#include "esp_log.h"
 #include <memory.h>
 
 #include "gfx/font.h"
