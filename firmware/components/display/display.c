@@ -150,8 +150,9 @@ esp_err_t build_and_show(display_handle_t display) {
   apply_command_list(display, display->commands, false);
 
   display_buffer_add_feedback(
-      display->display_buffer, display->state->remote_state_invalid,
-      display->state->commands_invalid, display->state->is_dev_mode);
+      display->display_buffer, display->state->invalid_remote_state,
+      display->state->invalid_commands, display->state->invalid_wifi_state,
+      display->state->is_dev_mode);
 
   display->commands->has_shown = true;
 
@@ -168,7 +169,7 @@ esp_err_t fetch_commands(display_handle_t display) {
   ESP_GOTO_ON_ERROR(fetch_init(&ctx), fetch_commands_cleanup, FETCH_TASK_NAME,
                     "Error initiating the request context");
 
-  ctx->url = display->state->commandEndpoint;
+  ctx->url = display->state->command_endpoint;
   ctx->method = HTTP_METHOD_GET;
   if (display->last_etag != NULL) {
     if (fetch_etag_init(&ctx->etag) == ESP_OK) {
@@ -212,7 +213,7 @@ esp_err_t fetch_commands(display_handle_t display) {
   display->commands = newCommands;
   command_list_end(oldCommands);
 
-  display->state->commands_invalid = false;
+  display->state->invalid_commands = false;
 
 fetch_commands_cleanup:
   fetch_end(ctx);
@@ -229,25 +230,25 @@ void fetch_task(void *pvParameters) {
   // `vTaskDelay`, we use a separate variable to track the delay in increments
   // of 1s.
   while (true) {
-    if (display->state->loopSeconds >= display->state->fetchInterval) {
+    if (display->state->loop_seconds >= display->state->fetch_interval) {
       if (fetch_commands(display) == ESP_OK) {
-        display->state->loopSeconds = 0;
-        display->state->fetchFailureCount = 0;
+        display->state->loop_seconds = 0;
+        display->state->fetch_failure_count = 0;
       } else {
         // try again in 5 seconds if possible, otherwise 1 second
-        if (display->state->fetchInterval >= 5) {
-          display->state->loopSeconds = display->state->fetchInterval - 5;
+        if (display->state->fetch_interval >= 5) {
+          display->state->loop_seconds = display->state->fetch_interval - 5;
         } else {
-          display->state->loopSeconds = display->state->fetchInterval;
+          display->state->loop_seconds = display->state->fetch_interval;
         }
 
-        display->state->fetchFailureCount++;
-        if (display->state->fetchFailureCount > 5) {
-          display->state->commands_invalid = true;
+        display->state->fetch_failure_count++;
+        if (display->state->fetch_failure_count > 5) {
+          display->state->invalid_commands = true;
         }
       }
     } else {
-      display->state->loopSeconds++;
+      display->state->loop_seconds++;
     }
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -356,7 +357,7 @@ void display_end(display_handle_t display) {
 
 esp_err_t display_start(display_handle_t display) {
   if (state_fetch_remote(display->state) != ESP_OK) {
-    display->state->remote_state_invalid = true;
+    display->state->invalid_remote_state = true;
     ESP_LOGE(TAG, "Failed to fetch remote state");
   }
 
@@ -364,8 +365,8 @@ esp_err_t display_start(display_handle_t display) {
     ESP_LOGI(TAG, "Running in dev mode");
   }
 
-  ESP_LOGI(TAG, "Pointing to \"%s\"", display->state->commandEndpoint);
-  ESP_LOGI(TAG, "Fetch interval \"%u\"", display->state->fetchInterval);
+  ESP_LOGI(TAG, "Pointing to \"%s\"", display->state->command_endpoint);
+  ESP_LOGI(TAG, "Fetch interval \"%u\"", display->state->fetch_interval);
 
   BaseType_t taskCreate;
   taskCreate = xTaskCreatePinnedToCore(animation_task, ANIMATION_TASK_NAME,

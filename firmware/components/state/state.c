@@ -20,16 +20,18 @@ esp_err_t state_init(state_handle_t *state_handle) {
   }
 
   state->is_dev_mode = false;
-  state->commandEndpoint = CONFIG_ENDPOINT_URL;
-  state->fetchInterval = CONFIG_ENDPOINT_FETCH_INTERVAL;
-  state->remote_state_invalid = false;
-  state->commands_invalid = false;
-  state->loopSeconds = 65535;
-  state->fetchFailureCount = 0;
+  state->command_endpoint = CONFIG_ENDPOINT_URL;
+  state->fetch_interval = CONFIG_ENDPOINT_FETCH_INTERVAL;
+  state->invalid_remote_state = false;
+  state->invalid_commands = false;
+  state->invalid_wifi_state = false;
+  state->loop_seconds = 65535;
+  state->fetch_failure_count = 0;
+  state->wifi_failure_count = 0;
 
-  if (state->fetchInterval < 5) {
+  if (state->fetch_interval < 5) {
     ESP_LOGW(TAG, "Fetch interval was less than 5. Setting to 5.");
-    state->fetchInterval = 5;
+    state->fetch_interval = 5;
   }
 
   // pass back the state
@@ -68,11 +70,11 @@ esp_err_t parse_from_remote(state_handle_t state, char *data, size_t length) {
                     parse_from_remote_cleanup, TAG,
                     "data.commandEndpoint is empty");
   // allocate the new endpoint
-  state->commandEndpoint = (char *)malloc(strlen(values->valuestring) + 1);
-  ESP_GOTO_ON_FALSE(state->commandEndpoint != NULL, ESP_ERR_NO_MEM,
+  state->command_endpoint = (char *)malloc(strlen(values->valuestring) + 1);
+  ESP_GOTO_ON_FALSE(state->command_endpoint != NULL, ESP_ERR_NO_MEM,
                     parse_from_remote_cleanup, TAG,
                     "Failed to allocate memory for commandEndpoint");
-  strcpy(state->commandEndpoint, values->valuestring);
+  strcpy(state->command_endpoint, values->valuestring);
 
   values = cJSON_GetObjectItemCaseSensitive(json, "fetchInterval");
   ESP_GOTO_ON_FALSE(cJSON_IsNumber(values), ESP_ERR_INVALID_RESPONSE,
@@ -81,10 +83,10 @@ esp_err_t parse_from_remote(state_handle_t state, char *data, size_t length) {
   ESP_GOTO_ON_FALSE(values->valueint > 0 && values->valueint <= 65535,
                     ESP_ERR_INVALID_RESPONSE, parse_from_remote_cleanup, TAG,
                     "data.fetchInterval is not valid");
-  state->fetchInterval = values->valueint;
-  if (state->fetchInterval < 5) {
+  state->fetch_interval = values->valueint;
+  if (state->fetch_interval < 5) {
     ESP_LOGW(TAG, "Fetch interval was less than 5. Setting to 5.");
-    state->fetchInterval = 5;
+    state->fetch_interval = 5;
   }
 
 parse_from_remote_cleanup:

@@ -422,7 +422,11 @@ void parse_and_append_string(command_list_handle_t command_list,
   }
 
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_STRING, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_STRING, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'string'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "string", &command->value.string->state);
 
@@ -452,7 +456,11 @@ void parse_and_append_line(command_list_handle_t command_list,
   }
 
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_LINE, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_LINE, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'line'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "line", &command->value.line->state);
 
@@ -487,7 +495,11 @@ void parse_and_append_bitmap(command_list_handle_t command_list,
   }
 
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_BITMAP, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_BITMAP, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'bitmap'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "bitmap", &command->value.bitmap->state);
 
@@ -547,7 +559,11 @@ void parse_and_append_animation(command_list_handle_t command_list,
   }
 
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_ANIMATION, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_ANIMATION, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'animation'");
+    return;
+  }
 
   command->value.animation->frame_count = cJSON_GetArraySize(framesArr);
   // init the as the "last frame", so that we always start in the first
@@ -580,7 +596,11 @@ void parse_and_append_animation(command_list_handle_t command_list,
 void parse_and_append_time(command_list_handle_t command_list,
                            const cJSON *commandJson) {
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_TIME, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_TIME, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'time'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "time", &command->value.time->state);
 }
@@ -588,7 +608,11 @@ void parse_and_append_time(command_list_handle_t command_list,
 void parse_and_append_date(command_list_handle_t command_list,
                            const cJSON *commandJson) {
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_DATE, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_DATE, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'date'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "date", &command->value.date->state);
 }
@@ -596,13 +620,21 @@ void parse_and_append_date(command_list_handle_t command_list,
 void parse_and_append_line_feed(command_list_handle_t command_list,
                                 const cJSON *commandJson) {
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_LINEFEED, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_LINEFEED, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'lineFeed'");
+    return;
+  }
 }
 
 void parse_and_append_set_state(command_list_handle_t command_list,
                                 const cJSON *commandJson) {
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_SETSTATE, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_SETSTATE, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'setState'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "setState",
                       &command->value.set_state->state);
@@ -625,7 +657,11 @@ void parse_and_append_graph(command_list_handle_t command_list,
   }
 
   command_handle_t command;
-  command_list_node_init(command_list, COMMAND_TYPE_GRAPH, &command);
+  if (command_list_node_init(command_list, COMMAND_TYPE_GRAPH, &command) !=
+      ESP_OK) {
+    ESP_LOGW(TAG, "Failed to init command of type 'graph'");
+    return;
+  }
 
   parse_and_add_state(commandJson, "graph", &command->value.graph->state);
 

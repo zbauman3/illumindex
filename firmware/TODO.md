@@ -1,7 +1,6 @@
 - `main/lib/commands.c`
-  - Usage of `command_list_node_init` (and other fns) need to have their errors checked
   - Comments for functions
   - _some_ tests
-  - performance timing on matrix driver
-  - fine-tine IRAM usage
-  - network reconnection
+  - fine-tune IRAM usage
+  - test network reconnection
+  - better feedback LEDs

@@ -52,7 +52,7 @@ esp_err_t app_init() {
 
   ESP_ERROR_BUBBLE(display_init(&display, &led_matrix_config));
 
-  ESP_ERROR_BUBBLE(wifi_init());
+  ESP_ERROR_BUBBLE(wifi_init(display->state));
 
   ESP_ERROR_BUBBLE(time_util_init());
 

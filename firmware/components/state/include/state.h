@@ -5,12 +5,14 @@
 
 typedef struct {
   bool is_dev_mode;
-  char *commandEndpoint;
-  uint16_t fetchInterval;
-  bool remote_state_invalid;
-  bool commands_invalid;
-  uint16_t loopSeconds;
-  uint8_t fetchFailureCount;
+  char *command_endpoint;
+  uint16_t fetch_interval;
+  bool invalid_remote_state;
+  bool invalid_commands;
+  bool invalid_wifi_state;
+  uint16_t loop_seconds;
+  uint8_t fetch_failure_count;
+  uint8_t wifi_failure_count;
 } state_t;
 
 typedef state_t *state_handle_t;

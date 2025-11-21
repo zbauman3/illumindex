@@ -294,17 +294,22 @@ void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
 }
 
 void display_buffer_add_feedback(display_buffer_handle_t db,
-                                 bool remote_state_invalid,
-                                 bool commands_invalid, bool is_dev_mode) {
+                                 bool invalid_remote_state,
+                                 bool invalid_commands, bool invalid_wifi_state,
+                                 bool is_dev_mode) {
   if (is_dev_mode) {
     display_buffer_safe_set_value(db, 0, 0, 0, 255);
   }
 
-  if (remote_state_invalid) {
-    display_buffer_safe_set_value(db, 2, 255, 255, 0);
+  if (invalid_remote_state) {
+    display_buffer_safe_set_value(db, 2, 0, 255, 0);
   }
 
-  if (commands_invalid) {
-    display_buffer_safe_set_value(db, 4, 255, 0, 0);
+  if (invalid_wifi_state) {
+    display_buffer_safe_set_value(db, 4, 255, 255, 0);
+  }
+
+  if (invalid_commands) {
+    display_buffer_safe_set_value(db, 6, 255, 0, 0);
   }
 }
