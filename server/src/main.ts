@@ -20,9 +20,9 @@ export const main = async (): Promise<CommandApiResponse> => {
       position: { x: 0, y: 0 },
       fontSize: "lg",
       color: {
-        red: 0,
-        green: 255,
-        blue: 160,
+        red: 130,
+        green: 130,
+        blue: 240,
       },
     },
     {

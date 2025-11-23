@@ -259,9 +259,9 @@ export const generateWeatherGraphs = (
     }),
     size: { width, height },
     color: {
-      red: 255,
-      green: 190,
-      blue: 100,
+      red: 120,
+      green: 170,
+      blue: 255,
     },
   }
 
@@ -274,8 +274,8 @@ export const generateWeatherGraphs = (
     }),
     size: { width, height },
     color: {
-      red: 80,
-      green: 100,
+      red: 0,
+      green: 120,
       blue: 255,
     },
   }
@@ -291,9 +291,9 @@ export const generateWeatherGraphs = (
     ),
     size: { width, height },
     color: {
-      red: 255,
-      green: 100,
-      blue: 30,
+      red: 80,
+      green: 36,
+      blue: 135,
     },
   }
 
