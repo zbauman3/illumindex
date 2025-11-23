@@ -2,5 +2,3 @@
   - Comments for functions
   - _some_ tests
   - fine-tune IRAM usage
-  - test network reconnection
-  - better feedback LEDs

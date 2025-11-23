@@ -59,12 +59,12 @@ void apply_command_list(display_handle_t display,
     case COMMAND_TYPE_BITMAP: {
       set_state(display->display_buffer,
                 loopNode->command->value.bitmap->state);
-      display_buffer_draw_bitmap(display->display_buffer,
-                                 loopNode->command->value.bitmap->width,
-                                 loopNode->command->value.bitmap->height,
-                                 loopNode->command->value.bitmap->data_red,
-                                 loopNode->command->value.bitmap->data_green,
-                                 loopNode->command->value.bitmap->data_blue);
+      display_buffer_draw_bitmap(
+          display->display_buffer, loopNode->command->value.bitmap->width,
+          loopNode->command->value.bitmap->height,
+          loopNode->command->value.bitmap->data_red,
+          loopNode->command->value.bitmap->data_green,
+          loopNode->command->value.bitmap->data_blue, true);
       break;
     }
     case COMMAND_TYPE_SETSTATE: {
@@ -231,6 +231,13 @@ void fetch_task(void *pvParameters) {
   // of 1s.
   while (true) {
     if (display->state->loop_seconds >= display->state->fetch_interval) {
+      // if wifi is not connected, skip fetch
+      if (display->state->invalid_wifi_state) {
+        display->state->loop_seconds = 0;
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        continue;
+      }
+
       if (fetch_commands(display) == ESP_OK) {
         display->state->loop_seconds = 0;
         display->state->fetch_failure_count = 0;

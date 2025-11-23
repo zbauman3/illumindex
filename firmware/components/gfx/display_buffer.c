@@ -248,9 +248,16 @@ void display_buffer_draw_line(display_buffer_handle_t db, uint8_t to_x,
 
 void display_buffer_draw_bitmap(display_buffer_handle_t db, uint8_t width,
                                 uint8_t height, uint8_t *buffer_red,
-                                uint8_t *buffer_green, uint8_t *buffer_blue) {
+                                uint8_t *buffer_green, uint8_t *buffer_blue,
+                                bool draw_black) {
   for (uint8_t row = 0; row < height; row++) {
     for (uint8_t col = 0; col < width; col++) {
+      if (draw_black == false && buffer_red[(row * width) + col] == 0 &&
+          buffer_green[(row * width) + col] == 0 &&
+          buffer_blue[(row * width) + col] == 0) {
+        continue;
+      }
+
       display_buffer_safe_set_value(
           db,
           display_buffer_point_to_index(db, db->cursor.x + col,
@@ -305,11 +312,40 @@ void display_buffer_add_feedback(display_buffer_handle_t db,
     display_buffer_safe_set_value(db, 2, 0, 255, 0);
   }
 
-  if (invalid_wifi_state) {
-    display_buffer_safe_set_value(db, 4, 255, 255, 0);
-  }
+  if (invalid_wifi_state || invalid_commands) {
+    uint8_t originalCursorX = db->cursor.x;
+    uint8_t originalCursorY = db->cursor.y;
+    uint8_t green_blue[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-  if (invalid_commands) {
-    display_buffer_safe_set_value(db, 6, 255, 0, 0);
+    db->cursor.x = db->width - 10;
+    db->cursor.y = db->height - 10;
+
+    if (invalid_wifi_state) {
+
+      uint8_t red[] = {0,   0,   0,   0,   200, 0, 0,   0,   0,   0,   0, 200,
+                       200, 0,   200, 200, 0,   0, 200, 200, 0,   0,   0, 0,
+                       0,   200, 200, 0,   0,   0, 200, 200, 200, 0,   0, 0,
+                       0,   200, 200, 0,   0,   0, 200, 200, 0,   0,   0, 0,
+                       0,   200, 0,   0,   0,   0, 0,   0,   200, 200, 0, 200,
+                       200, 0,   0,   0,   0,   0, 0,   0,   0,   0,   0, 0,
+                       0,   0,   0,   0,   200, 0, 0,   0,   0};
+      display_buffer_draw_bitmap(db, 9, 9, red, green_blue, green_blue, false);
+    } else {
+      uint8_t red[] = {
+          0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   200, 0,   0,
+          0,   0,   0,   0,   0,   156, 200, 200, 0,   200, 200, 0,   0,   0,
+          156, 156, 200, 200, 156, 200, 200, 0,   156, 156, 156, 156, 156, 156,
+          156, 200, 200, 156, 156, 156, 156, 156, 156, 156, 200, 200, 0,   156,
+          156, 156, 156, 156, 156, 156, 0,   0,   0,   0,   0,   0,   0,   0,
+          0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0};
+      display_buffer_draw_bitmap(db, 9, 9, red, green_blue, green_blue, false);
+    }
+
+    db->cursor.x = originalCursorX;
+    db->cursor.y = originalCursorY;
   }
 }

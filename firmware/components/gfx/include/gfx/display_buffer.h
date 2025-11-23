@@ -91,7 +91,8 @@ void display_buffer_draw_line(display_buffer_handle_t db, uint8_t to_x,
                               uint8_t to_y);
 void display_buffer_draw_bitmap(display_buffer_handle_t db, uint8_t width,
                                 uint8_t height, uint8_t *buffer_red,
-                                uint8_t *buffer_green, uint8_t *buffer_blue);
+                                uint8_t *buffer_green, uint8_t *buffer_blue,
+                                bool draw_black);
 void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
                                uint8_t height, uint8_t *values,
                                uint8_t bg_color_red, uint8_t bg_color_green,
