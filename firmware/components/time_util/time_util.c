@@ -11,7 +11,12 @@
 
 static const char *TAG = "TIME_UTIL";
 
-// initialize the time module, setting up SNTP and timezone
+// should be called after the network is initialized
+// initializes the SNTP client and starts it
+// uses the default NTP server pool "pool.ntp.org"
+// configures it to renew servers after getting a new IP address
+// and to use the first server from the DHCP response
+// sets the IP event to renew servers when the STA gets an IP address
 esp_err_t time_util_init() {
   ESP_LOGD(TAG, "Initializing time module");
   esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
@@ -23,12 +28,13 @@ esp_err_t time_util_init() {
 
   ESP_ERROR_BUBBLE(esp_netif_sntp_init(&config));
 
-  setenv("TZ", CONFIG_TIMEZONE_STRING, 1);
+  setenv("TZ", CONFIG_TIMEZONE_STRING_DEFAULT, 1);
   tzset();
 
   return ESP_OK;
 }
 
+// updates a time variable with the current time
 void time_util_get(time_util_info_t *time_info) {
   time_t now;
   struct tm cTimeinfo;

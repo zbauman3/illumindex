@@ -4,15 +4,24 @@
 #include <stdbool.h>
 
 typedef struct {
-  bool is_dev_mode;
   char *command_endpoint;
-  uint16_t fetch_interval;
+  // if the remote state was not fetched or parsed correctly
   bool invalid_remote_state;
+  // if the commands were not fetched or parsed correctly
   bool invalid_commands;
+  // if the wifi has disconnected/failed to connect
   bool invalid_wifi_state;
-  uint16_t loop_seconds;
+  // incremented for each fetch failure
   uint8_t fetch_failure_count;
-  uint8_t wifi_failure_count;
+  // how often to fetch the remote state, in seconds.
+  // compared against fetch_loop_seconds to determine when to fetch.
+  uint16_t fetch_interval;
+  // how many seconds have passed in the fetch loop.
+  // since the loop is 1 second, this is incremented every second.
+  uint16_t fetch_loop_seconds;
+  // how many seconds have passed in the fetch loop.
+  // since the loop is 1 second, this is incremented every second.
+  uint16_t remote_state_seconds;
 } state_t;
 
 typedef state_t *state_handle_t;

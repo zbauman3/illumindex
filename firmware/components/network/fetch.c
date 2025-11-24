@@ -9,6 +9,7 @@
 
 static const char *TAG = "NETWORK:FETCH";
 
+// inits the memory for an etag and deallocates any existing memory first
 esp_err_t fetch_etag_init(char **etag) {
   fetch_etag_end(etag);
   *etag = (char *)malloc(sizeof(char) * ETAG_LENGTH);
@@ -26,6 +27,7 @@ void fetch_etag_end(char **etag) {
   *etag = NULL;
 }
 
+// handle all events related to a HTTP client
 static esp_err_t event_handler(esp_http_client_event_t *evt) {
   switch (evt->event_id) {
   case HTTP_EVENT_ERROR: {
@@ -37,14 +39,24 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
 
     fetch_ctx_handle_t ctx = evt->user_data;
     if (ctx->response->data == NULL) {
+      // if there's no data on the response yet, allocate the buffer
+      // don't worry about null terminator here, it will be added on
+      // HTTP_EVENT_ON_FINISH
       ctx->response->data = (char *)malloc(evt->data_len);
       if (ctx->response->data == NULL) {
         ESP_LOGE(TAG, "Failed to allocate memory for response data");
         return ESP_ERR_NO_MEM;
       }
     } else {
+      // there's already data on the response, reallocate the buffer
+      // don't worry about null terminator here, it will be added on
+      // HTTP_EVENT_ON_FINISH
       ctx->response->data = (char *)realloc(
           ctx->response->data, ctx->response->length + evt->data_len);
+      if (ctx->response->data == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for response data");
+        return ESP_ERR_NO_MEM;
+      }
     }
 
     // add the new data.
@@ -66,10 +78,16 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
       ctx->response->data =
           (char *)realloc(ctx->response->data, ctx->response->length);
       ctx->response->data[ctx->response->length - 1] = '\0';
+
+      if (ctx->response->data == NULL) {
+        ESP_LOGE(TAG, "Failed to allocate memory for response data");
+        return ESP_ERR_NO_MEM;
+      }
     }
     break;
   }
   case HTTP_EVENT_ON_HEADER: {
+    // copy the ETag to the response struct
     if (strcmp("etag", evt->header_key) == 0) {
       fetch_ctx_handle_t ctx = evt->user_data;
       size_t length = strlen(evt->header_value) + 1;
@@ -105,6 +123,8 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
   return ESP_OK;
 }
 
+// init a fetch context. The caller is responsible for setting the values after
+// initialization.
 esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle) {
   fetch_ctx_handle_t ctx = (fetch_ctx_handle_t)malloc(sizeof(fetch_ctx_t));
   if (ctx == NULL) {
@@ -138,6 +158,8 @@ esp_err_t fetch_end(fetch_ctx_handle_t ctx) {
   return ESP_OK;
 }
 
+// perform the actual fetch operation
+// this handles setting etag and authorization headers
 esp_err_t fetch_perform(fetch_ctx_handle_t ctx) {
   esp_http_client_config_t config = {
       .url = ctx->url,
@@ -149,6 +171,7 @@ esp_err_t fetch_perform(fetch_ctx_handle_t ctx) {
   };
   esp_http_client_handle_t client = esp_http_client_init(&config);
 
+  // conditionally apply the etag header to the request
   if (ctx->etag != NULL) {
     esp_http_client_set_header(client, "If-None-Match", ctx->etag);
   }

@@ -99,5 +99,5 @@ void display_buffer_draw_graph(display_buffer_handle_t db, uint8_t width,
                                uint8_t bg_color_blue);
 void display_buffer_add_feedback(display_buffer_handle_t db,
                                  bool invalid_remote_state,
-                                 bool invalid_commands, bool invalid_wifi_state,
-                                 bool is_dev_mode);
+                                 bool invalid_commands,
+                                 bool invalid_wifi_state);

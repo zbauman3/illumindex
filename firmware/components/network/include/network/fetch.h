@@ -6,9 +6,14 @@
 #define ETAG_LENGTH 33
 
 typedef struct {
+  // the length of the data buffer
   size_t length;
+  // the response data. Likely JSON.
   char *data;
+  // the HTTP status code
   int status_code;
+  // the ETag header from the response
+  // `NULL` if none was provided
   char *etag;
 } fetch_response_data_t;
 
@@ -16,6 +21,7 @@ typedef struct {
   char *url;
   esp_http_client_method_t method;
   fetch_response_data_t *response;
+  // optional ETag for conditional requests
   char *etag;
 } fetch_ctx_t;
 

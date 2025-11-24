@@ -6,11 +6,11 @@
 
 #include "helper_utils.h"
 
-#include "network/events.h"
 #include "network/wifi.h"
 
 static const char *TAG = "NETWORK:WIFI";
 
+// handles wifi events and updates the state accordingly
 static void event_handler(void *arg, esp_event_base_t event_base,
                           int32_t event_id, void *event_data) {
   state_handle_t state = (state_handle_t)arg;
@@ -21,27 +21,23 @@ static void event_handler(void *arg, esp_event_base_t event_base,
       ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
       ESP_LOGD(TAG, "EVENT - IP_EVENT_STA_GOT_IP");
       ESP_LOGD(TAG, "IPV4 is: " IPSTR, IP2STR(&event->ip_info.ip));
-      state->wifi_failure_count = 0;
       state->invalid_wifi_state = false;
-      xEventGroupSetBits(wifi_event_group, WIFI_EVENT_CONNECTED_BIT |
-                                               WIFI_EVENT_RECREATE_SOCKETS_BIT);
       break;
     }
     case IP_EVENT_GOT_IP6: {
       ip_event_got_ip6_t *event = (ip_event_got_ip6_t *)event_data;
       ESP_LOGD(TAG, "EVENT - IP_EVENT_GOT_IP6");
       ESP_LOGD(TAG, "IPV6 is: " IPV6STR, IPV62STR(event->ip6_info.ip));
-      state->wifi_failure_count = 0;
       state->invalid_wifi_state = false;
-      xEventGroupSetBits(wifi_event_group, WIFI_EVENT_CONNECTED_BIT |
-                                               WIFI_EVENT_RECREATE_SOCKETS_BIT);
       break;
     }
     case IP_EVENT_STA_LOST_IP: {
       ESP_LOGD(TAG, "EVENT - IP_EVENT_STA_LOST_IP");
-      xEventGroupClearBits(wifi_event_group,
-                           WIFI_EVENT_CONNECTED_BIT |
-                               WIFI_EVENT_RECREATE_SOCKETS_BIT);
+      state->invalid_wifi_state = true;
+      break;
+    }
+    default: {
+      ESP_LOGD(TAG, "IP_EVENT - %ld", event_id);
       break;
     }
     }
@@ -57,24 +53,17 @@ static void event_handler(void *arg, esp_event_base_t event_base,
     }
     case WIFI_EVENT_STA_CONNECTED: {
       ESP_LOGD(TAG, "EVENT - WIFI_EVENT_STA_CONNECTED");
-      xEventGroupClearBits(wifi_event_group, WIFI_EVENT_FAIL_BIT);
       break;
     }
     case WIFI_EVENT_STA_DISCONNECTED: {
       ESP_LOGD(TAG, "EVENT - WIFI_EVENT_STA_DISCONNECTED");
-
-      state->wifi_failure_count++;
-      if (state->wifi_failure_count >= 5) {
-        state->invalid_wifi_state = true;
-        ESP_LOGW(TAG, "%u connection failures.", state->wifi_failure_count);
-      }
-
+      state->invalid_wifi_state = true;
       esp_wifi_connect();
 
       break;
     }
     default: {
-      ESP_LOGD(TAG, "EVENT - %ld", event_id);
+      ESP_LOGD(TAG, "WIFI_EVENT - %ld", event_id);
       break;
     }
     }
@@ -86,9 +75,10 @@ static void event_handler(void *arg, esp_event_base_t event_base,
 // Using overview from:
 // https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-guides/wifi.html#esp32-wi-fi-station-general-scenario
 esp_err_t wifi_init(state_handle_t state) {
-  ESP_LOGD(TAG, "Starting WiFi connection to \"%s\"", CONFIG_WIFI_SSID);
+  // invalid state because we are not connected yet
+  state->invalid_wifi_state = true;
 
-  wifi_event_group = xEventGroupCreate();
+  ESP_LOGD(TAG, "Starting WiFi connection to \"%s\"", CONFIG_WIFI_SSID);
 
   ESP_ERROR_BUBBLE(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
                                               &event_handler, state));
@@ -137,22 +127,5 @@ esp_err_t wifi_init(state_handle_t state) {
 
   ESP_ERROR_BUBBLE(esp_wifi_start());
 
-  // Waiting until either the connection is established (WIFI_CONNECTED_BIT) or
-  // connection failed for the maximum number of re-tries (WIFI_FAIL_BIT).
-  EventBits_t bits = xEventGroupWaitBits(
-      wifi_event_group, WIFI_EVENT_CONNECTED_BIT | WIFI_EVENT_FAIL_BIT, pdFALSE,
-      pdFALSE, portMAX_DELAY);
-
-  if (bits & WIFI_EVENT_CONNECTED_BIT) {
-    ESP_LOGD(TAG, "Connected to \"%s\"", CONFIG_WIFI_SSID);
-    return ESP_OK;
-  }
-
-  if (bits & WIFI_EVENT_FAIL_BIT) {
-    ESP_LOGE(TAG, "Failed to connect to \"%s\"", CONFIG_WIFI_SSID);
-  } else {
-    ESP_LOGE(TAG, "UNEXPECTED CONNECTION STATUS");
-  }
-
-  return ESP_ERR_WIFI_NOT_CONNECT;
+  return ESP_OK;
 }

@@ -10,13 +10,13 @@ menu "Endpoint Config"
       string "The URL for fetching state data."
   config ENDPOINT_URL
       string "The URL for fetching data."
-  config ENDPOINT_FETCH_INTERVAL
+  config ENDPOINT_FETCH_INTERVAL_DEFAULT
       int "The number of seconds to wait between fetching."
   config ENDPOINT_TOKEN
       string "The auth token to use for hitting the endpoint."
 endmenu
 
 menu "Time Config"
-  config TIMEZONE_STRING
+  config TIMEZONE_STRING_DEFAULT
       string "The timezone string to use for the device."
 endmenu

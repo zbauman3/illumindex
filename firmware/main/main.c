@@ -12,7 +12,7 @@
 #include "state.h"
 #include "time_util.h"
 
-static const char *TAG = "APP_MAIN";
+static const char *TAG = "MAIN";
 static display_handle_t display;
 
 esp_err_t app_init() {
@@ -41,7 +41,7 @@ esp_err_t app_init() {
               .oe = GPIO_NUM_35,    // MOSI
               .g1 = GPIO_NUM_18,    // A0
               .g2 = GPIO_NUM_17,    // A1
-              // Blue and red are swapped, as compared to the physical
+              // Blue and red are swapped from what's on the LED Matrix
               // connector. This is due to the pin mapping on the ICN2037
               .b1 = GPIO_NUM_16, // A2
               .b2 = GPIO_NUM_15, // A3
@@ -50,6 +50,7 @@ esp_err_t app_init() {
           },
   };
 
+  // init the display first to show the startup screen.
   ESP_ERROR_BUBBLE(display_init(&display, &led_matrix_config));
 
   ESP_ERROR_BUBBLE(wifi_init(display->state));
@@ -63,6 +64,8 @@ esp_err_t app_init() {
 
 void app_main(void) {
   if (app_init() != ESP_OK) {
+    // we're about to restart so ending isn't required. But do it here to stop
+    // using any of the larger resources.
     display_end(display);
 
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");

@@ -151,8 +151,7 @@ esp_err_t build_and_show(display_handle_t display) {
 
   display_buffer_add_feedback(
       display->display_buffer, display->state->invalid_remote_state,
-      display->state->invalid_commands, display->state->invalid_wifi_state,
-      display->state->is_dev_mode);
+      display->state->invalid_commands, display->state->invalid_wifi_state);
 
   display->commands->has_shown = true;
 
@@ -230,32 +229,46 @@ void fetch_task(void *pvParameters) {
   // `vTaskDelay`, we use a separate variable to track the delay in increments
   // of 1s.
   while (true) {
-    if (display->state->loop_seconds >= display->state->fetch_interval) {
-      // if wifi is not connected, skip fetch
-      if (display->state->invalid_wifi_state) {
-        display->state->loop_seconds = 0;
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        continue;
-      }
-
-      if (fetch_commands(display) == ESP_OK) {
-        display->state->loop_seconds = 0;
-        display->state->fetch_failure_count = 0;
-      } else {
-        // try again in 5 seconds if possible, otherwise 1 second
-        if (display->state->fetch_interval >= 5) {
-          display->state->loop_seconds = display->state->fetch_interval - 5;
+    // if wifi is not connected, skip fetch
+    if (!display->state->invalid_wifi_state) {
+      if (display->state->remote_state_seconds >= 300) {
+        if (state_fetch_remote(display->state) != ESP_OK) {
+          display->state->invalid_remote_state = true;
+          ESP_LOGE(TAG, "Failed to fetch remote state");
         } else {
-          display->state->loop_seconds = display->state->fetch_interval;
+          display->state->invalid_remote_state = false;
+          ESP_LOGD(TAG, "Pointing to \"%s\"", display->state->command_endpoint);
+          ESP_LOGD(TAG, "Fetch interval \"%u\"",
+                   display->state->fetch_interval);
         }
 
-        display->state->fetch_failure_count++;
-        if (display->state->fetch_failure_count > 5) {
-          display->state->invalid_commands = true;
-        }
+        display->state->remote_state_seconds = 0;
+      } else {
+        display->state->remote_state_seconds++;
       }
-    } else {
-      display->state->loop_seconds++;
+
+      if (display->state->fetch_loop_seconds >=
+          display->state->fetch_interval) {
+        if (fetch_commands(display) == ESP_OK) {
+          display->state->fetch_loop_seconds = 0;
+          display->state->fetch_failure_count = 0;
+        } else {
+          // try again in 5 seconds if possible, otherwise 1 second
+          if (display->state->fetch_interval >= 5) {
+            display->state->fetch_loop_seconds =
+                display->state->fetch_interval - 5;
+          } else {
+            display->state->fetch_loop_seconds = display->state->fetch_interval;
+          }
+
+          display->state->fetch_failure_count++;
+          if (display->state->fetch_failure_count > 5) {
+            display->state->invalid_commands = true;
+          }
+        }
+      } else {
+        display->state->fetch_loop_seconds++;
+      }
     }
 
     vTaskDelay(1000 / portTICK_PERIOD_MS);
@@ -363,18 +376,6 @@ void display_end(display_handle_t display) {
 }
 
 esp_err_t display_start(display_handle_t display) {
-  if (state_fetch_remote(display->state) != ESP_OK) {
-    display->state->invalid_remote_state = true;
-    ESP_LOGE(TAG, "Failed to fetch remote state");
-  }
-
-  if (display->state->is_dev_mode) {
-    ESP_LOGI(TAG, "Running in dev mode");
-  }
-
-  ESP_LOGI(TAG, "Pointing to \"%s\"", display->state->command_endpoint);
-  ESP_LOGI(TAG, "Fetch interval \"%u\"", display->state->fetch_interval);
-
   BaseType_t taskCreate;
   taskCreate = xTaskCreatePinnedToCore(animation_task, ANIMATION_TASK_NAME,
                                        4096, display, tskIDLE_PRIORITY + 2,
