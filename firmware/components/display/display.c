@@ -109,10 +109,24 @@ void apply_command_list(display_handle_t display,
       char timeString[8];
       time_util_info_t time_info;
       time_util_get(&time_info);
-      snprintf(timeString, sizeof(timeString), "%u:%02u %s", time_info.hour12,
-               time_info.minute, time_info.isPM ? "PM" : "AM");
-
+      // draw the time in HH:MM format
+      snprintf(timeString, sizeof(timeString), "%u:%02u", time_info.hour12,
+               time_info.minute);
       display_buffer_draw_string(display->display_buffer, timeString);
+      // move one character for a "space"
+      display_buffer_next_char_wrap(display->display_buffer);
+      // if we're on a LG font size, we're unable to fit `XX:XX XX` without line
+      // wrapping. We just need 1 pixel to fit, so we will try to take that from
+      // the space between the time and AM/PM.
+      // We will only do this if the existing string didn't cause a wrap.
+      if (display->display_buffer->font->size == FONT_SIZE_LG &&
+          time_info.hour12 > 9 && display->display_buffer->cursor.x > 0) {
+        display->display_buffer->cursor.x -= 1;
+      }
+      // now draw AM/PM
+      snprintf(timeString, 3, "%s", time_info.isPM ? "PM" : "AM");
+      display_buffer_draw_string(display->display_buffer, timeString);
+
       break;
     }
     case COMMAND_TYPE_DATE: {

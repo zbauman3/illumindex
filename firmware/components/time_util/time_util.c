@@ -44,6 +44,9 @@ void time_util_get(time_util_info_t *time_info) {
   time_info->second = cTimeinfo.tm_sec;
   time_info->minute = cTimeinfo.tm_min;
   time_info->hour12 = cTimeinfo.tm_hour % 12;
+  if (time_info->hour12 == 0) {
+    time_info->hour12 = 12;
+  }
   time_info->isPM = cTimeinfo.tm_hour >= 12;
   time_info->hour24 = cTimeinfo.tm_hour;
   time_info->dayOfMonth = cTimeinfo.tm_mday;
