@@ -11,8 +11,7 @@
 
 const static char *TAG = "GFX:DISPLAY_BUFFER";
 
-// allocates all memory required for the display_buffer_t and initiates the
-// values
+// allocates all memory required for the display buffer
 esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
                               uint8_t height) {
   display_buffer_handle_t db =
@@ -31,7 +30,6 @@ esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
   db->buffer_red = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   db->buffer_green = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
   db->buffer_blue = (uint8_t *)malloc(sizeof(uint8_t) * db->length);
-
   if (db->buffer_red == NULL || db->buffer_green == NULL ||
       db->buffer_blue == NULL) {
     ESP_LOGE(TAG, "Failed to allocate memory for display buffer colors");
@@ -44,7 +42,14 @@ esp_err_t display_buffer_init(display_buffer_handle_t *db_handle, uint8_t width,
 
   display_buffer_clear(db);
 
-  ESP_ERROR_BUBBLE(font_init(&db->font));
+  if (font_init(&db->font) != ESP_OK) {
+    ESP_LOGE(TAG, "Failed to initialize font for display buffer");
+    free(db->buffer_red);
+    free(db->buffer_green);
+    free(db->buffer_blue);
+    free(db);
+    return ESP_FAIL;
+  }
 
   *db_handle = db;
 
@@ -157,6 +162,7 @@ void display_buffer_draw_vert_line(display_buffer_handle_t db, uint8_t to) {
       db->cursor.y++;
     }
   }
+
   if (display_buffer_point_is_visible(db, db->cursor.x, db->cursor.y)) {
     display_buffer_safe_set_value(
         db, display_buffer_point_to_index(db, db->cursor.x, db->cursor.y),
@@ -233,8 +239,8 @@ void display_buffer_draw_diag_line(display_buffer_handle_t db, uint8_t to_x,
   display_buffer_set_cursor(db, to_x, to_y);
 }
 
-// if you know the shape of your line already, you can save a few clocks by
-// using the above `displayBufferDrawFast*` versions
+// if you know the shape of your line already, you can save time by using the
+// above vert/horiz/diag line functions above
 void display_buffer_draw_line(display_buffer_handle_t db, uint8_t to_x,
                               uint8_t to_y) {
   if (db->cursor.x == to_x) {

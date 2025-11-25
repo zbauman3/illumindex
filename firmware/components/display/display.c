@@ -17,6 +17,7 @@ static const char *ANIMATION_TASK_NAME = "DISPLAY:ANIMATION_TASK";
 char *month_name_strings[12] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun",
                                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
 
+// applies a given command state to the display buffer
 void set_state(display_buffer_handle_t db, command_state_t *state) {
   if (state == NULL) {
     return;
@@ -36,9 +37,12 @@ void set_state(display_buffer_handle_t db, command_state_t *state) {
   }
 }
 
+// loops over the command list and applies each command to the display buffer
 void apply_command_list(display_handle_t display,
                         command_list_handle_t command_list,
                         bool is_in_animation) {
+  // since the command list node is a union, there's lots of logic here for each
+  // of the cases
   command_list_node_t *loopNode = command_list->head;
   while (loopNode != NULL) {
     switch (loopNode->command->type) {
@@ -77,12 +81,14 @@ void apply_command_list(display_handle_t display,
       break;
     }
     case COMMAND_TYPE_ANIMATION: {
+      // we don't support nested animations
       if (is_in_animation) {
         ESP_LOGW(
             TAG,
             "Nested animations are not supported. Skipping inner animation.");
         break;
       }
+
       loopNode->command->value.animation->last_show_frame++;
       if (loopNode->command->value.animation->last_show_frame >=
           loopNode->command->value.animation->frame_count) {
@@ -143,9 +149,13 @@ void apply_command_list(display_handle_t display,
   }
 }
 
+// a helper function to make sure that any other data outside of the commands is
+// also added to the display buffer, and then show it on the LED matrix
 esp_err_t build_and_show(display_handle_t display) {
+  // reset the state of the buffer
   display_buffer_clear(display->display_buffer);
   display_buffer_set_cursor(display->display_buffer, 0, 0);
+  // don't worry about color/font here. Those should be handled by the commands
 
   apply_command_list(display, display->commands, false);
 
@@ -153,13 +163,13 @@ esp_err_t build_and_show(display_handle_t display) {
       display->display_buffer, display->state->invalid_remote_state,
       display->state->invalid_commands, display->state->invalid_wifi_state);
 
-  display->commands->has_shown = true;
-
   return led_matrix_show(display->matrix, display->display_buffer->buffer_red,
                          display->display_buffer->buffer_green,
                          display->display_buffer->buffer_blue);
 }
 
+// fetches the commands from the remote endpoint and updates the display's
+// command list
 esp_err_t fetch_commands(display_handle_t display) {
   ESP_LOGD(FETCH_TASK_NAME, "FETCHING DATA");
   esp_err_t ret = ESP_OK;
@@ -170,6 +180,7 @@ esp_err_t fetch_commands(display_handle_t display) {
 
   ctx->url = display->state->command_endpoint;
   ctx->method = HTTP_METHOD_GET;
+  // if there's an existing ETag, add it to the request
   if (display->last_etag != NULL) {
     if (fetch_etag_init(&ctx->etag) == ESP_OK) {
       fetch_etag_copy(ctx->etag, display->last_etag);
@@ -191,6 +202,7 @@ esp_err_t fetch_commands(display_handle_t display) {
                     "Invalid response status code \"%d\"",
                     ctx->response->status_code);
 
+  // store the ETag for next time
   if (ctx->response->etag == NULL) {
     ESP_LOGD(FETCH_TASK_NAME, "ETag is null");
   } else {
@@ -212,8 +224,6 @@ esp_err_t fetch_commands(display_handle_t display) {
   display->commands = newCommands;
   command_list_end(oldCommands);
 
-  display->state->invalid_commands = false;
-
 fetch_commands_cleanup:
   fetch_end(ctx);
   if (ret != ESP_OK) {
@@ -222,6 +232,7 @@ fetch_commands_cleanup:
   return ret;
 }
 
+// responsible for periodically fetching the remote state and commands
 void fetch_task(void *pvParameters) {
   display_handle_t display = (display_handle_t)pvParameters;
 
@@ -229,8 +240,9 @@ void fetch_task(void *pvParameters) {
   // `vTaskDelay`, we use a separate variable to track the delay in increments
   // of 1s.
   while (true) {
-    // if wifi is not connected, skip fetch
+    // if wifi is not connected, skip for another loop
     if (!display->state->invalid_wifi_state) {
+      // refetch remote state every 5 minutes
       if (display->state->remote_state_seconds >= 300) {
         if (state_fetch_remote(display->state) != ESP_OK) {
           display->state->invalid_remote_state = true;
@@ -247,9 +259,11 @@ void fetch_task(void *pvParameters) {
         display->state->remote_state_seconds++;
       }
 
+      // fetch commands based on the fetch interval
       if (display->state->fetch_loop_seconds >=
           display->state->fetch_interval) {
         if (fetch_commands(display) == ESP_OK) {
+          display->state->invalid_commands = false;
           display->state->fetch_loop_seconds = 0;
           display->state->fetch_failure_count = 0;
         } else {
@@ -275,15 +289,17 @@ void fetch_task(void *pvParameters) {
   }
 }
 
+// responsible for periodically updating the display.
+// if there's an animation, it will update based on the animation delay.
+// if not, it will use the default value.
+//
+// periodically updating the display is required even if there's not an
+// animation to make sure that the date and time commands are updated.
 void animation_task(void *pvParameters) {
   display_handle_t display = (display_handle_t)pvParameters;
 
   while (true) {
-    // We only need to do another "show" if there is an animation that needs to
-    // be updated, or if this is a new command list
-    if (!display->commands->has_shown || display->commands->has_animation) {
-      build_and_show(display);
-    }
+    build_and_show(display);
     // max animation speed is limited by the freertos tick...
     vTaskDelay(display->commands->config.animation_delay / portTICK_PERIOD_MS);
   }
@@ -291,6 +307,8 @@ void animation_task(void *pvParameters) {
 
 esp_err_t display_init(display_handle_t *display_handle,
                        led_matrix_config_t *led_matrix_config) {
+  esp_err_t setup_res;
+
   // allocate the the display
   display_handle_t display = (display_handle_t)malloc(sizeof(display_t));
   if (display == NULL) {
@@ -303,26 +321,72 @@ esp_err_t display_init(display_handle_t *display_handle,
   display->last_etag = NULL;
 
   // setup matrix
-  ESP_ERROR_BUBBLE(led_matrix_init(&display->matrix, led_matrix_config));
-  ESP_ERROR_BUBBLE(led_matrix_start(display->matrix));
+  setup_res = led_matrix_init(&display->matrix, led_matrix_config);
+  if (setup_res != ESP_OK) {
+    free(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
+  setup_res = led_matrix_start(display->matrix);
+  if (setup_res != ESP_OK) {
+    led_matrix_end(display->matrix);
+    free(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
   // setup db
-  ESP_ERROR_BUBBLE(display_buffer_init(&display->display_buffer,
-                                       led_matrix_config->width,
-                                       led_matrix_config->height));
+  setup_res =
+      display_buffer_init(&display->display_buffer, led_matrix_config->width,
+                          led_matrix_config->height);
+  if (setup_res != ESP_OK) {
+    led_matrix_stop(display->matrix);
+    led_matrix_end(display->matrix);
+    free(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
   // setup state
-  ESP_ERROR_BUBBLE(state_init(&display->state));
+  setup_res = state_init(&display->state);
+  if (setup_res != ESP_OK) {
+    display_buffer_end(display->display_buffer);
+    led_matrix_stop(display->matrix);
+    led_matrix_end(display->matrix);
+    free(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
   // setup commands
-  ESP_ERROR_BUBBLE(command_list_init(&display->commands));
+  setup_res = command_list_init(&display->commands);
+  if (setup_res != ESP_OK) {
+    state_end(display->state);
+    display_buffer_end(display->display_buffer);
+    led_matrix_stop(display->matrix);
+    led_matrix_end(display->matrix);
+    free(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
   command_handle_t startCommand;
-  ESP_ERROR_BUBBLE(command_list_node_init(display->commands,
-                                          COMMAND_TYPE_STRING, &startCommand));
+  setup_res = command_list_node_init(display->commands, COMMAND_TYPE_STRING,
+                                     &startCommand);
+  if (setup_res != ESP_OK) {
+    display_end(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
-  ESP_ERROR_BUBBLE(command_state_init(&startCommand->value.string->state));
+  setup_res = command_state_init(&startCommand->value.string->state);
+  if (setup_res != ESP_OK) {
+    display_end(display);
+    *display_handle = NULL;
+    return setup_res;
+  }
 
+  // setup the initial "Starting" screen
   startCommand->value.string->state->color_red = 0;
   startCommand->value.string->state->color_green = 255;
   startCommand->value.string->state->color_blue = 149;
@@ -375,6 +439,7 @@ void display_end(display_handle_t display) {
   free(display);
 }
 
+// starts the display's fetch and animation tasks
 esp_err_t display_start(display_handle_t display) {
   BaseType_t taskCreate;
   taskCreate = xTaskCreatePinnedToCore(animation_task, ANIMATION_TASK_NAME,

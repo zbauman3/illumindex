@@ -264,10 +264,6 @@ esp_err_t command_list_node_init(command_list_handle_t command_list,
     command_list->tail = newNode;
   }
 
-  if (type == COMMAND_TYPE_ANIMATION) {
-    command_list->has_animation = true;
-  }
-
   return ESP_OK;
 }
 
@@ -288,8 +284,6 @@ esp_err_t command_list_init(command_list_handle_t *command_list_handle) {
 
   command_list->head = NULL;
   command_list->tail = NULL;
-  command_list->has_animation = false;
-  command_list->has_shown = false;
   command_list->config.animation_delay = COMMAND_CONFIG_ANIMATION_DELAY_DEFAULT;
 
   *command_list_handle = command_list;
@@ -407,9 +401,24 @@ void parse_and_add_config(const cJSON *json,
   const cJSON *animation_delay =
       cJSON_GetObjectItemCaseSensitive(config, "animationDelay");
 
-  if (cJSON_IsNumber(animation_delay) && animation_delay->valueint > 5 &&
-      animation_delay->valueint <= 65535) {
-    command_list->config.animation_delay = (uint16_t)animation_delay->valueint;
+  if (cJSON_IsNumber(animation_delay)) {
+    if (animation_delay->valueint < 5) {
+      ESP_LOGW(TAG,
+               "animationDelay is too low, setting to minimum value of 5ms");
+      command_list->config.animation_delay = 5;
+    } else if (animation_delay->valueint > 65535) {
+      ESP_LOGW(
+          TAG,
+          "animationDelay is too high, setting to maximum value of 65535ms");
+      command_list->config.animation_delay = 65535;
+    } else {
+      command_list->config.animation_delay =
+          (uint16_t)animation_delay->valueint;
+    }
+  } else {
+    ESP_LOGW(TAG, "animationDelay is invalid. Using default value.");
+    command_list->config.animation_delay =
+        COMMAND_CONFIG_ANIMATION_DELAY_DEFAULT;
   }
 }
 

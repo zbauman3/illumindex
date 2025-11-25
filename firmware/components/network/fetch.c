@@ -125,6 +125,7 @@ static esp_err_t event_handler(esp_http_client_event_t *evt) {
 
 // init a fetch context. The caller is responsible for setting the values after
 // initialization.
+// this does not init the `ctx->url`. That is the responsibility of the caller.
 esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle) {
   fetch_ctx_handle_t ctx = (fetch_ctx_handle_t)malloc(sizeof(fetch_ctx_t));
   if (ctx == NULL) {
@@ -149,6 +150,7 @@ esp_err_t fetch_init(fetch_ctx_handle_t *ctx_handle) {
   return ESP_OK;
 }
 
+// this does not free the `ctx->url`. That is the responsibility of the caller.
 esp_err_t fetch_end(fetch_ctx_handle_t ctx) {
   fetch_etag_end(&ctx->response->etag);
   fetch_etag_end(&ctx->etag);

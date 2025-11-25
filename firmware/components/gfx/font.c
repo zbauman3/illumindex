@@ -5,7 +5,8 @@
 
 static const char *TAG = "GFX:FONT";
 
-const static uint32_t ascii_8_12[] = {
+// 8X12 ascii font data
+const static uint32_t ascii_8_12[285] = {
     0x00000000, 0x00000000, 0x00000000, //
     0x00307878, 0x78303000, 0x30300000, // !
     0x00666666, 0x24000000, 0x00000000, // "
@@ -103,7 +104,8 @@ const static uint32_t ascii_8_12[] = {
     0x0073DACE, 0x00000000, 0x00000000, // ~
 };
 
-const static uint16_t ascii_6_8[] = {
+// 6X8 ascii font data
+const static uint16_t ascii_6_8[285] = {
     0x0000, 0x0000, 0x0000, // Space
     0x10E3, 0x8410, 0x0100, // !
     0x6DB4, 0x8000, 0x0000, // "
@@ -201,7 +203,8 @@ const static uint16_t ascii_6_8[] = {
     0x2940, 0x0000, 0x0000, // ~
 };
 
-const static uint8_t ascii_4_6[] = {
+// 4X6 ascii font data
+const static uint8_t ascii_4_6[285] = {
     0x00, 0x00, 0x00, // Space
     0x66, 0x60, 0x60, // !
     0x55, 0x00, 0x00, // "

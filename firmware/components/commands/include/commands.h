@@ -153,8 +153,6 @@ typedef struct command_list_node_t {
 } command_list_node_t;
 
 typedef struct command_list_t {
-  bool has_animation;
-  bool has_shown;
   command_config_t config;
   command_list_node_t *head;
   command_list_node_t *tail;
@@ -163,12 +161,10 @@ typedef struct command_list_t {
 typedef command_list_t *command_list_handle_t;
 
 esp_err_t command_state_init(command_state_t **state_handle);
-
 esp_err_t command_list_init(command_list_handle_t *command_list_handle);
 esp_err_t command_list_node_init(command_list_handle_t command_list,
                                  command_type_enum_t type,
                                  command_handle_t *command_handle);
 void command_list_end(command_list_handle_t command_list);
-
 esp_err_t command_list_parse(command_list_handle_t *command_list_handle,
                              char *data, size_t length);

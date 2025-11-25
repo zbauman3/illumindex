@@ -67,8 +67,11 @@ typedef struct {
   uint8_t height;
   uint16_t length;
   font_handle_t font;
+  // current drawing color red
   uint8_t color_red;
+  // current drawing color green
   uint8_t color_green;
+  // current drawing color blue
   uint8_t color_blue;
   struct {
     uint8_t x;

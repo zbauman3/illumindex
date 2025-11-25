@@ -45,7 +45,7 @@ const main = async () => {
     execSync(varCommand, { stdio: "inherit" })
   }
 
-  const redeployCommand = `npx vercel redeploy --no-wait ${deployment}`
+  const redeployCommand = `npx vercel redeploy ${deployment}`
   console.log(redeployCommand)
   execSync(redeployCommand, { stdio: "inherit" })
 }

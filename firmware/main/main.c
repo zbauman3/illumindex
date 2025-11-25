@@ -53,25 +53,30 @@ esp_err_t app_init() {
   // init the display first to show the startup screen.
   ESP_ERROR_BUBBLE(display_init(&display, &led_matrix_config));
 
-  ESP_ERROR_BUBBLE(wifi_init(display->state));
+  if (wifi_init(display->state) != ESP_OK) {
+    display_end(display);
+    return init_ret;
+  }
 
-  ESP_ERROR_BUBBLE(time_util_init());
+  if (time_util_init() != ESP_OK) {
+    display_end(display);
+    return ESP_FAIL;
+  }
 
-  ESP_ERROR_BUBBLE(display_start(display));
+  if (display_start(display) != ESP_OK) {
+    display_end(display);
+    return ESP_FAIL;
+  }
 
   return ESP_OK;
 }
 
 void app_main(void) {
   if (app_init() != ESP_OK) {
-    // we're about to restart so ending isn't required. But do it here to stop
-    // using any of the larger resources.
-    display_end(display);
-
     ESP_LOGE(TAG, "Failed to initiate the application - restarting");
+
     vTaskDelay(5000 / portTICK_PERIOD_MS);
 
     esp_restart();
-    return;
   }
 }

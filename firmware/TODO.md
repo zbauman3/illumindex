@@ -1,4 +1,2 @@
-- `main/lib/commands.c`
-  - Comments for functions
-  - _some_ tests
-  - fine-tune IRAM usage
+- _some_ tests
+- fine-tune IRAM usage
