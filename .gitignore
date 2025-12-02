@@ -8,3 +8,4 @@ sdkconfig.old
 hardware/*
 !hardware/*_sch
 !hardware/*.step
+!hardware/*.png
