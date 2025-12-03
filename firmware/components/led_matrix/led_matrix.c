@@ -113,15 +113,13 @@ static bool IRAM_ATTR led_matrix_timer_callback(
   // this to re-run immediately.
   gptimer_stop(matrix->timer);
 
-  // increment which bit we're on for each pixel
-  // if we roll over the bit, increment the row
-  // if we roll over the row, go back to the first row
-  matrix->bitNum++;
-  if (matrix->bitNum >= LED_MATRIX_BIT_DEPTH) {
-    matrix->bitNum = 0;
-    matrix->rowNum++;
-    if (matrix->rowNum >= matrix->halfHeight) {
-      matrix->rowNum = 0;
+  // cycle through rows and bits
+  matrix->rowNum++;
+  if (matrix->rowNum >= matrix->halfHeight) {
+    matrix->rowNum = 0;
+    matrix->bitNum++;
+    if (matrix->bitNum >= LED_MATRIX_BIT_DEPTH) {
+      matrix->bitNum = 0;
     }
   }
 
@@ -137,18 +135,15 @@ static bool IRAM_ATTR led_matrix_timer_callback(
   // blank screen
   gpio_ll_set_level(&GPIO, matrix->pins->oe, 1);
 
-  // saves some cycles by not updating the address unless we changed rows
-  if (matrix->bitNum == 0) {
-    // set new address.
-    gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
-    gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
-    gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
-    gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
-    // for this project, it's always 5 bits, but this is here incase I ever
-    // reuse the logic
-    if (matrix->fiveBitAddress) {
-      gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
-    }
+  // set new address.
+  gpio_ll_set_level(&GPIO, matrix->pins->a0, matrix->rowNum & 0b00001);
+  gpio_ll_set_level(&GPIO, matrix->pins->a1, matrix->rowNum & 0b00010);
+  gpio_ll_set_level(&GPIO, matrix->pins->a2, matrix->rowNum & 0b00100);
+  gpio_ll_set_level(&GPIO, matrix->pins->a3, matrix->rowNum & 0b01000);
+  // for this project, it's always 5 bits, but this is here incase I ever
+  // reuse the logic
+  if (matrix->fiveBitAddress) {
+    gpio_ll_set_level(&GPIO, matrix->pins->a4, matrix->rowNum & 0b10000);
   }
 
   // latch, then reset all bundle outputs
