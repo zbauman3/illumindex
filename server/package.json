@@ -13,7 +13,7 @@
     "devMode:clear": "npx tsx --env-file=.env.local ./src/scripts/updateEnv.ts clear"
   },
   "dependencies": {
-    "next": "15.1.7",
+    "next": "15.1.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "redis": "^4.7.0",
